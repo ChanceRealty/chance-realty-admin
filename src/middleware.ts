@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { verifyToken } from '@/lib/auth'
+import { jwtVerify } from 'jose'
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
 	console.log('Middleware: Processing request for', request.nextUrl.pathname)
 
 	const token = request.cookies.get('token')?.value
@@ -15,15 +15,29 @@ export function middleware(request: NextRequest) {
 		}
 
 		try {
-			const decoded = verifyToken(token)
-			console.log('Middleware: Token decoded:', decoded)
+			const JWT_SECRET = process.env.NEXT_PUBLIC_JWT_SECRET
+			console.log('Middleware: JWT_SECRET exists?', !!JWT_SECRET)
 
-			if (!decoded || decoded.role !== 'admin') {
+			if (!JWT_SECRET) {
+				console.error('Middleware: JWT_SECRET is not defined')
+				return NextResponse.redirect(new URL('/login', request.url))
+			}
+
+			// Convert the secret to Uint8Array as required by jose
+			const secret = new TextEncoder().encode(JWT_SECRET)
+
+			// Verify the token
+			const { payload } = await jwtVerify(token, secret)
+
+			console.log('Middleware: Token decoded successfully:', payload)
+
+			if (!payload || payload.role !== 'admin') {
 				console.log('Middleware: Invalid token or not admin, redirecting')
 				return NextResponse.redirect(new URL('/login', request.url))
 			}
 
 			console.log('Middleware: Valid admin token, allowing access')
+			return NextResponse.next()
 		} catch (error) {
 			console.error('Middleware: Token verification error:', error)
 			return NextResponse.redirect(new URL('/login', request.url))

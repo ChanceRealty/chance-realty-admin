@@ -34,9 +34,7 @@ export default function LoginPage() {
 				throw new Error(data.error || 'Failed to login')
 			}
 
-			router.push('/admin')
-
-
+						router.push('/admin')
 
 		} catch (err) {
 			console.error('Login error:', err) 
