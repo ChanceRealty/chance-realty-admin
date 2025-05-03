@@ -5,6 +5,47 @@ import { jwtVerify } from 'jose'
 export async function middleware(request: NextRequest) {
 	console.log('Middleware: Processing request for', request.nextUrl.pathname)
 
+	if (request.nextUrl.pathname.startsWith('/api/')) {
+		// Get the origin from the request
+		const origin = request.headers.get('origin') || '*'
+
+		// Define allowed origins
+		const allowedOrigins = [
+			'http://localhost:3001',
+			'https://your-frontend-domain.com',
+		]
+		const allowOrigin = allowedOrigins.includes(origin) ? origin : '*'
+
+		// Handle preflight requests
+		if (request.method === 'OPTIONS') {
+			return new NextResponse(null, {
+				status: 204,
+				headers: {
+					'Access-Control-Allow-Origin': allowOrigin,
+					'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+					'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+					'Access-Control-Max-Age': '86400',
+				},
+			})
+		}
+
+		// For actual requests, we'll add CORS headers to the response
+		const response = NextResponse.next()
+		response.headers.set('Access-Control-Allow-Origin', allowOrigin)
+		response.headers.set(
+			'Access-Control-Allow-Methods',
+			'GET, POST, PUT, DELETE, OPTIONS'
+		)
+		response.headers.set(
+			'Access-Control-Allow-Headers',
+			'Content-Type, Authorization'
+		)
+
+		// Continue with the response
+		return response
+	}
+
+
 	const token = request.cookies.get('token')?.value
 	console.log('Middleware: Token exists?', !!token)
 
@@ -48,5 +89,8 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-	matcher: '/admin/:path*',
+	matcher: [
+		'/admin/:path*',
+		'/api/:path*', // Add API routes to the matcher
+	],
 }
