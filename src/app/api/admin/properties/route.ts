@@ -6,6 +6,7 @@ import { sql } from '@vercel/postgres'
 import { writeFile } from 'fs/promises'
 import { join } from 'path'
 import { PropertyType } from '@/types/property'
+import * as fs from 'fs'
 
 export async function POST(request: Request) {
 	try {
@@ -191,7 +192,6 @@ export async function POST(request: Request) {
 			const uploadDir = join(process.cwd(), 'public', 'uploads', 'properties')
 
 			// Create upload directory if it doesn't exist
-			const fs = require('fs')
 			if (!fs.existsSync(uploadDir)) {
 				fs.mkdirSync(uploadDir, { recursive: true })
 			}
@@ -253,7 +253,7 @@ export async function POST(request: Request) {
 }
 
 // Get all properties for admin
-export async function GET(request: Request) {
+export async function GET() {
 	try {
 		// Verify admin authentication
 		const cookieStore = cookies()

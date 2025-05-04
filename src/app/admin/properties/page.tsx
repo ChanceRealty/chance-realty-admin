@@ -9,6 +9,7 @@ import {
   Plus, Search, Edit, Trash2, Eye, Home, 
   Building2, Landmark, Trees 
 } from 'lucide-react'
+import Image from 'next/image'
 
 interface PropertyListItem {
   id: number
@@ -166,85 +167,104 @@ export default function PropertiesListPage() {
                 filteredProperties.map((property) => {
                   const Icon = propertyTypeIcons[property.property_type as keyof typeof propertyTypeIcons] || Home
                   return (
-                    <tr key={property.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="h-10 w-10 flex-shrink-0">
-                            {property.primary_image ? (
-                              <img
-                                className="h-10 w-10 rounded-lg object-cover"
-                                src={property.primary_image}
-                                alt={property.title}
-                              />
-                            ) : (
-                              <div className="h-10 w-10 rounded-lg bg-gray-200 flex items-center justify-center">
-                                <Icon className="h-5 w-5 text-gray-500" />
-                              </div>
-                            )}
-                          </div>
-                          <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900">
-                              {property.title}
-                            </div>
-                            <div className="text-sm text-gray-500">
-                              {property.user_email}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <Icon className="h-4 w-4 text-gray-400 mr-2" />
-                          <span className="text-sm text-gray-900">
-                            {property.property_type.charAt(0).toUpperCase() + property.property_type.slice(1)}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{property.city_name}</div>
-                        <div className="text-sm text-gray-500">{property.state_name}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {formatPrice(property.price)}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {property.listing_type.replace('_', ' ')}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(property.status)}`}>
-                          {property.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <div className="flex items-center">
-                          <Eye className="h-4 w-4 text-gray-400 mr-1" />
-                          {property.views}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() => router.push(`/admin/properties/${property.id}/edit`)}
-                            className="text-indigo-600 hover:text-indigo-900"
-                          >
-                            <Edit className="h-5 w-5" />
-                          </button>
-                          <button
-                            onClick={() => {
-                              if (confirm('Are you sure you want to delete this property?')) {
-                                // Handle delete
-                              }
-                            }}
-                            className="text-red-600 hover:text-red-900"
-                          >
-                            <Trash2 className="h-5 w-5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  )
+										<tr key={property.id} className='hover:bg-gray-50'>
+											<td className='px-6 py-4 whitespace-nowrap'>
+												<div className='flex items-center'>
+													<div className='h-10 w-10 flex-shrink-0'>
+														{property.primary_image ? (
+															<Image
+																src={property.primary_image}
+																alt={property.title}
+																width={40}
+																height={40}
+																className='h-10 w-10 rounded-lg object-cover'
+															/>
+														) : (
+															<div className='h-10 w-10 rounded-lg bg-gray-200 flex items-center justify-center'>
+																<Icon className='h-5 w-5 text-gray-500' />
+															</div>
+														)}
+													</div>
+													<div className='ml-4'>
+														<div className='text-sm font-medium text-gray-900'>
+															{property.title}
+														</div>
+														<div className='text-sm text-gray-500'>
+															{property.user_email}
+														</div>
+													</div>
+												</div>
+											</td>
+											<td className='px-6 py-4 whitespace-nowrap'>
+												<div className='flex items-center'>
+													<Icon className='h-4 w-4 text-gray-400 mr-2' />
+													<span className='text-sm text-gray-900'>
+														{property.property_type.charAt(0).toUpperCase() +
+															property.property_type.slice(1)}
+													</span>
+												</div>
+											</td>
+											<td className='px-6 py-4 whitespace-nowrap'>
+												<div className='text-sm text-gray-900'>
+													{property.city_name}
+												</div>
+												<div className='text-sm text-gray-500'>
+													{property.state_name}
+												</div>
+											</td>
+											<td className='px-6 py-4 whitespace-nowrap'>
+												<div className='text-sm text-gray-900'>
+													{formatPrice(property.price)}
+												</div>
+												<div className='text-sm text-gray-500'>
+													{property.listing_type.replace('_', ' ')}
+												</div>
+											</td>
+											<td className='px-6 py-4 whitespace-nowrap'>
+												<span
+													className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(
+														property.status
+													)}`}
+												>
+													{property.status}
+												</span>
+											</td>
+											<td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
+												<div className='flex items-center'>
+													<Eye className='h-4 w-4 text-gray-400 mr-1' />
+													{property.views}
+												</div>
+											</td>
+											<td className='px-6 py-4 whitespace-nowrap text-sm font-medium'>
+												<div className='flex space-x-2'>
+													<button
+														onClick={() =>
+															router.push(
+																`/admin/properties/${property.id}/edit`
+															)
+														}
+														className='text-indigo-600 hover:text-indigo-900'
+													>
+														<Edit className='h-5 w-5' />
+													</button>
+													<button
+														onClick={() => {
+															if (
+																confirm(
+																	'Are you sure you want to delete this property?'
+																)
+															) {
+																// Handle delete
+															}
+														}}
+														className='text-red-600 hover:text-red-900'
+													>
+														<Trash2 className='h-5 w-5' />
+													</button>
+												</div>
+											</td>
+										</tr>
+									)
                 })
               )}
             </tbody>

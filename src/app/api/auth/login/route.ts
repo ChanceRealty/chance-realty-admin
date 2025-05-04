@@ -42,8 +42,7 @@ export async function POST(request: Request) {
 			)
 		}
 
-		const { password: _password, ...userWithoutPassword } = user
-		
+		const { password: _, ...userWithoutPassword } = user		
 		console.log('Generating token...')
 		let token
 		try {

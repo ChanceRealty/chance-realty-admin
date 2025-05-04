@@ -22,6 +22,7 @@ import {
 	MapPin,
 	Image as ImageIcon,
 } from 'lucide-react'
+import Image from 'next/image'
 
 export default function AddPropertyPage() {
 	const router = useRouter()
@@ -1253,9 +1254,11 @@ export default function AddPropertyPage() {
 								<div className='grid grid-cols-2 md:grid-cols-4 gap-4'>
 									{imagePreviews.map((preview, index) => (
 										<div key={`image-${index}`} className='relative group'>
-											<img
+											<Image
 												src={preview}
 												alt={`Property ${index + 1}`}
+												width={320}
+												height={128}
 												className='w-full h-32 object-cover rounded-lg'
 											/>
 											<div className='absolute inset-0 bg-black bg-opacity-40 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center space-x-2'>
