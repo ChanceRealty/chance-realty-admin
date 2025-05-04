@@ -2,7 +2,6 @@
 import { NextResponse } from 'next/server'
 import {
 	getPropertyByCustomId,
-	getPropertyById,
 	incrementPropertyViews,
 } from '@/services/propertyService'
 

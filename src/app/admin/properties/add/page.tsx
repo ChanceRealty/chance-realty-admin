@@ -20,8 +20,6 @@ import {
 	X,
 	Upload,
 	MapPin,
-	DollarSign,
-	FileText,
 	Image as ImageIcon,
 } from 'lucide-react'
 
@@ -53,49 +51,73 @@ export default function AddPropertyPage() {
 	})
 
 	// Property type specific attributes
-	const [attributes, setAttributes] = useState<Record<string, any>>({
-		// House & Apartment
-		bedrooms: '',
-		bathrooms: '',
-		area_sqft: '',
-		year_built: '',
-
-		// House specific
-		lot_size_sqft: '',
-		floors: '',
-		garage_spaces: '',
-		basement: false,
-		heating_type: '',
-		cooling_type: '',
-		roof_type: '',
-
-		// Apartment specific
-		floor: '',
-		total_floors: '',
-		unit_number: '',
-		building_name: '',
-		parking_spaces: '',
-		balcony: false,
-		elevator: false,
-		security_system: false,
-		pet_friendly: false,
-
-		// Commercial specific
-		business_type: '',
-		loading_dock: false,
-		zoning_type: '',
-		ceiling_height: '',
-
-		// Land specific
-		area_acres: '',
-		topography: '',
-		road_access: false,
-		utilities_available: false,
-		is_fenced: false,
-		soil_type: '',
-		water_rights: false,
-		mineral_rights: false,
-	})
+  const [attributes, setAttributes] = useState<{
+    bedrooms: string
+    bathrooms: string
+    area_sqft: string
+    year_built: string
+    lot_size_sqft: string
+    floors: string
+    garage_spaces: string
+    basement: boolean
+    heating_type: string
+    cooling_type: string
+    roof_type: string
+    floor: string
+    total_floors: string
+    unit_number: string
+    building_name: string
+    parking_spaces: string
+    balcony: boolean
+    elevator: boolean
+    security_system: boolean
+    pet_friendly: boolean
+    business_type: string
+    loading_dock: boolean
+    zoning_type: string
+    ceiling_height: string
+    area_acres: string
+    topography: string
+    road_access: boolean
+    utilities_available: boolean
+    is_fenced: boolean
+    soil_type: string
+    water_rights: boolean
+    mineral_rights: boolean
+  }>({
+	bedrooms: '',
+	bathrooms: '',
+	area_sqft: '',
+	year_built: '',
+	lot_size_sqft: '',
+	floors: '',
+	garage_spaces: '',
+	basement: false,
+	heating_type: '',
+	cooling_type: '',
+	roof_type: '',
+	floor: '',
+	total_floors: '',
+	unit_number: '',
+	building_name: '',
+	parking_spaces: '',
+	balcony: false,
+	elevator: false,
+	security_system: false,
+	pet_friendly: false,
+	business_type: '',
+	loading_dock: false,
+	zoning_type: '',
+	ceiling_height: '',
+	area_acres: '',
+	topography: '',
+	road_access: false,
+	utilities_available: false,
+	is_fenced: false,
+	soil_type: '',
+	water_rights: false,
+	mineral_rights: false,
+  });
 
 	// Image handling
 	const [images, setImages] = useState<File[]>([])
@@ -151,7 +173,7 @@ export default function AddPropertyPage() {
 
 		if (type === 'checkbox') {
 			const checked = (e.target as HTMLInputElement).checked
-			setAttributes((prev: Record<string, any>) => ({ ...prev, [name]: checked }))
+			setAttributes(prev => ({ ...prev, [name]: checked }))
 		} else {
 			setAttributes(prev => ({ ...prev, [name]: value }))
 		}
@@ -207,8 +229,8 @@ export default function AddPropertyPage() {
 			}
 
 			// Clean attributes based on property type
-			const cleanedAttributes = {}
-			switch (formData.property_type) {
+				const cleanedAttributes: Record<string, unknown> = {}			
+				switch (formData.property_type) {
 				case 'house':
 					Object.assign(cleanedAttributes, {
 						bedrooms: parseInt(attributes.bedrooms),
@@ -354,93 +376,87 @@ export default function AddPropertyPage() {
 									placeholder='Enter property title'
 								/>
 							</div>
-							</div>
-							
+						</div>
 
-							<div className='md:col-span-2'>
+						<div className='md:col-span-2'>
+							<label className='block text-sm font-medium text-gray-700 mb-2'>
+								Description
+							</label>
+							<textarea
+								name='description'
+								value={formData.description}
+								onChange={handleInputChange}
+								rows={4}
+								className='w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+								placeholder='Enter property description'
+							/>
+						</div>
+
+						<div>
+							<label className='block text-sm font-medium text-gray-700 mb-2'>
+								Property Type
+							</label>
+							<div className='grid grid-cols-2 gap-2'>
+								{(
+									['house', 'apartment', 'commercial', 'land'] as PropertyType[]
+								).map(type => {
+									const Icon = propertyTypeIcons[type]
+									return (
+										<button
+											key={type}
+											type='button'
+											onClick={() =>
+												setFormData(prev => ({
+													...prev,
+													property_type: type,
+												}))
+											}
+											className={`flex items-center justify-center p-3 border rounded-lg ${
+												formData.property_type === type
+													? 'border-blue-500 bg-blue-50 text-blue-600'
+													: 'border-gray-300 text-gray-700 hover:bg-gray-50'
+											}`}
+										>
+											<Icon className='w-5 h-5 mr-2' />
+											{type.charAt(0).toUpperCase() + type.slice(1)}
+										</button>
+									)
+								})}
+							</div>
+						</div>
+						<div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
+							<div>
 								<label className='block text-sm font-medium text-gray-700 mb-2'>
-									Description
+									Property ID
 								</label>
-								<textarea
-									name='description'
-									value={formData.description}
+								<input
+									type='text'
+									name='custom_id'
+									value={formData.custom_id}
 									onChange={handleInputChange}
-									rows={4}
+									required
 									className='w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-									placeholder='Enter property description'
+									placeholder='e.g., GL100'
 								/>
+								<p className='mt-1 text-sm text-gray-500'>
+									This ID will be used in the property URL
+								</p>
 							</div>
 
 							<div>
 								<label className='block text-sm font-medium text-gray-700 mb-2'>
-									Property Type
+									Property Title
 								</label>
-								<div className='grid grid-cols-2 gap-2'>
-									{(
-										[
-											'house',
-											'apartment',
-											'commercial',
-											'land',
-										] as PropertyType[]
-									).map(type => {
-										const Icon = propertyTypeIcons[type]
-										return (
-											<button
-												key={type}
-												type='button'
-												onClick={() =>
-													setFormData(prev => ({
-														...prev,
-														property_type: type,
-													}))
-												}
-												className={`flex items-center justify-center p-3 border rounded-lg ${
-													formData.property_type === type
-														? 'border-blue-500 bg-blue-50 text-blue-600'
-														: 'border-gray-300 text-gray-700 hover:bg-gray-50'
-												}`}
-											>
-												<Icon className='w-5 h-5 mr-2' />
-												{type.charAt(0).toUpperCase() + type.slice(1)}
-											</button>
-										)
-									})}
-								</div>
+								<input
+									type='text'
+									name='title'
+									value={formData.title}
+									onChange={handleInputChange}
+									required
+									className='w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+									placeholder='Enter property title'
+								/>
 							</div>
-							<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Property ID
-                </label>
-                <input
-                  type="text"
-                  name="custom_id"
-                  value={formData.custom_id}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="e.g., GL100"
-                />
-                <p className="mt-1 text-sm text-gray-500">
-                  This ID will be used in the property URL
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Property Title
-                </label>
-                <input
-                  type="text"
-                  name="title"
-                  value={formData.title}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Enter property title"
-                />
-              </div>
 
 							<div>
 								<label className='block text-sm font-medium text-gray-700 mb-2'>
@@ -1236,7 +1252,7 @@ export default function AddPropertyPage() {
 								</label>
 								<div className='grid grid-cols-2 md:grid-cols-4 gap-4'>
 									{imagePreviews.map((preview, index) => (
-										<div key={index} className='relative group'>
+										<div key={`image-${index}`} className='relative group'>
 											<img
 												src={preview}
 												alt={`Property ${index + 1}`}

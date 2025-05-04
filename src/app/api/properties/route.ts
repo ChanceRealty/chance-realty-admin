@@ -1,7 +1,7 @@
 // src/app/api/properties/route.ts
 import { NextResponse } from 'next/server'
-import { getProperties, getPropertyFeatures } from '@/services/propertyService'
-import { PropertyFilter } from '@/types/property'
+import { getProperties } from '@/services/propertyService'
+import { ListingType, PropertyFilter, PropertyType } from '@/types/property'
 
 function corsResponse(response: NextResponse) {
 	response.headers.set('Access-Control-Allow-Origin', '*')
@@ -25,8 +25,10 @@ export async function GET(request: Request) {
 		const { searchParams } = new URL(request.url)
 
 		const filter: PropertyFilter = {
-			property_type: searchParams.get('property_type') as any,
-			listing_type: searchParams.get('listing_type') as any,
+			property_type: searchParams.get('property_type') as
+				| PropertyType
+				| undefined,
+			listing_type: searchParams.get('listing_type') as ListingType | undefined,
 			state_id: searchParams.get('state_id')
 				? parseInt(searchParams.get('state_id')!)
 				: undefined,
@@ -54,8 +56,12 @@ export async function GET(request: Request) {
 			features: searchParams.get('features')
 				? searchParams.get('features')!.split(',').map(Number)
 				: undefined,
-			sort_by: searchParams.get('sort_by') as any,
-			sort_order: searchParams.get('sort_order') as any,
+			sort_by: searchParams.get('sort_by') as
+				| 'price'
+				| 'created_at'
+				| 'views'
+				| undefined,
+			sort_order: searchParams.get('sort_order') as 'asc' | 'desc' | undefined,
 			page: searchParams.get('page') ? parseInt(searchParams.get('page')!) : 1,
 			limit: searchParams.get('limit')
 				? parseInt(searchParams.get('limit')!)

@@ -7,7 +7,7 @@ import AdminLayout from '@/components/AdminLayout'
 import Link from 'next/link'
 import { 
   Plus, Search, Edit, Trash2, Eye, Home, 
-  Building2, Landmark, Trees, DollarSign 
+  Building2, Landmark, Trees 
 } from 'lucide-react'
 
 interface PropertyListItem {

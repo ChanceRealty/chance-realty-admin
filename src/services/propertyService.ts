@@ -3,11 +3,8 @@ import { sql } from '@vercel/postgres'
 import {
 	Property,
 	PropertyFilter,
-	PropertyType,
-	BaseProperty,
 } from '@/types/property'
 
-// src/services/propertyService.ts - Update the getProperties function
 
 export async function getProperties(filter: PropertyFilter) {
   try {
