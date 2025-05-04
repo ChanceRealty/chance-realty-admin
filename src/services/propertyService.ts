@@ -169,7 +169,7 @@ export async function getProperties(filter: PropertyFilter) {
         GROUP BY property_id 
         HAVING COUNT(DISTINCT feature_id) = ${filter.features.length}
       )`
-      params.push(filter.features)
+      params.push(filter.features.map(String))
       paramIndex++
     }
 
