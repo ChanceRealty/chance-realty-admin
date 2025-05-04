@@ -1,8 +1,10 @@
 // src/services/propertyService.ts
 import { sql } from '@vercel/postgres'
 import {
+  ListingType,
 	Property,
 	PropertyFilter,
+  PropertyType,
 } from '@/types/property'
 
 
@@ -99,7 +101,7 @@ export async function getProperties(filter: PropertyFilter) {
       WHERE 1=1
     `
 
-    const params: any[] = []
+    const params: (PropertyType | ListingType | number | string | string[])[] = []
     let paramIndex = 1
 
     // Apply filters

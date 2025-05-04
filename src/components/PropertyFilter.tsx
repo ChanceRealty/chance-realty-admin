@@ -9,7 +9,6 @@ import {
 	City,
 	PropertyFeature,
 } from '@/types/property'
-import { ChevronDown } from 'lucide-react'
 
 interface PropertyFilterProps {
 	onFilterChange: (filter: FilterType) => void
@@ -51,17 +50,20 @@ export default function PropertyFilter({
 		}
 	}, [filter.state_id])
 
-	const handleFilterChange = (key: keyof FilterType, value: any) => {
-		const newFilter = { ...filter, [key]: value }
+const handleFilterChange = (
+	key: keyof FilterType,
+	value: FilterType[keyof FilterType]
+) => {
+	const newFilter = { ...filter, [key]: value }
 
-		// Reset city if state changes
-		if (key === 'state_id') {
-			newFilter.city_id = undefined
-		}
-
-		setFilter(newFilter)
-		onFilterChange(newFilter)
+	// Reset city if state changes
+	if (key === 'state_id') {
+		newFilter.city_id = undefined
 	}
+
+	setFilter(newFilter)
+	onFilterChange(newFilter)
+}
 
 	const propertyTypes: PropertyType[] = [
 		'house',
@@ -84,7 +86,7 @@ export default function PropertyFilter({
 					<select
 						value={filter.property_type || ''}
 						onChange={e =>
-							handleFilterChange('property_type', e.target.value || undefined)
+							handleFilterChange('property_type', (e.target.value as PropertyType) || undefined)
 						}
 						className='w-full border border-gray-300 rounded-md p-2'
 					>
@@ -105,7 +107,7 @@ export default function PropertyFilter({
 					<select
 						value={filter.listing_type || ''}
 						onChange={e =>
-							handleFilterChange('listing_type', e.target.value || undefined)
+							handleFilterChange('listing_type', (e.target.value as ListingType) || undefined)
 						}
 						className='w-full border border-gray-300 rounded-md p-2'
 					>

@@ -307,7 +307,7 @@ export default function AddPropertyPage() {
 			formDataToSend.append('attributes', JSON.stringify(cleanedAttributes))
 
 			// Add images
-			images.forEach((image, index) => {
+			images.forEach((image) => {
 				formDataToSend.append('images', image)
 			})
 			formDataToSend.append('primaryImageIndex', primaryImageIndex.toString())

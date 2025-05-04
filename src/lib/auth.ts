@@ -33,7 +33,7 @@ export function verifyToken(
 			email: string
 			role: string
 		}
-	} catch (error) {
+	} catch {
 		return null
 	}
 }
