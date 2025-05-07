@@ -24,49 +24,22 @@ export async function getProperties(filter: PropertyFilter) {
             'bathrooms', ha.bathrooms,
             'area_sqft', ha.area_sqft,
             'lot_size_sqft', ha.lot_size_sqft,
-            'floors', ha.floors,
-            'year_built', ha.year_built,
-            'garage_spaces', ha.garage_spaces,
-            'basement', ha.basement,
-            'heating_type', ha.heating_type,
-            'cooling_type', ha.cooling_type,
-            'roof_type', ha.roof_type
+            'floors', ha.floors
           )
           WHEN p.property_type = 'apartment' THEN json_build_object(
             'bedrooms', aa.bedrooms,
             'bathrooms', aa.bathrooms,
             'area_sqft', aa.area_sqft,
             'floor', aa.floor,
-            'total_floors', aa.total_floors,
-            'unit_number', aa.unit_number,
-            'building_name', aa.building_name,
-            'year_built', aa.year_built,
-            'parking_spaces', aa.parking_spaces,
-            'balcony', aa.balcony,
-            'elevator', aa.elevator,
-            'security_system', aa.security_system,
-            'pet_friendly', aa.pet_friendly
+            'total_floors', aa.total_floors
           )
           WHEN p.property_type = 'commercial' THEN json_build_object(
             'business_type', ca.business_type,
             'area_sqft', ca.area_sqft,
-            'floors', ca.floors,
-            'year_built', ca.year_built,
-            'parking_spaces', ca.parking_spaces,
-            'loading_dock', ca.loading_dock,
-            'zoning_type', ca.zoning_type,
-            'ceiling_height', ca.ceiling_height
+            'floors', ca.floors
           )
           WHEN p.property_type = 'land' THEN json_build_object(
-            'area_acres', la.area_acres,
-            'zoning_type', la.zoning_type,
-            'topography', la.topography,
-            'road_access', la.road_access,
-            'utilities_available', la.utilities_available,
-            'is_fenced', la.is_fenced,
-            'soil_type', la.soil_type,
-            'water_rights', la.water_rights,
-            'mineral_rights', la.mineral_rights
+            'area_acres', la.area_acres
           )
         END as attributes,
         (
@@ -212,49 +185,22 @@ export async function getPropertyByCustomId(customId: string): Promise<Property 
             'bathrooms', ha.bathrooms,
             'area_sqft', ha.area_sqft,
             'lot_size_sqft', ha.lot_size_sqft,
-            'floors', ha.floors,
-            'year_built', ha.year_built,
-            'garage_spaces', ha.garage_spaces,
-            'basement', ha.basement,
-            'heating_type', ha.heating_type,
-            'cooling_type', ha.cooling_type,
-            'roof_type', ha.roof_type
+            'floors', ha.floors
           )
           WHEN p.property_type = 'apartment' THEN json_build_object(
             'bedrooms', aa.bedrooms,
             'bathrooms', aa.bathrooms,
             'area_sqft', aa.area_sqft,
             'floor', aa.floor,
-            'total_floors', aa.total_floors,
-            'unit_number', aa.unit_number,
-            'building_name', aa.building_name,
-            'year_built', aa.year_built,
-            'parking_spaces', aa.parking_spaces,
-            'balcony', aa.balcony,
-            'elevator', aa.elevator,
-            'security_system', aa.security_system,
-            'pet_friendly', aa.pet_friendly
+            'total_floors', aa.total_floors
           )
           WHEN p.property_type = 'commercial' THEN json_build_object(
             'business_type', ca.business_type,
             'area_sqft', ca.area_sqft,
-            'floors', ca.floors,
-            'year_built', ca.year_built,
-            'parking_spaces', ca.parking_spaces,
-            'loading_dock', ca.loading_dock,
-            'zoning_type', ca.zoning_type,
-            'ceiling_height', ca.ceiling_height
+            'floors', ca.floors
           )
           WHEN p.property_type = 'land' THEN json_build_object(
-            'area_acres', la.area_acres,
-            'zoning_type', la.zoning_type,
-            'topography', la.topography,
-            'road_access', la.road_access,
-            'utilities_available', la.utilities_available,
-            'is_fenced', la.is_fenced,
-            'soil_type', la.soil_type,
-            'water_rights', la.water_rights,
-            'mineral_rights', la.mineral_rights
+            'area_acres', la.area_acres
           )
         END as attributes,
         (
@@ -315,49 +261,22 @@ export async function getPropertyById(id: number): Promise<Property | null> {
             'bathrooms', ha.bathrooms,
             'area_sqft', ha.area_sqft,
             'lot_size_sqft', ha.lot_size_sqft,
-            'floors', ha.floors,
-            'year_built', ha.year_built,
-            'garage_spaces', ha.garage_spaces,
-            'basement', ha.basement,
-            'heating_type', ha.heating_type,
-            'cooling_type', ha.cooling_type,
-            'roof_type', ha.roof_type
+            'floors', ha.floors
           )
           WHEN p.property_type = 'apartment' THEN json_build_object(
             'bedrooms', aa.bedrooms,
             'bathrooms', aa.bathrooms,
             'area_sqft', aa.area_sqft,
             'floor', aa.floor,
-            'total_floors', aa.total_floors,
-            'unit_number', aa.unit_number,
-            'building_name', aa.building_name,
-            'year_built', aa.year_built,
-            'parking_spaces', aa.parking_spaces,
-            'balcony', aa.balcony,
-            'elevator', aa.elevator,
-            'security_system', aa.security_system,
-            'pet_friendly', aa.pet_friendly
+            'total_floors', aa.total_floors
           )
           WHEN p.property_type = 'commercial' THEN json_build_object(
             'business_type', ca.business_type,
             'area_sqft', ca.area_sqft,
-            'floors', ca.floors,
-            'year_built', ca.year_built,
-            'parking_spaces', ca.parking_spaces,
-            'loading_dock', ca.loading_dock,
-            'zoning_type', ca.zoning_type,
-            'ceiling_height', ca.ceiling_height
+            'floors', ca.floors
           )
           WHEN p.property_type = 'land' THEN json_build_object(
-            'area_acres', la.area_acres,
-            'zoning_type', la.zoning_type,
-            'topography', la.topography,
-            'road_access', la.road_access,
-            'utilities_available', la.utilities_available,
-            'is_fenced', la.is_fenced,
-            'soil_type', la.soil_type,
-            'water_rights', la.water_rights,
-            'mineral_rights', la.mineral_rights
+            'area_acres', la.area_acres
           )
         END as attributes,
         (

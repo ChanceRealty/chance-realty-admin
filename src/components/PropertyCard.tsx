@@ -133,19 +133,6 @@ export default function PropertyCard({
 							</div>
 						)}
 
-						{property.property_type !== 'land' &&
-							'attributes' in property &&
-							('garage_spaces' in property.attributes ||
-								'parking_spaces' in property.attributes) && (
-								<div className='flex items-center'>
-									<Car className='w-4 h-4 mr-1' />
-									<span>
-										{'garage_spaces' in property.attributes
-											? property.attributes.garage_spaces
-											: property.attributes.parking_spaces}
-									</span>
-								</div>
-							)}
 					</div>
 				</div>
 			</Link>

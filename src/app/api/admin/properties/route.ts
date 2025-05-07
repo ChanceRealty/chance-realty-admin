@@ -84,9 +84,8 @@ export async function POST(request: Request) {
 					await sql.query(
 						`INSERT INTO house_attributes (
               property_id, bedrooms, bathrooms, area_sqft, lot_size_sqft,
-              floors, year_built, garage_spaces, basement, heating_type,
-              cooling_type, roof_type
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+              floors
+            ) VALUES ($1, $2, $3, $4, $5, $6)`,
 						[
 							propertyId,
 							attributesData.bedrooms,
@@ -94,12 +93,6 @@ export async function POST(request: Request) {
 							attributesData.area_sqft,
 							attributesData.lot_size_sqft,
 							attributesData.floors,
-							attributesData.year_built,
-							attributesData.garage_spaces,
-							attributesData.basement,
-							attributesData.heating_type,
-							attributesData.cooling_type,
-							attributesData.roof_type,
 						]
 					)
 					break
@@ -108,9 +101,8 @@ export async function POST(request: Request) {
 					await sql.query(
 						`INSERT INTO apartment_attributes (
               property_id, bedrooms, bathrooms, area_sqft, floor,
-              total_floors, unit_number, building_name, year_built,
-              parking_spaces, balcony, elevator, security_system, pet_friendly
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+              total_floors
+            ) VALUES ($1, $2, $3, $4, $5, $6)`,
 						[
 							propertyId,
 							attributesData.bedrooms,
@@ -118,14 +110,6 @@ export async function POST(request: Request) {
 							attributesData.area_sqft,
 							attributesData.floor,
 							attributesData.total_floors,
-							attributesData.unit_number,
-							attributesData.building_name,
-							attributesData.year_built,
-							attributesData.parking_spaces,
-							attributesData.balcony,
-							attributesData.elevator,
-							attributesData.security_system,
-							attributesData.pet_friendly,
 						]
 					)
 					break
@@ -133,18 +117,13 @@ export async function POST(request: Request) {
 				case 'commercial':
 					await sql.query(
 						`INSERT INTO commercial_attributes (
-              property_id, business_type, area_sqft, floors, year_built,
-              parking_spaces, loading_dock, zoning_type, ceiling_height
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+              property_id, business_type, area_sqft, floors, ceiling_height
+            ) VALUES ($1, $2, $3, $4, $5)`,
 						[
 							propertyId,
 							attributesData.business_type,
 							attributesData.area_sqft,
 							attributesData.floors,
-							attributesData.year_built,
-							attributesData.parking_spaces,
-							attributesData.loading_dock,
-							attributesData.zoning_type,
 							attributesData.ceiling_height,
 						]
 					)
@@ -153,21 +132,11 @@ export async function POST(request: Request) {
 				case 'land':
 					await sql.query(
 						`INSERT INTO land_attributes (
-              property_id, area_acres, zoning_type, topography,
-              road_access, utilities_available, is_fenced, soil_type,
-              water_rights, mineral_rights
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+              property_id, area_acres
+            ) VALUES ($1, $2)`,
 						[
 							propertyId,
 							attributesData.area_acres,
-							attributesData.zoning_type,
-							attributesData.topography,
-							attributesData.road_access,
-							attributesData.utilities_available,
-							attributesData.is_fenced,
-							attributesData.soil_type,
-							attributesData.water_rights,
-							attributesData.mineral_rights,
 						]
 					)
 					break

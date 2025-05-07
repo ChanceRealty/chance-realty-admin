@@ -241,14 +241,6 @@ export default function AddPropertyPage() {
 							? parseInt(attributes.lot_size_sqft)
 							: null,
 						floors: attributes.floors ? parseInt(attributes.floors) : null,
-						year_built: attributes.year_built
-							? parseInt(attributes.year_built)
-							: null,
-						garage_spaces: parseInt(attributes.garage_spaces) || 0,
-						basement: attributes.basement,
-						heating_type: attributes.heating_type,
-						cooling_type: attributes.cooling_type,
-						roof_type: attributes.roof_type,
 					})
 					break
 				case 'apartment':
@@ -258,16 +250,6 @@ export default function AddPropertyPage() {
 						area_sqft: parseInt(attributes.area_sqft),
 						floor: parseInt(attributes.floor),
 						total_floors: parseInt(attributes.total_floors),
-						unit_number: attributes.unit_number,
-						building_name: attributes.building_name,
-						year_built: attributes.year_built
-							? parseInt(attributes.year_built)
-							: null,
-						parking_spaces: parseInt(attributes.parking_spaces) || 0,
-						balcony: attributes.balcony,
-						elevator: attributes.elevator,
-						security_system: attributes.security_system,
-						pet_friendly: attributes.pet_friendly,
 					})
 					break
 				case 'commercial':
@@ -275,12 +257,6 @@ export default function AddPropertyPage() {
 						business_type: attributes.business_type,
 						area_sqft: parseInt(attributes.area_sqft),
 						floors: attributes.floors ? parseInt(attributes.floors) : null,
-						year_built: attributes.year_built
-							? parseInt(attributes.year_built)
-							: null,
-						parking_spaces: parseInt(attributes.parking_spaces) || 0,
-						loading_dock: attributes.loading_dock,
-						zoning_type: attributes.zoning_type,
 						ceiling_height: attributes.ceiling_height
 							? parseFloat(attributes.ceiling_height)
 							: null,
@@ -289,14 +265,6 @@ export default function AddPropertyPage() {
 				case 'land':
 					Object.assign(cleanedAttributes, {
 						area_acres: parseFloat(attributes.area_acres),
-						zoning_type: attributes.zoning_type,
-						topography: attributes.topography,
-						road_access: attributes.road_access,
-						utilities_available: attributes.utilities_available,
-						is_fenced: attributes.is_fenced,
-						soil_type: attributes.soil_type,
-						water_rights: attributes.water_rights,
-						mineral_rights: attributes.mineral_rights,
 					})
 					break
 			}
@@ -341,13 +309,30 @@ export default function AddPropertyPage() {
 		land: Trees,
 	}
 
+
+	const propertyTypeDisplay: Record<PropertyType, string> = {
+		house: 'տուն',
+		apartment: 'բնակարան',
+		commercial: 'կոմերցիոն',
+		land: 'հող',
+	}
+
+	const listingTypeDisplay: Record<ListingType, string> = {
+		sale: 'Վաճառք',
+		rent: 'Վարձակալություն',
+		daily_rent: 'Օրյա վարձակալություն',
+	}
+
+
 	return (
 		<AdminLayout>
 			<div className='max-w-4xl mx-auto'>
 				<div className='mb-8'>
-					<h1 className='text-2xl font-bold text-gray-900'>Add New Property</h1>
+					<h1 className='text-2xl font-bold text-gray-900'>
+						Ավելացնել նոր անշարժ գույք
+					</h1>
 					<p className='text-gray-500'>
-						Fill in the details to create a new property listing
+						Լրացրեք տվյալները՝ նոր անշարժ գույքի Հայտարարություն ստեղծելու համար
 					</p>
 				</div>
 
@@ -360,12 +345,14 @@ export default function AddPropertyPage() {
 				<form onSubmit={handleSubmit} className='space-y-8'>
 					{/* Basic Information */}
 					<div className='bg-white shadow rounded-lg p-6'>
-						<h2 className='text-lg font-semibold mb-6'>Basic Information</h2>
+						<h2 className='text-lg font-semibold mb-6 text-gray-700'>
+							Հիմնական տեղեկություններ
+						</h2>
 
 						<div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
 							<div className='md:col-span-2'>
 								<label className='block text-sm font-medium text-gray-700 mb-2'>
-									Property Title
+									Անուն
 								</label>
 								<input
 									type='text'
@@ -381,7 +368,7 @@ export default function AddPropertyPage() {
 
 						<div className='md:col-span-2'>
 							<label className='block text-sm font-medium text-gray-700 mb-2'>
-								Description
+								Նկարագրություն
 							</label>
 							<textarea
 								name='description'
@@ -395,7 +382,7 @@ export default function AddPropertyPage() {
 
 						<div>
 							<label className='block text-sm font-medium text-gray-700 mb-2'>
-								Property Type
+								Անշարժ գույքի տեսակը
 							</label>
 							<div className='grid grid-cols-2 gap-2'>
 								{(
@@ -419,7 +406,7 @@ export default function AddPropertyPage() {
 											}`}
 										>
 											<Icon className='w-5 h-5 mr-2' />
-											{type.charAt(0).toUpperCase() + type.slice(1)}
+											{propertyTypeDisplay[type]}
 										</button>
 									)
 								})}
@@ -428,7 +415,7 @@ export default function AddPropertyPage() {
 						<div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
 							<div>
 								<label className='block text-sm font-medium text-gray-700 mb-2'>
-									Property ID
+									Անշարժ գույքի ID
 								</label>
 								<input
 									type='text'
@@ -439,52 +426,38 @@ export default function AddPropertyPage() {
 									className='w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
 									placeholder='e.g., GL100'
 								/>
-								<p className='mt-1 text-sm text-gray-500'>
-									This ID will be used in the property URL
-								</p>
 							</div>
 
 							<div>
 								<label className='block text-sm font-medium text-gray-700 mb-2'>
-									Property Title
-								</label>
-								<input
-									type='text'
-									name='title'
-									value={formData.title}
-									onChange={handleInputChange}
-									required
-									className='w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-									placeholder='Enter property title'
-								/>
-							</div>
-
-							<div>
-								<label className='block text-sm font-medium text-gray-700 mb-2'>
-									Listing Type
+									Հայտարարության տեսակը
 								</label>
 								<select
 									name='listing_type'
 									value={formData.listing_type}
 									onChange={handleInputChange}
-									className='w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+									className='w-full border border-gray-300 text-gray-700 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
 								>
-									<option value='sale'>For Sale</option>
-									<option value='rent'>For Rent</option>
-									<option value='daily_rent'>Daily Rent</option>
+									{(Object.keys(listingTypeDisplay) as ListingType[]).map(
+										type => (
+											<option key={type} value={type}>
+												{listingTypeDisplay[type]}
+											</option>
+										)
+									)}
 								</select>
 							</div>
 
 							<div>
 								<label className='block text-sm font-medium text-gray-700 mb-2'>
-									Price
+									Գինը
 								</label>
 								<div className='flex'>
 									<select
 										name='currency'
 										value={formData.currency}
 										onChange={handleInputChange}
-										className='border border-r-0 border-gray-300 rounded-l-lg px-3 py-2 bg-gray-50'
+										className='border border-r-0 text-gray-700 border-gray-300 rounded-l-lg px-3 py-2 bg-gray-50'
 									>
 										<option value='USD'>USD</option>
 										<option value='EUR'>EUR</option>
@@ -503,40 +476,27 @@ export default function AddPropertyPage() {
 									/>
 								</div>
 							</div>
-
-							<div className='flex items-center'>
-								<input
-									type='checkbox'
-									name='featured'
-									checked={formData.featured}
-									onChange={handleInputChange}
-									className='w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500'
-								/>
-								<label className='ml-2 text-sm text-gray-700'>
-									Featured Property
-								</label>
-							</div>
 						</div>
 					</div>
 
 					{/* Location Information */}
 					<div className='bg-white shadow rounded-lg p-6'>
-						<h2 className='text-lg font-semibold mb-6 flex items-center'>
+						<h2 className='text-lg font-semibold mb-6 flex items-center text-gray-700'>
 							<MapPin className='w-5 h-5 mr-2' />
-							Location Information
+							Տեղանքի տեղեկատվություն
 						</h2>
 
 						<div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
 							<div>
 								<label className='block text-sm font-medium text-gray-700 mb-2'>
-									State
+									Մարզ
 								</label>
 								<select
 									name='state_id'
 									value={formData.state_id}
 									onChange={handleInputChange}
 									required
-									className='w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+									className='w-full border text-gray-700 border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
 								>
 									<option value=''>Select State</option>
 									{states.map(state => (
@@ -549,7 +509,7 @@ export default function AddPropertyPage() {
 
 							<div>
 								<label className='block text-sm font-medium text-gray-700 mb-2'>
-									City
+									Քաղաք
 								</label>
 								<select
 									name='city_id'
@@ -557,7 +517,7 @@ export default function AddPropertyPage() {
 									onChange={handleInputChange}
 									required
 									disabled={!formData.state_id}
-									className='w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100'
+									className='w-full border text-gray-700 border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100'
 								>
 									<option value=''>Select City</option>
 									{cities.map(city => (
@@ -582,59 +542,21 @@ export default function AddPropertyPage() {
 									placeholder='Enter property address'
 								/>
 							</div>
-
-							<div>
-								<label className='block text-sm font-medium text-gray-700 mb-2'>
-									Postal Code
-								</label>
-								<input
-									type='text'
-									name='postal_code'
-									value={formData.postal_code}
-									onChange={handleInputChange}
-									className='w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-									placeholder='Enter postal code'
-								/>
-							</div>
-
-							<div>
-								<label className='block text-sm font-medium text-gray-700 mb-2'>
-									Coordinates (Optional)
-								</label>
-								<div className='flex space-x-2'>
-									<input
-										type='number'
-										name='latitude'
-										value={formData.latitude}
-										onChange={handleInputChange}
-										step='any'
-										className='flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-										placeholder='Latitude'
-									/>
-									<input
-										type='number'
-										name='longitude'
-										value={formData.longitude}
-										onChange={handleInputChange}
-										step='any'
-										className='flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-										placeholder='Longitude'
-									/>
-								</div>
-							</div>
 						</div>
 					</div>
 
 					{/* Property Attributes */}
 					<div className='bg-white shadow rounded-lg p-6'>
-						<h2 className='text-lg font-semibold mb-6'>Property Details</h2>
+						<h2 className='text-lg font-semibold mb-6 text-gray-700'>
+							Հայտարարության մանրամասները
+						</h2>
 
 						{/* House Attributes */}
 						{formData.property_type === 'house' && (
 							<div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
 								<div>
 									<label className='block text-sm font-medium text-gray-700 mb-2'>
-										Bedrooms
+										Ննջասենյակներ
 									</label>
 									<input
 										type='number'
@@ -648,7 +570,7 @@ export default function AddPropertyPage() {
 								</div>
 								<div>
 									<label className='block text-sm font-medium text-gray-700 mb-2'>
-										Bathrooms
+										Լոգարաններ
 									</label>
 									<input
 										type='number'
@@ -663,7 +585,7 @@ export default function AddPropertyPage() {
 								</div>
 								<div>
 									<label className='block text-sm font-medium text-gray-700 mb-2'>
-										Area (sq ft)
+										Մակերես
 									</label>
 									<input
 										type='number'
@@ -677,7 +599,7 @@ export default function AddPropertyPage() {
 								</div>
 								<div>
 									<label className='block text-sm font-medium text-gray-700 mb-2'>
-										Lot Size (sq ft)
+										Տարածքի մակերես
 									</label>
 									<input
 										type='number'
@@ -690,7 +612,7 @@ export default function AddPropertyPage() {
 								</div>
 								<div>
 									<label className='block text-sm font-medium text-gray-700 mb-2'>
-										Floors
+										Հարկեր
 									</label>
 									<input
 										type='number'
@@ -701,84 +623,6 @@ export default function AddPropertyPage() {
 										className='w-full border border-gray-300 rounded-lg px-4 py-2'
 									/>
 								</div>
-								<div>
-									<label className='block text-sm font-medium text-gray-700 mb-2'>
-										Year Built
-									</label>
-									<input
-										type='number'
-										name='year_built'
-										value={attributes.year_built}
-										onChange={handleAttributeChange}
-										min='1800'
-										max={new Date().getFullYear()}
-										className='w-full border border-gray-300 rounded-lg px-4 py-2'
-									/>
-								</div>
-								<div>
-									<label className='block text-sm font-medium text-gray-700 mb-2'>
-										Garage Spaces
-									</label>
-									<input
-										type='number'
-										name='garage_spaces'
-										value={attributes.garage_spaces}
-										onChange={handleAttributeChange}
-										min='0'
-										className='w-full border border-gray-300 rounded-lg px-4 py-2'
-									/>
-								</div>
-								<div>
-									<label className='block text-sm font-medium text-gray-700 mb-2'>
-										Heating Type
-									</label>
-									<input
-										type='text'
-										name='heating_type'
-										value={attributes.heating_type}
-										onChange={handleAttributeChange}
-										className='w-full border border-gray-300 rounded-lg px-4 py-2'
-										placeholder='e.g., Central, Radiant'
-									/>
-								</div>
-								<div>
-									<label className='block text-sm font-medium text-gray-700 mb-2'>
-										Cooling Type
-									</label>
-									<input
-										type='text'
-										name='cooling_type'
-										value={attributes.cooling_type}
-										onChange={handleAttributeChange}
-										className='w-full border border-gray-300 rounded-lg px-4 py-2'
-										placeholder='e.g., Central AC, Split AC'
-									/>
-								</div>
-								<div>
-									<label className='block text-sm font-medium text-gray-700 mb-2'>
-										Roof Type
-									</label>
-									<input
-										type='text'
-										name='roof_type'
-										value={attributes.roof_type}
-										onChange={handleAttributeChange}
-										className='w-full border border-gray-300 rounded-lg px-4 py-2'
-										placeholder='e.g., Shingle, Metal'
-									/>
-								</div>
-								<div className='flex items-center'>
-									<input
-										type='checkbox'
-										name='basement'
-										checked={attributes.basement}
-										onChange={handleAttributeChange}
-										className='w-4 h-4 text-blue-600 border-gray-300 rounded'
-									/>
-									<label className='ml-2 text-sm text-gray-700'>
-										Has Basement
-									</label>
-								</div>
 							</div>
 						)}
 
@@ -787,7 +631,7 @@ export default function AddPropertyPage() {
 							<div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
 								<div>
 									<label className='block text-sm font-medium text-gray-700 mb-2'>
-										Bedrooms
+										Ննջասենյակներ
 									</label>
 									<input
 										type='number'
@@ -801,7 +645,7 @@ export default function AddPropertyPage() {
 								</div>
 								<div>
 									<label className='block text-sm font-medium text-gray-700 mb-2'>
-										Bathrooms
+										Լոգարաններ
 									</label>
 									<input
 										type='number'
@@ -816,7 +660,7 @@ export default function AddPropertyPage() {
 								</div>
 								<div>
 									<label className='block text-sm font-medium text-gray-700 mb-2'>
-										Area (sq ft)
+										Մակերես
 									</label>
 									<input
 										type='number'
@@ -830,7 +674,7 @@ export default function AddPropertyPage() {
 								</div>
 								<div>
 									<label className='block text-sm font-medium text-gray-700 mb-2'>
-										Floor
+										Հարկեր
 									</label>
 									<input
 										type='number'
@@ -843,7 +687,7 @@ export default function AddPropertyPage() {
 								</div>
 								<div>
 									<label className='block text-sm font-medium text-gray-700 mb-2'>
-										Total Floors
+										Հարկերի ընդհանուր քանակը
 									</label>
 									<input
 										type='number'
@@ -855,107 +699,6 @@ export default function AddPropertyPage() {
 										className='w-full border border-gray-300 rounded-lg px-4 py-2'
 									/>
 								</div>
-								<div>
-									<label className='block text-sm font-medium text-gray-700 mb-2'>
-										Unit Number
-									</label>
-									<input
-										type='text'
-										name='unit_number'
-										value={attributes.unit_number}
-										onChange={handleAttributeChange}
-										className='w-full border border-gray-300 rounded-lg px-4 py-2'
-									/>
-								</div>
-								<div>
-									<label className='block text-sm font-medium text-gray-700 mb-2'>
-										Building Name
-									</label>
-									<input
-										type='text'
-										name='building_name'
-										value={attributes.building_name}
-										onChange={handleAttributeChange}
-										className='w-full border border-gray-300 rounded-lg px-4 py-2'
-									/>
-								</div>
-								<div>
-									<label className='block text-sm font-medium text-gray-700 mb-2'>
-										Year Built
-									</label>
-									<input
-										type='number'
-										name='year_built'
-										value={attributes.year_built}
-										onChange={handleAttributeChange}
-										min='1800'
-										max={new Date().getFullYear()}
-										className='w-full border border-gray-300 rounded-lg px-4 py-2'
-									/>
-								</div>
-								<div>
-									<label className='block text-sm font-medium text-gray-700 mb-2'>
-										Parking Spaces
-									</label>
-									<input
-										type='number'
-										name='parking_spaces'
-										value={attributes.parking_spaces}
-										onChange={handleAttributeChange}
-										min='0'
-										className='w-full border border-gray-300 rounded-lg px-4 py-2'
-									/>
-								</div>
-								<div className='md:col-span-2 grid grid-cols-2 md:grid-cols-4 gap-4'>
-									<div className='flex items-center'>
-										<input
-											type='checkbox'
-											name='balcony'
-											checked={attributes.balcony}
-											onChange={handleAttributeChange}
-											className='w-4 h-4 text-blue-600 border-gray-300 rounded'
-										/>
-										<label className='ml-2 text-sm text-gray-700'>
-											Balcony
-										</label>
-									</div>
-									<div className='flex items-center'>
-										<input
-											type='checkbox'
-											name='elevator'
-											checked={attributes.elevator}
-											onChange={handleAttributeChange}
-											className='w-4 h-4 text-blue-600 border-gray-300 rounded'
-										/>
-										<label className='ml-2 text-sm text-gray-700'>
-											Elevator
-										</label>
-									</div>
-									<div className='flex items-center'>
-										<input
-											type='checkbox'
-											name='security_system'
-											checked={attributes.security_system}
-											onChange={handleAttributeChange}
-											className='w-4 h-4 text-blue-600 border-gray-300 rounded'
-										/>
-										<label className='ml-2 text-sm text-gray-700'>
-											Security System
-										</label>
-									</div>
-									<div className='flex items-center'>
-										<input
-											type='checkbox'
-											name='pet_friendly'
-											checked={attributes.pet_friendly}
-											onChange={handleAttributeChange}
-											className='w-4 h-4 text-blue-600 border-gray-300 rounded'
-										/>
-										<label className='ml-2 text-sm text-gray-700'>
-											Pet Friendly
-										</label>
-									</div>
-								</div>
 							</div>
 						)}
 
@@ -964,7 +707,7 @@ export default function AddPropertyPage() {
 							<div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
 								<div>
 									<label className='block text-sm font-medium text-gray-700 mb-2'>
-										Business Type
+										Բիզնեսի տեսակը
 									</label>
 									<input
 										type='text'
@@ -977,7 +720,7 @@ export default function AddPropertyPage() {
 								</div>
 								<div>
 									<label className='block text-sm font-medium text-gray-700 mb-2'>
-										Area (sq ft)
+										Մակերես
 									</label>
 									<input
 										type='number'
@@ -991,7 +734,7 @@ export default function AddPropertyPage() {
 								</div>
 								<div>
 									<label className='block text-sm font-medium text-gray-700 mb-2'>
-										Floors
+										Հարկեր
 									</label>
 									<input
 										type='number'
@@ -1002,49 +745,10 @@ export default function AddPropertyPage() {
 										className='w-full border border-gray-300 rounded-lg px-4 py-2'
 									/>
 								</div>
+
 								<div>
 									<label className='block text-sm font-medium text-gray-700 mb-2'>
-										Year Built
-									</label>
-									<input
-										type='number'
-										name='year_built'
-										value={attributes.year_built}
-										onChange={handleAttributeChange}
-										min='1800'
-										max={new Date().getFullYear()}
-										className='w-full border border-gray-300 rounded-lg px-4 py-2'
-									/>
-								</div>
-								<div>
-									<label className='block text-sm font-medium text-gray-700 mb-2'>
-										Parking Spaces
-									</label>
-									<input
-										type='number'
-										name='parking_spaces'
-										value={attributes.parking_spaces}
-										onChange={handleAttributeChange}
-										min='0'
-										className='w-full border border-gray-300 rounded-lg px-4 py-2'
-									/>
-								</div>
-								<div>
-									<label className='block text-sm font-medium text-gray-700 mb-2'>
-										Zoning Type
-									</label>
-									<input
-										type='text'
-										name='zoning_type'
-										value={attributes.zoning_type}
-										onChange={handleAttributeChange}
-										className='w-full border border-gray-300 rounded-lg px-4 py-2'
-										placeholder='e.g., Commercial, Mixed Use'
-									/>
-								</div>
-								<div>
-									<label className='block text-sm font-medium text-gray-700 mb-2'>
-										Ceiling Height (ft)
+										Առաստաղի բարձրությունը
 									</label>
 									<input
 										type='number'
@@ -1056,18 +760,6 @@ export default function AddPropertyPage() {
 										className='w-full border border-gray-300 rounded-lg px-4 py-2'
 									/>
 								</div>
-								<div className='flex items-center'>
-									<input
-										type='checkbox'
-										name='loading_dock'
-										checked={attributes.loading_dock}
-										onChange={handleAttributeChange}
-										className='w-4 h-4 text-blue-600 border-gray-300 rounded'
-									/>
-									<label className='ml-2 text-sm text-gray-700'>
-										Loading Dock
-									</label>
-								</div>
 							</div>
 						)}
 
@@ -1076,7 +768,7 @@ export default function AddPropertyPage() {
 							<div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
 								<div>
 									<label className='block text-sm font-medium text-gray-700 mb-2'>
-										Area (acres)
+										Մակերես
 									</label>
 									<input
 										type='number'
@@ -1089,112 +781,15 @@ export default function AddPropertyPage() {
 										className='w-full border border-gray-300 rounded-lg px-4 py-2'
 									/>
 								</div>
-								<div>
-									<label className='block text-sm font-medium text-gray-700 mb-2'>
-										Zoning Type
-									</label>
-									<input
-										type='text'
-										name='zoning_type'
-										value={attributes.zoning_type}
-										onChange={handleAttributeChange}
-										className='w-full border border-gray-300 rounded-lg px-4 py-2'
-										placeholder='e.g., Residential, Agricultural'
-									/>
-								</div>
-								<div>
-									<label className='block text-sm font-medium text-gray-700 mb-2'>
-										Topography
-									</label>
-									<input
-										type='text'
-										name='topography'
-										value={attributes.topography}
-										onChange={handleAttributeChange}
-										className='w-full border border-gray-300 rounded-lg px-4 py-2'
-										placeholder='e.g., Flat, Sloped, Hilly'
-									/>
-								</div>
-								<div>
-									<label className='block text-sm font-medium text-gray-700 mb-2'>
-										Soil Type
-									</label>
-									<input
-										type='text'
-										name='soil_type'
-										value={attributes.soil_type}
-										onChange={handleAttributeChange}
-										className='w-full border border-gray-300 rounded-lg px-4 py-2'
-										placeholder='e.g., Clay, Sandy, Loam'
-									/>
-								</div>
-								<div className='md:col-span-2 grid grid-cols-2 md:grid-cols-3 gap-4'>
-									<div className='flex items-center'>
-										<input
-											type='checkbox'
-											name='road_access'
-											checked={attributes.road_access}
-											onChange={handleAttributeChange}
-											className='w-4 h-4 text-blue-600 border-gray-300 rounded'
-										/>
-										<label className='ml-2 text-sm text-gray-700'>
-											Road Access
-										</label>
-									</div>
-									<div className='flex items-center'>
-										<input
-											type='checkbox'
-											name='utilities_available'
-											checked={attributes.utilities_available}
-											onChange={handleAttributeChange}
-											className='w-4 h-4 text-blue-600 border-gray-300 rounded'
-										/>
-										<label className='ml-2 text-sm text-gray-700'>
-											Utilities Available
-										</label>
-									</div>
-									<div className='flex items-center'>
-										<input
-											type='checkbox'
-											name='is_fenced'
-											checked={attributes.is_fenced}
-											onChange={handleAttributeChange}
-											className='w-4 h-4 text-blue-600 border-gray-300 rounded'
-										/>
-										<label className='ml-2 text-sm text-gray-700'>Fenced</label>
-									</div>
-									<div className='flex items-center'>
-										<input
-											type='checkbox'
-											name='water_rights'
-											checked={attributes.water_rights}
-											onChange={handleAttributeChange}
-											className='w-4 h-4 text-blue-600 border-gray-300 rounded'
-										/>
-										<label className='ml-2 text-sm text-gray-700'>
-											Water Rights
-										</label>
-									</div>
-									<div className='flex items-center'>
-										<input
-											type='checkbox'
-											name='mineral_rights'
-											checked={attributes.mineral_rights}
-											onChange={handleAttributeChange}
-											className='w-4 h-4 text-blue-600 border-gray-300 rounded'
-										/>
-										<label className='ml-2 text-sm text-gray-700'>
-											Mineral Rights
-										</label>
-									</div>
-								</div>
 							</div>
 						)}
 					</div>
 
 					{/* Features */}
 					<div className='bg-white shadow rounded-lg p-6'>
-						<h2 className='text-lg font-semibold mb-6'>Features & Amenities</h2>
+						<h2 className='text-lg font-semibold mb-6 text-gray-700'>
+							Հատկանիշներ և հարմարություններ
+						</h2>
 						<div className='grid grid-cols-2 md:grid-cols-3 gap-4'>
 							{features.map(feature => (
 								<div key={feature.id} className='flex items-center'>
@@ -1216,12 +811,12 @@ export default function AddPropertyPage() {
 					<div className='bg-white shadow rounded-lg p-6'>
 						<h2 className='text-lg font-semibold mb-6 flex items-center'>
 							<ImageIcon className='w-5 h-5 mr-2' />
-							Property Images
+							Հայտարարության նկարները
 						</h2>
 
 						<div className='mb-6'>
 							<label className='block text-sm font-medium text-gray-700 mb-2'>
-								Upload Images
+								Վերբեռնել պատկերներ
 							</label>
 							<div className='mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg'>
 								<div className='space-y-1 text-center'>
@@ -1302,7 +897,7 @@ export default function AddPropertyPage() {
 							onClick={() => router.push('/admin/properties')}
 							className='px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50'
 						>
-							Cancel
+							Չեղարկել
 						</button>
 						<button
 							type='submit'
@@ -1312,12 +907,12 @@ export default function AddPropertyPage() {
 							{loading ? (
 								<>
 									<span className='animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2'></span>
-									Creating...
+									Ստեղծվում է...
 								</>
 							) : (
 								<>
 									<Plus className='w-5 h-5 mr-2' />
-									Create Property
+									Ստեղծել
 								</>
 							)}
 						</button>
