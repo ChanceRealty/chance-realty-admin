@@ -1,7 +1,7 @@
 // src/components/PropertyCard.tsx
 import Image from 'next/image'
 import Link from 'next/link'
-import { Heart, MapPin, Bed, Bath, Maximize, Car } from 'lucide-react'
+import { Heart, MapPin, Bed, Bath, Maximize } from 'lucide-react'
 import { Property } from '@/types/property'
 
 interface PropertyCardProps {
