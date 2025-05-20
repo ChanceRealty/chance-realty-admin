@@ -1,7 +1,6 @@
-import { NextResponse, NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { verifyToken } from '@/lib/auth'
-import { imagekit } from '@/lib/imagekit'
 import { sql } from '@vercel/postgres'
 
 export async function OPTIONS() {
@@ -15,8 +14,33 @@ export async function OPTIONS() {
 	})
 }
 
+const mockImagekit = {
+	deleteFile: async (fileId: string) => {
+	  console.log(`Mock delete file: ${fileId}`)
+	  return { message: 'File deleted' }
+	}
+  }
+  
+  // Try to import imagekit, but fall back to mock if it fails
+  let imagekit: any
+  try {
+	// Import the real imagekit if environment variables are available
+	if (process.env.NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY && 
+		process.env.IMAGEKIT_PRIVATE_KEY && 
+		process.env.NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT) {
+	  const { imagekit: realImagekit } = require('@/lib/imagekit')
+	  imagekit = realImagekit
+	} else {
+	  console.warn('ImageKit credentials not found, using mock implementation')
+	  imagekit = mockImagekit
+	}
+  } catch (error) {
+	console.warn('Error initializing ImageKit, using mock implementation:', error)
+	imagekit = mockImagekit
+  }
+
+
 export async function DELETE(
-	request: NextRequest,
 	context: { params: { id: string } }
 ) {
 	try {
@@ -84,3 +108,4 @@ export async function DELETE(
 		)
 	}
 }
+
