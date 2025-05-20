@@ -15,15 +15,10 @@ export async function OPTIONS() {
 	})
 }
 
-type Params = {
-	params: {
-		id: string
-	}
-}
-
+// Using the correct type signature for Next.js 15.x
 export async function DELETE(
 	request: NextRequest,
-	params: Params
+	{ params }: { params: { id: string } }
 ) {
 	try {
 		const cookieStore = await cookies()
@@ -40,7 +35,7 @@ export async function DELETE(
 			)
 		}
 
-		const mediaId = parseInt(params.params.id)
+		const mediaId = parseInt(params.id)
 		if (isNaN(mediaId)) {
 			return NextResponse.json({ error: 'Invalid media ID' }, { status: 400 })
 		}
