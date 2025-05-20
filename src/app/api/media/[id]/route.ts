@@ -15,12 +15,14 @@ export async function OPTIONS() {
 	})
 }
 
-// Using the correct type signature for Next.js 15.x
+// Using the exact Next.js 15.x type signature for route segment config
 export async function DELETE(
 	request: NextRequest,
-	{ params }: { params: { id: string } }
+	context: { params: { id: string } }
 ) {
 	try {
+		const { id } = context.params
+		
 		const cookieStore = await cookies()
 		const token = cookieStore.get('token')?.value
 		if (!token) {
@@ -35,7 +37,7 @@ export async function DELETE(
 			)
 		}
 
-		const mediaId = parseInt(params.id)
+		const mediaId = parseInt(id)
 		if (isNaN(mediaId)) {
 			return NextResponse.json({ error: 'Invalid media ID' }, { status: 400 })
 		}
