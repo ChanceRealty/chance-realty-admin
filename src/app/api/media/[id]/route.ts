@@ -15,7 +15,13 @@ export async function OPTIONS() {
 	})
 }
 
-// Using type assertion to bypass the type error
+// Define the handler type to match Next.js expectations
+type RouteHandler = (
+  request: NextRequest,
+  context: { params: { id: string } }
+) => Promise<NextResponse>;
+
+// Use a more specific type assertion
 export const DELETE = (async (
 	request: NextRequest,
 	context: { params: { id: string } }
@@ -84,4 +90,4 @@ export const DELETE = (async (
 			{ status: 500 }
 		)
 	}
-}) as any // Type assertion to bypass type checking
+}) as RouteHandler; // Use a specific type instead of 'any'
