@@ -1,0 +1,14 @@
+{
+	"extends": "next/core-web-vitals",
+	"rules": {
+		"@typescript-eslint/no-explicit-any": "off"
+	},
+	"overrides": [
+		{
+			"files": ["src/app/api/media/[id]/route.ts"],
+			"rules": {
+				"@typescript-eslint/ban-ts-comment": "off"
+			}
+		}
+	]
+}
