@@ -12,7 +12,7 @@ import {
 	City,
 	PropertyFeature,
 } from '@/types/property'
-import { PropertyMedia } from '@/lib/imagekit'
+
 import {
 	Building2,
 	Home,
@@ -30,7 +30,6 @@ export default function AddPropertyPage() {
 	const [states, setStates] = useState<State[]>([])
 	const [cities, setCities] = useState<City[]>([])
 	const [features, setFeatures] = useState<PropertyFeature[]>([])
-	const [propertyId, setPropertyId] = useState<number | null>(null)
 	const [mediaFiles, setMediaFiles] = useState<File[]>([])
 	const [mediaTypes, setMediaTypes] = useState<string[]>([])
 	const [primaryMediaIndex, setPrimaryMediaIndex] = useState(0)

@@ -4,13 +4,10 @@ import { useState, useRef } from 'react'
 import Image from 'next/image'
 import {
 	Upload,
-	X,
-	ImageIcon,
 	Video,
 	Check,
 	Trash2,
 	Star,
-	StarOff,
 	AlertCircle,
 } from 'lucide-react'
 

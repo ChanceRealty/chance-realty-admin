@@ -16,7 +16,7 @@ export async function OPTIONS() {
 	})
 }
 
-export async function GET(request: Request) {
+export async function GET() {
 	try {
 		// Verify admin authentication
 		const cookieStore = cookies()
