@@ -9,8 +9,8 @@ import {
 
 
 export async function getProperties(filter: PropertyFilter) {
-  try {
-    let query = `
+	try {
+		let query = `
       SELECT 
         p.*,
         s.name as state_name,
@@ -44,14 +44,15 @@ export async function getProperties(filter: PropertyFilter) {
         END as attributes,
         (
           SELECT json_agg(json_build_object(
-            'id', pi.id,
-            'url', pi.url,
-            'caption', pi.caption,
-            'is_primary', pi.is_primary,
-            'display_order', pi.display_order
-          ) ORDER BY pi.display_order)
-          FROM property_images pi
-          WHERE pi.property_id = p.id
+            'id', pm.id,
+            'url', pm.url,
+            'thumbnail_url', pm.thumbnail_url,
+            'type', pm.type,
+            'is_primary', pm.is_primary,
+            'display_order', pm.display_order
+          ) ORDER BY pm.display_order, pm.created_at)
+          FROM property_media pm
+          WHERE pm.property_id = p.id
         ) as images,
         (
           SELECT json_agg(json_build_object(
@@ -74,102 +75,111 @@ export async function getProperties(filter: PropertyFilter) {
       WHERE 1=1
     `
 
-    const params: (PropertyType | ListingType | number | string | string[])[] = []
-    let paramIndex = 1
+		const params: (PropertyType | ListingType | number | string | string[])[] =
+			[]
+		let paramIndex = 1
 
-    // Apply filters
-    if (filter.property_type) {
-      query += ` AND p.property_type = $${paramIndex}`
-      params.push(filter.property_type)
-      paramIndex++
-    }
+		// Apply filters
+		if (filter.property_type) {
+			query += ` AND p.property_type = $${paramIndex}`
+			params.push(filter.property_type)
+			paramIndex++
+		}
 
-    if (filter.listing_type) {
-      query += ` AND p.listing_type = $${paramIndex}`
-      params.push(filter.listing_type)
-      paramIndex++
-    }
+		if (filter.listing_type) {
+			query += ` AND p.listing_type = $${paramIndex}`
+			params.push(filter.listing_type)
+			paramIndex++
+		}
 
-    if (filter.state_id) {
-      query += ` AND p.state_id = $${paramIndex}`
-      params.push(filter.state_id)
-      paramIndex++
-    }
+		if (filter.state_id) {
+			query += ` AND p.state_id = $${paramIndex}`
+			params.push(filter.state_id)
+			paramIndex++
+		}
 
-    if (filter.city_id) {
-      query += ` AND p.city_id = $${paramIndex}`
-      params.push(filter.city_id)
-      paramIndex++
-    }
+		if (filter.city_id) {
+			query += ` AND p.city_id = $${paramIndex}`
+			params.push(filter.city_id)
+			paramIndex++
+		}
 
-    if (filter.min_price) {
-      query += ` AND p.price >= $${paramIndex}`
-      params.push(filter.min_price)
-      paramIndex++
-    }
+		if (filter.min_price) {
+			query += ` AND p.price >= $${paramIndex}`
+			params.push(filter.min_price)
+			paramIndex++
+		}
 
-    if (filter.max_price) {
-      query += ` AND p.price <= $${paramIndex}`
-      params.push(filter.max_price)
-      paramIndex++
-    }
+		if (filter.max_price) {
+			query += ` AND p.price <= $${paramIndex}`
+			params.push(filter.max_price)
+			paramIndex++
+		}
 
-    // Apply property-specific filters
-    if (filter.bedrooms && (filter.property_type === 'house' || filter.property_type === 'apartment')) {
-      query += ` AND (
+		// Apply property-specific filters
+		if (
+			filter.bedrooms &&
+			(filter.property_type === 'house' || filter.property_type === 'apartment')
+		) {
+			query += ` AND (
         (p.property_type = 'house' AND ha.bedrooms >= $${paramIndex}) OR
         (p.property_type = 'apartment' AND aa.bedrooms >= $${paramIndex})
       )`
-      params.push(filter.bedrooms)
-      paramIndex++
-    }
+			params.push(filter.bedrooms)
+			paramIndex++
+		}
 
-    if (filter.bathrooms && (filter.property_type === 'house' || filter.property_type === 'apartment')) {
-      query += ` AND (
+		if (
+			filter.bathrooms &&
+			(filter.property_type === 'house' || filter.property_type === 'apartment')
+		) {
+			query += ` AND (
         (p.property_type = 'house' AND ha.bathrooms >= $${paramIndex}) OR
         (p.property_type = 'apartment' AND aa.bathrooms >= $${paramIndex})
       )`
-      params.push(filter.bathrooms)
-      paramIndex++
-    }
+			params.push(filter.bathrooms)
+			paramIndex++
+		}
 
-    // Apply feature filters
-    if (filter.features && filter.features.length > 0) {
-      query += ` AND p.id IN (
+		// Apply feature filters
+		if (filter.features && filter.features.length > 0) {
+			query += ` AND p.id IN (
         SELECT property_id 
         FROM property_to_features 
         WHERE feature_id = ANY($${paramIndex})
         GROUP BY property_id 
         HAVING COUNT(DISTINCT feature_id) = ${filter.features.length}
       )`
-      params.push(filter.features.map(String))
-      paramIndex++
-    }
+			params.push(filter.features.map(String))
+			paramIndex++
+		}
 
-    // Apply sorting
-    const sortBy = filter.sort_by || 'created_at'
-    const sortOrder = filter.sort_order || 'desc'
-    query += ` ORDER BY p.${sortBy} ${sortOrder}`
+		// Apply sorting
+		const sortBy = filter.sort_by || 'created_at'
+		const sortOrder = filter.sort_order || 'desc'
+		query += ` ORDER BY p.${sortBy} ${sortOrder}`
 
-    // Apply pagination
-    const limit = filter.limit || 20
-    const offset = ((filter.page || 1) - 1) * limit
-    query += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`
-    params.push(limit, offset)
+		// Apply pagination
+		const limit = filter.limit || 20
+		const offset = ((filter.page || 1) - 1) * limit
+		query += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`
+		params.push(limit, offset)
 
-    const result = await sql.query(query, params)
-    return result.rows
-  } catch (error) {
-    console.error('Error fetching properties:', error)
-    throw error
-  }
+		const result = await sql.query(query, params)
+		return result.rows
+	} catch (error) {
+		console.error('Error fetching properties:', error)
+		throw error
+	}
 }
 
 // src/services/propertyService.ts - Add new function to get property by custom ID
 
-export async function getPropertyByCustomId(customId: string): Promise<Property | null> {
-  try {
-    const query = `
+export async function getPropertyByCustomId(
+	customId: string
+): Promise<Property | null> {
+	try {
+		const query = `
       SELECT 
         p.*,
         s.name as state_name,
@@ -205,14 +215,15 @@ export async function getPropertyByCustomId(customId: string): Promise<Property 
         END as attributes,
         (
           SELECT json_agg(json_build_object(
-            'id', pi.id,
-            'url', pi.url,
-            'caption', pi.caption,
-            'is_primary', pi.is_primary,
-            'display_order', pi.display_order
-          ) ORDER BY pi.display_order)
-          FROM property_images pi
-          WHERE pi.property_id = p.id
+            'id', pm.id,
+            'url', pm.url,
+            'thumbnail_url', pm.thumbnail_url,
+            'type', pm.type,
+            'is_primary', pm.is_primary,
+            'display_order', pm.display_order
+          ) ORDER BY pm.display_order, pm.created_at)
+          FROM property_media pm
+          WHERE pm.property_id = p.id
         ) as images,
         (
           SELECT json_agg(json_build_object(
@@ -235,12 +246,12 @@ export async function getPropertyByCustomId(customId: string): Promise<Property 
       WHERE p.custom_id = $1
     `
 
-    const result = await sql.query(query, [customId])
-    return result.rows[0] || null
-  } catch (error) {
-    console.error('Error fetching property by custom id:', error)
-    throw error
-  }
+		const result = await sql.query(query, [customId])
+		return result.rows[0] || null
+	} catch (error) {
+		console.error('Error fetching property by custom id:', error)
+		throw error
+	}
 }
 
 export async function getPropertyById(id: number): Promise<Property | null> {
@@ -427,12 +438,14 @@ export async function getUserFavorites(userId: number) {
              c.name as city_name,
              (
                SELECT json_agg(json_build_object(
-                 'id', pi.id,
-                 'url', pi.url,
-                 'is_primary', pi.is_primary
+                 'id', pm.id,
+                 'url', pm.url,
+                 'thumbnail_url', pm.thumbnail_url,
+                 'type', pm.type,
+                 'is_primary', pm.is_primary
                ))
-               FROM property_images pi
-               WHERE pi.property_id = p.id AND pi.is_primary = true
+               FROM property_media pm
+               WHERE pm.property_id = p.id
                LIMIT 1
              ) as images
       FROM properties p

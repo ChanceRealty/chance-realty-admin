@@ -29,9 +29,27 @@ export async function POST(request: Request) {
 		const formData = await request.formData()
 		const propertyData = JSON.parse(formData.get('property') as string)
 		const attributesData = JSON.parse(formData.get('attributes') as string)
-		const primaryImageIndex = parseInt(
-			(formData.get('primaryImageIndex') as string) || '0'
+
+		// Get all media files from the form
+		const mediaFiles = formData.getAll('media') as File[]
+		const mediaTypes = JSON.parse(
+			(formData.get('mediaTypes') as string) || '[]'
 		)
+		const primaryMediaIndex = parseInt(
+			(formData.get('primaryMediaIndex') as string) || '0'
+		)
+
+		console.log(
+			'Received property data:',
+			JSON.stringify(propertyData, null, 2)
+		)
+		console.log(
+			'Received attributes data:',
+			JSON.stringify(attributesData, null, 2)
+		)
+		console.log('Media files count:', mediaFiles.length)
+		console.log('Media types:', mediaTypes)
+		console.log('Primary media index:', primaryMediaIndex)
 
 		// Start a transaction
 		await sql.query('BEGIN')
@@ -49,14 +67,23 @@ export async function POST(request: Request) {
 				)
 			}
 
+			// Fix for numeric overflow issues - validate before database insertion
+			// Check bathrooms value (must be less than 100)
+			if (
+				attributesData.bathrooms &&
+				parseFloat(attributesData.bathrooms) >= 100
+			) {
+				throw new Error('Bathroom count must be less than 100')
+			}
+
 			// Insert the main property
 			const propertyResult = await sql.query(
 				`INSERT INTO properties (
-          user_id, custom_id, title, description, property_type, listing_type,
-          price, currency, state_id, city_id, address, postal_code,
-          latitude, longitude, featured
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-        RETURNING id, custom_id`,
+					user_id, custom_id, title, description, property_type, listing_type,
+					price, currency, state_id, city_id, address, postal_code,
+					latitude, longitude, featured, status
+				) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+				RETURNING id, custom_id`,
 				[
 					user.id,
 					propertyData.custom_id,
@@ -73,6 +100,7 @@ export async function POST(request: Request) {
 					propertyData.latitude,
 					propertyData.longitude,
 					propertyData.featured,
+					'available', // Default status for new properties
 				]
 			)
 
@@ -134,10 +162,7 @@ export async function POST(request: Request) {
 						`INSERT INTO land_attributes (
               property_id, area_acres
             ) VALUES ($1, $2)`,
-						[
-							propertyId,
-							attributesData.area_acres,
-						]
+						[propertyId, attributesData.area_acres]
 					)
 					break
 			}
@@ -156,47 +181,57 @@ export async function POST(request: Request) {
 				}
 			}
 
-			// Handle image uploads
-			const images = formData.getAll('images') as File[]
-			const uploadDir = join(process.cwd(), 'public', 'uploads', 'properties')
+			// Handle media files upload using the local file system approach for now (temporary)
+			if (mediaFiles && mediaFiles.length > 0) {
+				const uploadDir = join(process.cwd(), 'public', 'uploads', 'properties')
 
-			// Create upload directory if it doesn't exist
-			if (!fs.existsSync(uploadDir)) {
-				fs.mkdirSync(uploadDir, { recursive: true })
-			}
+				// Create upload directory if it doesn't exist
+				if (!fs.existsSync(uploadDir)) {
+					fs.mkdirSync(uploadDir, { recursive: true })
+				}
 
-			for (let i = 0; i < images.length; i++) {
-				const file = images[i]
-				const bytes = await file.arrayBuffer()
-				const buffer = Buffer.from(bytes)
+				for (let i = 0; i < mediaFiles.length; i++) {
+					const file = mediaFiles[i]
+					const mediaType = mediaTypes[i] || 'image' // Default to image
+					const isPrimary = i === primaryMediaIndex && mediaType === 'image'
 
-				// Generate unique filename
-				const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9)
-				const filename =
-					file.name.replace(/\.[^/.]+$/, '') +
-					'-' +
-					uniqueSuffix +
-					'.' +
-					file.name.split('.').pop()
-				const filepath = join(uploadDir, filename)
+					// Convert file to buffer
+					const bytes = await file.arrayBuffer()
+					const buffer = Buffer.from(bytes)
 
-				// Write file
-				await writeFile(filepath, buffer)
+					// Generate unique filename
+					const uniqueSuffix =
+						Date.now() + '-' + Math.round(Math.random() * 1e9)
+					const filename =
+						file.name.replace(/\.[^/.]+$/, '') +
+						'-' +
+						uniqueSuffix +
+						'.' +
+						file.name.split('.').pop()
+					const filepath = join(uploadDir, filename)
+					const filePath = `/uploads/properties/${filename}`
 
-				// Save image record to database
-				await sql.query(
-					`INSERT INTO property_images (
-            property_id, url, caption, image_type, display_order, is_primary
-          ) VALUES ($1, $2, $3, $4, $5, $6)`,
-					[
-						propertyId,
-						`/uploads/properties/${filename}`,
-						file.name,
-						'general',
-						i,
-						i === primaryImageIndex,
-					]
-				)
+					// Write file to disk
+					await writeFile(filepath, buffer)
+
+					// Save media info to database
+					await sql.query(
+						`INSERT INTO property_media (
+							property_id, file_id, url, thumbnail_url, type, is_primary, display_order
+						) VALUES (
+							$1, $2, $3, $4, $5, $6, $7
+						)`,
+						[
+							propertyId,
+							uniqueSuffix.toString(), // Use as file ID
+							filePath, // URL path
+							filePath, // Same for thumbnail for now
+							mediaType,
+							isPrimary,
+							i, // Use the index as display order
+						]
+					)
+				}
 			}
 
 			// Commit transaction
@@ -205,17 +240,22 @@ export async function POST(request: Request) {
 			return NextResponse.json({
 				success: true,
 				propertyId,
+				customId: propertyResult.rows[0].custom_id,
 				message: 'Property created successfully',
 			})
 		} catch (error) {
 			// Rollback transaction on error
 			await sql.query('ROLLBACK')
+			console.error('Database error details:', error)
 			throw error
 		}
 	} catch (error) {
 		console.error('Error creating property:', error)
 		return NextResponse.json(
-			{ error: 'Failed to create property' },
+			{
+				error:
+					error instanceof Error ? error.message : 'Failed to create property',
+			},
 			{ status: 500 }
 		)
 	}
@@ -243,6 +283,7 @@ export async function GET() {
 		const result = await sql`
       SELECT 
         p.id,
+        p.custom_id,
         p.title,
         p.property_type,
         p.listing_type,
@@ -256,8 +297,8 @@ export async function GET() {
         c.name as city_name,
         (
           SELECT url 
-          FROM property_images 
-          WHERE property_id = p.id AND is_primary = true 
+          FROM property_media 
+          WHERE property_id = p.id AND is_primary = true AND type = 'image'
           LIMIT 1
         ) as primary_image
       FROM properties p

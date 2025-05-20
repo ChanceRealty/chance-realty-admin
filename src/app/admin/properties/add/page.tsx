@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import AdminLayout from '@/components/AdminLayout'
+import MediaUploadIntegrated from '@/components/MediaUpload'
 import {
 	PropertyType,
 	ListingType,
@@ -11,18 +12,16 @@ import {
 	City,
 	PropertyFeature,
 } from '@/types/property'
+import { PropertyMedia } from '@/lib/imagekit'
 import {
 	Building2,
 	Home,
 	Landmark,
 	Trees,
 	Plus,
-	X,
-	Upload,
 	MapPin,
 	Image as ImageIcon,
 } from 'lucide-react'
-import Image from 'next/image'
 
 export default function AddPropertyPage() {
 	const router = useRouter()
@@ -31,6 +30,10 @@ export default function AddPropertyPage() {
 	const [states, setStates] = useState<State[]>([])
 	const [cities, setCities] = useState<City[]>([])
 	const [features, setFeatures] = useState<PropertyFeature[]>([])
+	const [propertyId, setPropertyId] = useState<number | null>(null)
+	const [mediaFiles, setMediaFiles] = useState<File[]>([])
+	const [mediaTypes, setMediaTypes] = useState<string[]>([])
+	const [primaryMediaIndex, setPrimaryMediaIndex] = useState(0)
 
 	// Basic property data
 	const [formData, setFormData] = useState({
@@ -52,78 +55,73 @@ export default function AddPropertyPage() {
 	})
 
 	// Property type specific attributes
-  const [attributes, setAttributes] = useState<{
-    bedrooms: string
-    bathrooms: string
-    area_sqft: string
-    year_built: string
-    lot_size_sqft: string
-    floors: string
-    garage_spaces: string
-    basement: boolean
-    heating_type: string
-    cooling_type: string
-    roof_type: string
-    floor: string
-    total_floors: string
-    unit_number: string
-    building_name: string
-    parking_spaces: string
-    balcony: boolean
-    elevator: boolean
-    security_system: boolean
-    pet_friendly: boolean
-    business_type: string
-    loading_dock: boolean
-    zoning_type: string
-    ceiling_height: string
-    area_acres: string
-    topography: string
-    road_access: boolean
-    utilities_available: boolean
-    is_fenced: boolean
-    soil_type: string
-    water_rights: boolean
-    mineral_rights: boolean
-  }>({
-	bedrooms: '',
-	bathrooms: '',
-	area_sqft: '',
-	year_built: '',
-	lot_size_sqft: '',
-	floors: '',
-	garage_spaces: '',
-	basement: false,
-	heating_type: '',
-	cooling_type: '',
-	roof_type: '',
-	floor: '',
-	total_floors: '',
-	unit_number: '',
-	building_name: '',
-	parking_spaces: '',
-	balcony: false,
-	elevator: false,
-	security_system: false,
-	pet_friendly: false,
-	business_type: '',
-	loading_dock: false,
-	zoning_type: '',
-	ceiling_height: '',
-	area_acres: '',
-	topography: '',
-	road_access: false,
-	utilities_available: false,
-	is_fenced: false,
-	soil_type: '',
-	water_rights: false,
-	mineral_rights: false,
-  });
-
-	// Image handling
-	const [images, setImages] = useState<File[]>([])
-	const [imagePreviews, setImagePreviews] = useState<string[]>([])
-	const [primaryImageIndex, setPrimaryImageIndex] = useState(0)
+	const [attributes, setAttributes] = useState<{
+		bedrooms: string
+		bathrooms: string
+		area_sqft: string
+		year_built: string
+		lot_size_sqft: string
+		floors: string
+		garage_spaces: string
+		basement: boolean
+		heating_type: string
+		cooling_type: string
+		roof_type: string
+		floor: string
+		total_floors: string
+		unit_number: string
+		building_name: string
+		parking_spaces: string
+		balcony: boolean
+		elevator: boolean
+		security_system: boolean
+		pet_friendly: boolean
+		business_type: string
+		loading_dock: boolean
+		zoning_type: string
+		ceiling_height: string
+		area_acres: string
+		topography: string
+		road_access: boolean
+		utilities_available: boolean
+		is_fenced: boolean
+		soil_type: string
+		water_rights: boolean
+		mineral_rights: boolean
+	}>({
+		bedrooms: '',
+		bathrooms: '',
+		area_sqft: '',
+		year_built: '',
+		lot_size_sqft: '',
+		floors: '',
+		garage_spaces: '',
+		basement: false,
+		heating_type: '',
+		cooling_type: '',
+		roof_type: '',
+		floor: '',
+		total_floors: '',
+		unit_number: '',
+		building_name: '',
+		parking_spaces: '',
+		balcony: false,
+		elevator: false,
+		security_system: false,
+		pet_friendly: false,
+		business_type: '',
+		loading_dock: false,
+		zoning_type: '',
+		ceiling_height: '',
+		area_acres: '',
+		topography: '',
+		road_access: false,
+		utilities_available: false,
+		is_fenced: false,
+		soil_type: '',
+		water_rights: false,
+		mineral_rights: false,
+	})
 
 	useEffect(() => {
 		// Fetch states
@@ -180,6 +178,7 @@ export default function AddPropertyPage() {
 		}
 	}
 
+
 	const handleFeatureToggle = (featureId: number) => {
 		setFormData(prev => ({
 			...prev,
@@ -189,27 +188,14 @@ export default function AddPropertyPage() {
 		}))
 	}
 
-	const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		if (e.target.files) {
-			const newFiles = Array.from(e.target.files)
-			setImages(prev => [...prev, ...newFiles])
-
-			// Create preview URLs
-			const newPreviews = newFiles.map(file => URL.createObjectURL(file))
-			setImagePreviews(prev => [...prev, ...newPreviews])
-		}
-	}
-
-	const removeImage = (index: number) => {
-		setImages(prev => prev.filter((_, i) => i !== index))
-		setImagePreviews(prev => prev.filter((_, i) => i !== index))
-
-		// Adjust primary image index if needed
-		if (primaryImageIndex === index) {
-			setPrimaryImageIndex(0)
-		} else if (primaryImageIndex > index) {
-			setPrimaryImageIndex(prev => prev - 1)
-		}
+	const handleMediaChange = (
+		files: File[],
+		types: string[],
+		primaryIndex: number
+	) => {
+		setMediaFiles(files)
+		setMediaTypes(types)
+		setPrimaryMediaIndex(primaryIndex)
 	}
 
 	const handleSubmit = async (e: React.FormEvent) => {
@@ -230,8 +216,8 @@ export default function AddPropertyPage() {
 			}
 
 			// Clean attributes based on property type
-				const cleanedAttributes: Record<string, unknown> = {}			
-				switch (formData.property_type) {
+			const cleanedAttributes: Record<string, unknown> = {}
+			switch (formData.property_type) {
 				case 'house':
 					Object.assign(cleanedAttributes, {
 						bedrooms: parseInt(attributes.bedrooms),
@@ -274,11 +260,14 @@ export default function AddPropertyPage() {
 			formDataToSend.append('property', JSON.stringify(propertyData))
 			formDataToSend.append('attributes', JSON.stringify(cleanedAttributes))
 
-			// Add images
-			images.forEach((image) => {
-				formDataToSend.append('images', image)
+			// Add media files
+			mediaFiles.forEach(file => {
+				formDataToSend.append('media', file)
 			})
-			formDataToSend.append('primaryImageIndex', primaryImageIndex.toString())
+
+			// Add media types and primary index
+			formDataToSend.append('mediaTypes', JSON.stringify(mediaTypes))
+			formDataToSend.append('primaryMediaIndex', primaryMediaIndex.toString())
 
 			const response = await fetch('/api/admin/properties', {
 				method: 'POST',
@@ -309,7 +298,6 @@ export default function AddPropertyPage() {
 		land: Trees,
 	}
 
-
 	const propertyTypeDisplay: Record<PropertyType, string> = {
 		house: 'տուն',
 		apartment: 'բնակարան',
@@ -322,7 +310,6 @@ export default function AddPropertyPage() {
 		rent: 'Վարձակալություն',
 		daily_rent: 'Օրյա վարձակալություն',
 	}
-
 
 	return (
 		<AdminLayout>
@@ -807,87 +794,14 @@ export default function AddPropertyPage() {
 						</div>
 					</div>
 
-					{/* Property Images */}
+					{/* Property Media */}
 					<div className='bg-white shadow rounded-lg p-6'>
 						<h2 className='text-lg font-semibold mb-6 flex items-center'>
 							<ImageIcon className='w-5 h-5 mr-2' />
-							Հայտարարության նկարները
+							Հայտարարության նկարները և տեսանյութերը
 						</h2>
 
-						<div className='mb-6'>
-							<label className='block text-sm font-medium text-gray-700 mb-2'>
-								Վերբեռնել պատկերներ
-							</label>
-							<div className='mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg'>
-								<div className='space-y-1 text-center'>
-									<Upload className='mx-auto h-12 w-12 text-gray-400' />
-									<div className='flex text-sm text-gray-600'>
-										<label className='relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500'>
-											<span>Upload files</span>
-											<input
-												type='file'
-												className='sr-only'
-												multiple
-												accept='image/*'
-												onChange={handleImageChange}
-											/>
-										</label>
-										<p className='pl-1'>or drag and drop</p>
-									</div>
-									<p className='text-xs text-gray-500'>
-										PNG, JPG, GIF up to 10MB
-									</p>
-								</div>
-							</div>
-						</div>
-
-						{imagePreviews.length > 0 && (
-							<div>
-								<label className='block text-sm font-medium text-gray-700 mb-2'>
-									Uploaded Images
-								</label>
-								<div className='grid grid-cols-2 md:grid-cols-4 gap-4'>
-									{imagePreviews.map((preview, index) => (
-										<div key={`image-${index}`} className='relative group'>
-											<Image
-												src={preview}
-												alt={`Property ${index + 1}`}
-												width={320}
-												height={128}
-												className='w-full h-32 object-cover rounded-lg'
-											/>
-											<div className='absolute inset-0 bg-black bg-opacity-40 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center space-x-2'>
-												<button
-													type='button'
-													onClick={() => setPrimaryImageIndex(index)}
-													className={`p-2 rounded-full ${
-														primaryImageIndex === index
-															? 'bg-blue-600 text-white'
-															: 'bg-white text-gray-700'
-													}`}
-													title='Set as primary'
-												>
-													<ImageIcon className='w-4 h-4' />
-												</button>
-												<button
-													type='button'
-													onClick={() => removeImage(index)}
-													className='p-2 bg-red-600 text-white rounded-full'
-													title='Remove image'
-												>
-													<X className='w-4 h-4' />
-												</button>
-											</div>
-											{primaryImageIndex === index && (
-												<div className='absolute top-2 left-2 bg-blue-600 text-white text-xs px-2 py-1 rounded'>
-													Primary
-												</div>
-											)}
-										</div>
-									))}
-								</div>
-							</div>
-						)}
+						<MediaUploadIntegrated onMediaChange={handleMediaChange} />
 					</div>
 
 					{/* Submit Button */}
