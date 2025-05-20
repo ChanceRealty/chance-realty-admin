@@ -15,13 +15,19 @@ export async function OPTIONS() {
 	})
 }
 
+type Params = {
+	params: {
+		id: string
+	}
+}
+
 export async function DELETE(
 	request: NextRequest,
-	{ params }: { params: { id: string } }
+	params: Params
 ) {
 	try {
-		const cookieStore = cookies()
-		const token = (await cookieStore).get('token')?.value
+		const cookieStore = await cookies()
+		const token = cookieStore.get('token')?.value
 		if (!token) {
 			return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 		}
@@ -34,7 +40,7 @@ export async function DELETE(
 			)
 		}
 
-		const mediaId = parseInt(params.id)
+		const mediaId = parseInt(params.params.id)
 		if (isNaN(mediaId)) {
 			return NextResponse.json({ error: 'Invalid media ID' }, { status: 400 })
 		}
