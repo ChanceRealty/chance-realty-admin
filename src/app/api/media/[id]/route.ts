@@ -17,14 +17,11 @@ export async function OPTIONS() {
 
 export async function DELETE(
 	request: NextRequest,
-	context: { params: { id: string } }
+	{ params }: { params: { id: string } }
 ) {
-	const { params } = context
-
 	try {
 		const cookieStore = cookies()
 		const token = (await cookieStore).get('token')?.value
-
 		if (!token) {
 			return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 		}
@@ -38,7 +35,6 @@ export async function DELETE(
 		}
 
 		const mediaId = parseInt(params.id)
-
 		if (isNaN(mediaId)) {
 			return NextResponse.json({ error: 'Invalid media ID' }, { status: 400 })
 		}
@@ -46,20 +42,16 @@ export async function DELETE(
 		const mediaResult = await sql`
 			SELECT * FROM property_media WHERE id = ${mediaId}
 		`
-
 		if (mediaResult.rows.length === 0) {
 			return NextResponse.json({ error: 'Media not found' }, { status: 404 })
 		}
 
 		const media = mediaResult.rows[0]
-
 		await sql.query('BEGIN')
-
 		try {
 			await imagekit.deleteFile(media.file_id)
-
 			await sql`DELETE FROM property_media WHERE id = ${mediaId}`
-
+			
 			if (media.is_primary && media.type === 'image') {
 				const firstImageResult = await sql`
 					SELECT id FROM property_media 
@@ -67,7 +59,6 @@ export async function DELETE(
 					ORDER BY display_order, created_at
 					LIMIT 1
 				`
-
 				if (firstImageResult.rows.length > 0) {
 					await sql`
 						UPDATE property_media 
@@ -76,9 +67,8 @@ export async function DELETE(
 					`
 				}
 			}
-
+			
 			await sql.query('COMMIT')
-
 			return NextResponse.json({ success: true })
 		} catch (error) {
 			await sql.query('ROLLBACK')
