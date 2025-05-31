@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import Image from 'next/image'
 import {
 	Upload,
@@ -19,12 +19,28 @@ export default function MediaUploadIntegrated({
 	onMediaChange,
 }: MediaUploadIntegratedProps) {
 	const [files, setFiles] = useState<File[]>([])
-	const [fileTypes, setFileTypes] = useState<string[]>([]) // 'image' or 'video'
+	const [fileTypes, setFileTypes] = useState<string[]>([])
 	const [previews, setPreviews] = useState<string[]>([])
 	const [primaryIndex, setPrimaryIndex] = useState(0)
 	const [error, setError] = useState('')
 	const [dragActive, setDragActive] = useState(false)
 	const fileInputRef = useRef<HTMLInputElement>(null)
+
+	// Cleanup function to revoke all blob URLs
+	const cleanupPreviews = (urlsToCleanup: string[]) => {
+		urlsToCleanup.forEach(url => {
+			if (url.startsWith('blob:')) {
+				URL.revokeObjectURL(url)
+			}
+		})
+	}
+
+	// Cleanup on unmount
+	useEffect(() => {
+		return () => {
+			cleanupPreviews(previews)
+		}
+	}, [])
 
 	const handleDrag = (e: React.DragEvent) => {
 		e.preventDefault()
@@ -87,6 +103,9 @@ export default function MediaUploadIntegrated({
 
 		if (errorMessage) {
 			setError(errorMessage)
+			// Clean up newly created URLs on error
+			cleanupPreviews(newPreviews)
+			return
 		}
 
 		if (validFiles.length > 0) {
@@ -110,13 +129,16 @@ export default function MediaUploadIntegrated({
 	}
 
 	const handleRemove = (index: number) => {
+		// Revoke the specific object URL to prevent memory leaks
+		const urlToRevoke = previews[index]
+		if (urlToRevoke && urlToRevoke.startsWith('blob:')) {
+			URL.revokeObjectURL(urlToRevoke)
+		}
+
 		// Create new arrays without the removed item
 		const updatedFiles = files.filter((_, i) => i !== index)
 		const updatedTypes = fileTypes.filter((_, i) => i !== index)
 		const updatedPreviews = previews.filter((_, i) => i !== index)
-
-		// Revoke the object URL to prevent memory leaks
-		URL.revokeObjectURL(previews[index])
 
 		// Update state
 		setFiles(updatedFiles)
@@ -124,27 +146,19 @@ export default function MediaUploadIntegrated({
 		setPreviews(updatedPreviews)
 
 		// Adjust primary index if needed
-		let firstImageIndex = -1; // Declare firstImageIndex
+		let newPrimaryIndex = primaryIndex
 		if (primaryIndex === index) {
 			// Find the first image in the remaining files
-			firstImageIndex = updatedTypes.findIndex(type => type === 'image');
-			setPrimaryIndex(firstImageIndex >= 0 ? firstImageIndex : 0);
+			const firstImageIndex = updatedTypes.findIndex(type => type === 'image')
+			newPrimaryIndex = firstImageIndex >= 0 ? firstImageIndex : 0
 		} else if (primaryIndex > index) {
-			setPrimaryIndex(primaryIndex - 1);
+			newPrimaryIndex = primaryIndex - 1
 		}
 
+		setPrimaryIndex(newPrimaryIndex)
+
 		// Notify parent component about change
-		onMediaChange(
-			updatedFiles,
-			updatedTypes,
-			primaryIndex === index
-				? firstImageIndex >= 0
-					? firstImageIndex
-					: 0
-				: primaryIndex > index
-				? primaryIndex - 1
-				: primaryIndex
-		);
+		onMediaChange(updatedFiles, updatedTypes, newPrimaryIndex)
 	}
 
 	const handleSetPrimary = (index: number) => {
@@ -152,6 +166,17 @@ export default function MediaUploadIntegrated({
 			setPrimaryIndex(index)
 			onMediaChange(files, fileTypes, index)
 		}
+	}
+
+	// Clear all files and cleanup URLs
+	const handleClearAll = () => {
+		cleanupPreviews(previews)
+		setFiles([])
+		setFileTypes([])
+		setPreviews([])
+		setPrimaryIndex(0)
+		setError('')
+		onMediaChange([], [], 0)
 	}
 
 	return (
@@ -181,13 +206,24 @@ export default function MediaUploadIntegrated({
 						className='hidden'
 						ref={fileInputRef}
 					/>
-					<button
-						type='button'
-						onClick={() => fileInputRef.current?.click()}
-						className='px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700'
-					>
-						Browse Files
-					</button>
+					<div className="flex gap-2">
+						<button
+							type='button'
+							onClick={() => fileInputRef.current?.click()}
+							className='px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700'
+						>
+							Browse Files
+						</button>
+						{files.length > 0 && (
+							<button
+								type='button'
+								onClick={handleClearAll}
+								className='px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700'
+							>
+								Clear All
+							</button>
+						)}
+					</div>
 				</div>
 			</div>
 
@@ -195,6 +231,12 @@ export default function MediaUploadIntegrated({
 				<div className='bg-red-50 text-red-700 p-3 rounded-lg flex items-center'>
 					<AlertCircle className='w-5 h-5 mr-2' />
 					{error}
+					<button 
+						onClick={() => setError('')}
+						className="ml-auto text-red-500 hover:text-red-700"
+					>
+						×
+					</button>
 				</div>
 			)}
 
@@ -202,7 +244,7 @@ export default function MediaUploadIntegrated({
 				<div className='grid grid-cols-2 md:grid-cols-4 gap-4'>
 					{previews.map((preview, index) => (
 						<div
-							key={index}
+							key={`${index}-${files[index]?.name}`}
 							className='relative group rounded-lg overflow-hidden'
 						>
 							{fileTypes[index] === 'image' ? (
@@ -212,13 +254,14 @@ export default function MediaUploadIntegrated({
 										alt={`Media preview ${index + 1}`}
 										fill
 										className='object-cover'
+										unoptimized // Important for blob URLs
 									/>
 								</div>
 							) : (
 								<div className='aspect-square relative bg-gray-100 flex items-center justify-center'>
 									<Video className='w-10 h-10 text-gray-500' />
 									<div className='absolute bottom-0 left-0 right-0 bg-gray-800 bg-opacity-70 text-white p-1 text-xs text-center'>
-										Video
+										Video: {files[index]?.name}
 									</div>
 								</div>
 							)}
