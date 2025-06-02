@@ -798,12 +798,11 @@ export async function incrementPropertyViews(
 		}
 
 		// Use a single query with upsert to reduce database calls
-				await sql`
-      INSERT INTO property_views (property_id, user_id, ip_address, created_at)
-      VALUES (${propertyId}, ${userId || null}, ${ipAddress || null}, NOW())
-      ON CONFLICT (property_id, user_id, ip_address, DATE(created_at)) 
-      DO NOTHING
-    `
+		await sql`
+		INSERT INTO property_views (property_id, user_id, ip_address)
+		VALUES (${propertyId}, ${userId || null}, ${ipAddress || null})
+	  `
+	  
 
 		// Increment the view counter in a separate, non-blocking query
 		sql`UPDATE properties SET views = views + 1 WHERE id = ${propertyId}`.catch(
