@@ -1,12 +1,10 @@
-// src/app/api/admin/properties/route.ts
+// src/app/api/admin/properties/route.ts - Updated with enhanced ImageKit integration
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { verifyToken } from '@/lib/auth'
 import { sql } from '@vercel/postgres'
-import { writeFile } from 'fs/promises'
-import { join } from 'path'
 import { PropertyType } from '@/types/property'
-import * as fs from 'fs'
+import { uploadToImageKit } from '@/lib/imagekit'
 
 export async function POST(request: Request) {
 	try {
@@ -39,17 +37,13 @@ export async function POST(request: Request) {
 			(formData.get('primaryMediaIndex') as string) || '0'
 		)
 
-		console.log(
-			'Received property data:',
-			JSON.stringify(propertyData, null, 2)
-		)
-		console.log(
-			'Received attributes data:',
-			JSON.stringify(attributesData, null, 2)
-		)
-		console.log('Media files count:', mediaFiles.length)
-		console.log('Media types:', mediaTypes)
-		console.log('Primary media index:', primaryMediaIndex)
+		console.log('Creating property with data:', {
+			title: propertyData.title,
+			customId: propertyData.custom_id,
+			mediaCount: mediaFiles.length,
+			mediaTypes: mediaTypes,
+			primaryIndex: primaryMediaIndex,
+		})
 
 		// Start a transaction
 		await sql.query('BEGIN')
@@ -67,8 +61,7 @@ export async function POST(request: Request) {
 				)
 			}
 
-			// Fix for numeric overflow issues - validate before database insertion
-			// Check bathrooms value (must be less than 100)
+			// Validate bathrooms value
 			if (
 				attributesData.bathrooms &&
 				parseFloat(attributesData.bathrooms) >= 100
@@ -105,6 +98,7 @@ export async function POST(request: Request) {
 			)
 
 			const propertyId = propertyResult.rows[0].id
+			console.log(`Created property with ID: ${propertyId}`)
 
 			// Insert property type specific attributes
 			switch (propertyData.property_type as PropertyType) {
@@ -181,76 +175,127 @@ export async function POST(request: Request) {
 				}
 			}
 
-			// Handle media files upload using the local file system approach for now (temporary)
+			// Handle media files upload using enhanced ImageKit integration
 			if (mediaFiles && mediaFiles.length > 0) {
-				const uploadDir = join(process.cwd(), 'public', 'uploads', 'properties')
+				console.log(
+					`Starting upload of ${mediaFiles.length} media files to ImageKit...`
+				)
 
-				// Create upload directory if it doesn't exist
-				if (!fs.existsSync(uploadDir)) {
-					fs.mkdirSync(uploadDir, { recursive: true })
-				}
+				const uploadResults = []
 
 				for (let i = 0; i < mediaFiles.length; i++) {
 					const file = mediaFiles[i]
-					const mediaType = mediaTypes[i] || 'image' // Default to image
+					const mediaType = mediaTypes[i] || 'image'
 					const isPrimary = i === primaryMediaIndex && mediaType === 'image'
 
-					// Convert file to buffer
-					const bytes = await file.arrayBuffer()
-					const buffer = Buffer.from(bytes)
+					console.log(
+						`Processing file ${i + 1}/${mediaFiles.length}: ${
+							file.name
+						} (${mediaType})`
+					)
 
-					// Generate unique filename
-					const uniqueSuffix =
-						Date.now() + '-' + Math.round(Math.random() * 1e9)
-					const filename =
-						file.name.replace(/\.[^/.]+$/, '') +
-						'-' +
-						uniqueSuffix +
-						'.' +
-						file.name.split('.').pop()
-					const filepath = join(uploadDir, filename)
-					const filePath = `/uploads/properties/${filename}`
+					try {
+						// Convert file to buffer
+						const arrayBuffer = await file.arrayBuffer()
+						const buffer = Buffer.from(arrayBuffer)
 
-					// Write file to disk
-					await writeFile(filepath, buffer)
+						// Upload to ImageKit using enhanced function
+						const uploadResponse = await uploadToImageKit(
+							buffer,
+							file.name,
+							`/properties/${propertyId}`
+						)
 
-					// Save media info to database
-					await sql.query(
-						`INSERT INTO property_media (
-							property_id, file_id, url, thumbnail_url, type, is_primary, display_order
-						) VALUES (
-							$1, $2, $3, $4, $5, $6, $7
-						)`,
-						[
-							propertyId,
-							uniqueSuffix.toString(), // Use as file ID
-							filePath, // URL path
-							filePath, // Same for thumbnail for now
-							mediaType,
-							isPrimary,
-							i, // Use the index as display order
-						]
+						// Save media info to database
+						const mediaResult = await sql.query(
+							`INSERT INTO property_media (
+								property_id, file_id, url, thumbnail_url, type, is_primary, display_order
+							) VALUES (
+								$1, $2, $3, $4, $5, $6, $7
+							) RETURNING id`,
+							[
+								propertyId,
+								uploadResponse.fileId,
+								uploadResponse.url,
+								uploadResponse.thumbnailUrl || uploadResponse.url,
+								mediaType,
+								isPrimary,
+								i, // display_order
+							]
+						)
+
+						uploadResults.push({
+							success: true,
+							fileName: file.name,
+							mediaId: mediaResult.rows[0].id,
+							imageKitId: uploadResponse.fileId,
+							url: uploadResponse.url,
+						})
+
+						console.log(`✅ Successfully processed ${file.name}`)
+					} catch (uploadError) {
+						console.error(`❌ Failed to process ${file.name}:`, uploadError)
+
+						// Add to results but don't fail the entire transaction
+						uploadResults.push({
+							success: false,
+							fileName: file.name,
+							error:
+								uploadError instanceof Error
+									? uploadError.message
+									: 'Unknown upload error',
+						})
+
+						// If it's a critical error (like auth failure), throw to rollback
+						if (
+							uploadError instanceof Error &&
+							(uploadError.message.includes('authenticate') ||
+								uploadError.message.includes('configuration'))
+						) {
+							throw uploadError
+						}
+					}
+				}
+
+				console.log('Upload results:', uploadResults)
+
+				// Check if any files failed to upload
+				const failedUploads = uploadResults.filter(r => !r.success)
+				if (failedUploads.length > 0) {
+					console.warn(
+						`${failedUploads.length} files failed to upload:`,
+						failedUploads
 					)
 				}
+
+				const successfulUploads = uploadResults.filter(r => r.success)
+				console.log(
+					`${successfulUploads.length}/${mediaFiles.length} files uploaded successfully`
+				)
 			}
 
 			// Commit transaction
 			await sql.query('COMMIT')
+			console.log('✅ Property creation transaction committed successfully')
 
 			return NextResponse.json({
 				success: true,
 				propertyId,
 				customId: propertyResult.rows[0].custom_id,
 				message: 'Property created successfully',
+				mediaUploaded: mediaFiles.length,
 			})
 		} catch (error) {
 			// Rollback transaction on error
 			await sql.query('ROLLBACK')
-			console.error('Database error details:', error)
+			console.error(
+				'❌ Property creation failed, transaction rolled back:',
+				error
+			)
 			throw error
 		}
 	} catch (error) {
-		console.error('Error creating property:', error)
+		console.error('❌ Error creating property:', error)
 		return NextResponse.json(
 			{
 				error:
@@ -261,10 +306,9 @@ export async function POST(request: Request) {
 	}
 }
 
-// Get all properties for admin
+// GET function remains the same...
 export async function GET() {
 	try {
-		// Verify admin authentication
 		const cookieStore = cookies()
 		const token = (await cookieStore).get('token')?.value
 
