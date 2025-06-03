@@ -492,7 +492,6 @@ export async function getProperties(filter: PropertyFilter) {
         p.views,
         p.created_at,
         s.name as state_name,
-        s.code as state_code,
         c.name as city_name,
         u.email as user_email,
         -- Only get essential attributes to reduce memory
@@ -656,7 +655,6 @@ export async function getPropertyByCustomId(customId: string): Promise<Property 
       SELECT 
         p.*,
         s.name as state_name,
-        s.code as state_code,
         c.name as city_name,
         u.email as user_email,
         u.phone as user_phone,
@@ -739,7 +737,7 @@ export async function getPropertyByCustomId(customId: string): Promise<Property 
 export async function getStates() {
 	try {
 		const result = await sql`
-      SELECT id, name, code 
+      SELECT id, name 
       FROM states 
       ORDER BY name
       LIMIT 100

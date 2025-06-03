@@ -9,7 +9,6 @@ export type PropertyStatus = 'available' | 'sold' | 'rented' | 'pending'
 export interface State {
 	id: number
 	name: string
-	code: string
 }
 
 export interface City {

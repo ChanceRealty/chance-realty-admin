@@ -43,7 +43,6 @@ export async function GET(
 			SELECT 
 				p.*,
 				s.name as state_name,
-				s.code as state_code,
 				c.name as city_name,
 				u.email as user_email
 			FROM properties p

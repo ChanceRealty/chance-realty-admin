@@ -61,32 +61,13 @@ export default function AddPropertyPage() {
 		year_built: string
 		lot_size_sqft: string
 		floors: string
-		garage_spaces: string
-		basement: boolean
-		heating_type: string
-		cooling_type: string
 		roof_type: string
 		floor: string
 		total_floors: string
 		unit_number: string
-		building_name: string
-		parking_spaces: string
-		balcony: boolean
-		elevator: boolean
-		security_system: boolean
-		pet_friendly: boolean
 		business_type: string
-		loading_dock: boolean
-		zoning_type: string
 		ceiling_height: string
 		area_acres: string
-		topography: string
-		road_access: boolean
-		utilities_available: boolean
-		is_fenced: boolean
-		soil_type: string
-		water_rights: boolean
-		mineral_rights: boolean
 	}>({
 		bedrooms: '',
 		bathrooms: '',
@@ -94,32 +75,13 @@ export default function AddPropertyPage() {
 		year_built: '',
 		lot_size_sqft: '',
 		floors: '',
-		garage_spaces: '',
-		basement: false,
-		heating_type: '',
-		cooling_type: '',
 		roof_type: '',
 		floor: '',
 		total_floors: '',
 		unit_number: '',
-		building_name: '',
-		parking_spaces: '',
-		balcony: false,
-		elevator: false,
-		security_system: false,
-		pet_friendly: false,
 		business_type: '',
-		loading_dock: false,
-		zoning_type: '',
 		ceiling_height: '',
 		area_acres: '',
-		topography: '',
-		road_access: false,
-		utilities_available: false,
-		is_fenced: false,
-		soil_type: '',
-		water_rights: false,
-		mineral_rights: false,
 	})
 
 	useEffect(() => {
@@ -346,7 +308,7 @@ export default function AddPropertyPage() {
 									value={formData.title}
 									onChange={handleInputChange}
 									required
-									className='w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+									className='w-full border border-gray-300 text-black rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
 									placeholder='Enter property title'
 								/>
 							</div>
@@ -361,7 +323,7 @@ export default function AddPropertyPage() {
 								value={formData.description}
 								onChange={handleInputChange}
 								rows={4}
-								className='w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+								className='w-full border border-gray-300 text-black rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
 								placeholder='Enter property description'
 							/>
 						</div>
@@ -409,7 +371,7 @@ export default function AddPropertyPage() {
 									value={formData.custom_id}
 									onChange={handleInputChange}
 									required
-									className='w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+									className='w-full border text-black border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
 									placeholder='e.g., GL100'
 								/>
 							</div>
@@ -457,7 +419,7 @@ export default function AddPropertyPage() {
 										required
 										min='0'
 										step='0.01'
-										className='flex-1 border border-gray-300 rounded-r-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+										className='flex-1 border text-black border-gray-300 rounded-r-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
 										placeholder='Enter price'
 									/>
 								</div>
@@ -524,7 +486,7 @@ export default function AddPropertyPage() {
 									value={formData.address}
 									onChange={handleInputChange}
 									required
-									className='w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+									className='w-full border text-black border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
 									placeholder='Enter property address'
 								/>
 							</div>
