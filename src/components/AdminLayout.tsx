@@ -1,4 +1,4 @@
-// src/components/AdminLayout.tsx
+// src/components/AdminLayout.tsx - Updated with status management link
 'use client'
 
 import { useState } from 'react'
@@ -17,6 +17,7 @@ import {
 	Search,
 	ChevronDown,
 	Home,
+	Tags,
 } from 'lucide-react'
 
 interface AdminLayoutProps {
@@ -48,6 +49,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 	const sidebarItems = [
 		{ icon: LayoutDashboard, label: 'Dashboard', href: '/admin' },
 		{ icon: Home, label: 'Properties', href: '/admin/properties' },
+		{ icon: Tags, label: 'Status Management', href: '/admin/statuses' },
 		{ icon: Users, label: 'Users', href: '/admin/users' },
 		{ icon: FileText, label: 'Content', href: '/admin/content' },
 		{ icon: BarChart3, label: 'Analytics', href: '/admin/analytics' },

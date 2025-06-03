@@ -1,4 +1,4 @@
-// src/app/admin/properties/add/page.tsx
+// src/app/admin/properties/add/page.tsx - Complete add property page with dynamic status and all features
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -8,6 +8,7 @@ import MediaUploadIntegrated from '@/components/MediaUpload'
 import {
 	PropertyType,
 	ListingType,
+	PropertyStatus,
 	State,
 	City,
 	PropertyFeature,
@@ -21,6 +22,7 @@ import {
 	Plus,
 	MapPin,
 	Image as ImageIcon,
+	User,
 } from 'lucide-react'
 
 export default function AddPropertyPage() {
@@ -30,6 +32,7 @@ export default function AddPropertyPage() {
 	const [states, setStates] = useState<State[]>([])
 	const [cities, setCities] = useState<City[]>([])
 	const [features, setFeatures] = useState<PropertyFeature[]>([])
+	const [statuses, setStatuses] = useState<PropertyStatus[]>([])
 	const [mediaFiles, setMediaFiles] = useState<File[]>([])
 	const [mediaTypes, setMediaTypes] = useState<string[]>([])
 	const [primaryMediaIndex, setPrimaryMediaIndex] = useState(0)
@@ -51,6 +54,10 @@ export default function AddPropertyPage() {
 		longitude: '',
 		featured: false,
 		selectedFeatures: [] as number[],
+		// Owner details (admin only)
+		owner_name: '',
+		owner_phone: '',
+		status: 'available', // Default status
 	})
 
 	// Property type specific attributes
@@ -85,17 +92,23 @@ export default function AddPropertyPage() {
 	})
 
 	useEffect(() => {
-		// Fetch states
-		fetch('/api/properties/states')
-			.then(res => res.json())
-			.then(data => setStates(data))
-			.catch(error => console.error('Error fetching states:', error))
+		// Fetch all required data
+		Promise.all([
+			fetch('/api/properties/states').then(res => res.json()),
+			fetch('/api/properties/features').then(res => res.json()),
+			fetch('/api/properties/statuses').then(res => res.json()),
+		])
+			.then(([statesData, featuresData, statusesData]) => {
+				setStates(statesData)
+				setFeatures(featuresData)
+				setStatuses(statusesData)
 
-		// Fetch features
-		fetch('/api/properties/features')
-			.then(res => res.json())
-			.then(data => setFeatures(data))
-			.catch(error => console.error('Error fetching features:', error))
+				// Set default status to first available status
+				if (statusesData.length > 0) {
+					setFormData(prev => ({ ...prev, status: statusesData[0].name }))
+				}
+			})
+			.catch(error => console.error('Error fetching data:', error))
 	}, [])
 
 	useEffect(() => {
@@ -139,7 +152,6 @@ export default function AddPropertyPage() {
 		}
 	}
 
-
 	const handleFeatureToggle = (featureId: number) => {
 		setFormData(prev => ({
 			...prev,
@@ -174,6 +186,8 @@ export default function AddPropertyPage() {
 				city_id: parseInt(formData.city_id),
 				latitude: formData.latitude ? parseFloat(formData.latitude) : null,
 				longitude: formData.longitude ? parseFloat(formData.longitude) : null,
+				owner_name: formData.owner_name.trim(),
+				owner_phone: formData.owner_phone.trim(),
 			}
 
 			// Clean attributes based on property type
@@ -272,6 +286,20 @@ export default function AddPropertyPage() {
 		daily_rent: 'Օրյա վարձակալություն',
 	}
 
+	// Get status color class
+	const getStatusColorClass = (color: string) => {
+		const colorMap: Record<string, string> = {
+			'#green': 'bg-green-100 text-green-800',
+			'#blue': 'bg-blue-100 text-blue-800',
+			'#red': 'bg-red-100 text-red-800',
+			'#yellow': 'bg-yellow-100 text-yellow-800',
+			'#purple': 'bg-purple-100 text-purple-800',
+			'#indigo': 'bg-indigo-100 text-indigo-800',
+			'#gray': 'bg-gray-100 text-gray-800',
+		}
+		return colorMap[color] || 'bg-gray-100 text-gray-800'
+	}
+
 	return (
 		<AdminLayout>
 			<div className='max-w-4xl mx-auto'>
@@ -314,7 +342,7 @@ export default function AddPropertyPage() {
 							</div>
 						</div>
 
-						<div className='md:col-span-2'>
+						<div className='md:col-span-2 mt-6'>
 							<label className='block text-sm font-medium text-gray-700 mb-2'>
 								Նկարագրություն
 							</label>
@@ -328,7 +356,7 @@ export default function AddPropertyPage() {
 							/>
 						</div>
 
-						<div>
+						<div className='mt-6'>
 							<label className='block text-sm font-medium text-gray-700 mb-2'>
 								Անշարժ գույքի տեսակը
 							</label>
@@ -360,7 +388,8 @@ export default function AddPropertyPage() {
 								})}
 							</div>
 						</div>
-						<div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
+
+						<div className='grid grid-cols-1 md:grid-cols-2 gap-6 mt-6'>
 							<div>
 								<label className='block text-sm font-medium text-gray-700 mb-2'>
 									Անշարժ գույքի ID
@@ -424,6 +453,104 @@ export default function AddPropertyPage() {
 									/>
 								</div>
 							</div>
+
+							<div>
+								<label className='block text-sm font-medium text-gray-700 mb-2'>
+									Կարգավիճակ
+								</label>
+								<select
+									name='status'
+									value={formData.status}
+									onChange={handleInputChange}
+									className='w-full border border-gray-300 text-gray-700 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+								>
+									{statuses.map(status => (
+										<option key={status.id} value={status.name}>
+											{status.display_name_armenian || status.display_name}
+										</option>
+									))}
+								</select>
+								{/* Show status preview */}
+								{formData.status && (
+									<div className='mt-2'>
+										{(() => {
+											const selectedStatus = statuses.find(
+												s => s.name === formData.status
+											)
+											return selectedStatus ? (
+												<span
+													className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColorClass(
+														selectedStatus.color
+													)}`}
+												>
+													{selectedStatus.display_name_armenian ||
+														selectedStatus.display_name}
+												</span>
+											) : null
+										})()}
+									</div>
+								)}
+							</div>
+
+							<div className='flex items-center'>
+								<input
+									type='checkbox'
+									name='featured'
+									checked={formData.featured}
+									onChange={handleInputChange}
+									className='w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500'
+								/>
+								<label className='ml-2 text-sm font-medium text-gray-700'>
+									Առանձնակի (Featured)
+								</label>
+							</div>
+						</div>
+					</div>
+
+					{/* Owner Information (Admin Only) */}
+					<div className='bg-white shadow rounded-lg p-6 border-l-4 border-red-500'>
+						<h2 className='text-lg font-semibold mb-6 flex items-center text-gray-700'>
+							<User className='w-5 h-5 mr-2' />
+							Սեփականատիրոջ տեղեկություններ (միայն ադմինիստրատորի համար)
+						</h2>
+
+						<div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
+							<div>
+								<label className='block text-sm font-medium text-gray-700 mb-2'>
+									Սեփականատիրոջ անունը
+								</label>
+								<input
+									type='text'
+									name='owner_name'
+									value={formData.owner_name}
+									onChange={handleInputChange}
+									required
+									className='w-full border border-gray-300 text-black rounded-lg px-4 py-2 focus:ring-2 focus:ring-red-500 focus:border-transparent'
+									placeholder='Enter owner name'
+								/>
+							</div>
+
+							<div>
+								<label className='block text-sm font-medium text-gray-700 mb-2'>
+									Սեփականատիրոջ հեռախոսահամարը
+								</label>
+								<input
+									type='tel'
+									name='owner_phone'
+									value={formData.owner_phone}
+									onChange={handleInputChange}
+									required
+									className='w-full border border-gray-300 text-black rounded-lg px-4 py-2 focus:ring-2 focus:ring-red-500 focus:border-transparent'
+									placeholder='Enter owner phone number'
+								/>
+							</div>
+						</div>
+
+						<div className='mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg'>
+							<p className='text-sm text-yellow-800'>
+								⚠️ Այս տեղեկությունները հանրային կայքում չեն ցուցադրվի և միայն
+								ադմինիստրատորի համար են։
+							</p>
 						</div>
 					</div>
 
@@ -490,6 +617,50 @@ export default function AddPropertyPage() {
 									placeholder='Enter property address'
 								/>
 							</div>
+
+							<div>
+								<label className='block text-sm font-medium text-gray-700 mb-2'>
+									Postal Code
+								</label>
+								<input
+									type='text'
+									name='postal_code'
+									value={formData.postal_code}
+									onChange={handleInputChange}
+									className='w-full border border-gray-300 text-black rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+									placeholder='Enter postal code'
+								/>
+							</div>
+
+							<div>
+								<label className='block text-sm font-medium text-gray-700 mb-2'>
+									Latitude
+								</label>
+								<input
+									type='number'
+									name='latitude'
+									value={formData.latitude}
+									onChange={handleInputChange}
+									step='0.000001'
+									className='w-full border border-gray-300 text-black rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+									placeholder='Enter latitude'
+								/>
+							</div>
+
+							<div>
+								<label className='block text-sm font-medium text-gray-700 mb-2'>
+									Longitude
+								</label>
+								<input
+									type='number'
+									name='longitude'
+									value={formData.longitude}
+									onChange={handleInputChange}
+									step='0.000001'
+									className='w-full border border-gray-300 text-black rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+									placeholder='Enter longitude'
+								/>
+							</div>
 						</div>
 					</div>
 
@@ -513,7 +684,7 @@ export default function AddPropertyPage() {
 										onChange={handleAttributeChange}
 										required
 										min='0'
-										className='w-full border border-gray-300 rounded-lg px-4 py-2'
+										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
 									/>
 								</div>
 								<div>
@@ -528,12 +699,12 @@ export default function AddPropertyPage() {
 										required
 										min='0'
 										step='0.5'
-										className='w-full border border-gray-300 rounded-lg px-4 py-2'
+										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
 									/>
 								</div>
 								<div>
 									<label className='block text-sm font-medium text-gray-700 mb-2'>
-										Մակերես
+										Մակերես (քառակուսի ֆուտ)
 									</label>
 									<input
 										type='number'
@@ -542,12 +713,12 @@ export default function AddPropertyPage() {
 										onChange={handleAttributeChange}
 										required
 										min='0'
-										className='w-full border border-gray-300 rounded-lg px-4 py-2'
+										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
 									/>
 								</div>
 								<div>
 									<label className='block text-sm font-medium text-gray-700 mb-2'>
-										Տարածքի մակերես
+										Տարածքի մակերես (քառակուսի ֆուտ)
 									</label>
 									<input
 										type='number'
@@ -555,7 +726,7 @@ export default function AddPropertyPage() {
 										value={attributes.lot_size_sqft}
 										onChange={handleAttributeChange}
 										min='0'
-										className='w-full border border-gray-300 rounded-lg px-4 py-2'
+										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
 									/>
 								</div>
 								<div>
@@ -568,7 +739,7 @@ export default function AddPropertyPage() {
 										value={attributes.floors}
 										onChange={handleAttributeChange}
 										min='1'
-										className='w-full border border-gray-300 rounded-lg px-4 py-2'
+										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
 									/>
 								</div>
 							</div>
@@ -588,7 +759,7 @@ export default function AddPropertyPage() {
 										onChange={handleAttributeChange}
 										required
 										min='0'
-										className='w-full border border-gray-300 rounded-lg px-4 py-2'
+										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
 									/>
 								</div>
 								<div>
@@ -603,12 +774,12 @@ export default function AddPropertyPage() {
 										required
 										min='0'
 										step='0.5'
-										className='w-full border border-gray-300 rounded-lg px-4 py-2'
+										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
 									/>
 								</div>
 								<div>
 									<label className='block text-sm font-medium text-gray-700 mb-2'>
-										Մակերես
+										Մակերես (քառակուսի ֆուտ)
 									</label>
 									<input
 										type='number'
@@ -617,12 +788,12 @@ export default function AddPropertyPage() {
 										onChange={handleAttributeChange}
 										required
 										min='0'
-										className='w-full border border-gray-300 rounded-lg px-4 py-2'
+										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
 									/>
 								</div>
 								<div>
 									<label className='block text-sm font-medium text-gray-700 mb-2'>
-										Հարկեր
+										Հարկ
 									</label>
 									<input
 										type='number'
@@ -630,7 +801,7 @@ export default function AddPropertyPage() {
 										value={attributes.floor}
 										onChange={handleAttributeChange}
 										required
-										className='w-full border border-gray-300 rounded-lg px-4 py-2'
+										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
 									/>
 								</div>
 								<div>
@@ -644,7 +815,7 @@ export default function AddPropertyPage() {
 										onChange={handleAttributeChange}
 										required
 										min='1'
-										className='w-full border border-gray-300 rounded-lg px-4 py-2'
+										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
 									/>
 								</div>
 							</div>
@@ -662,13 +833,13 @@ export default function AddPropertyPage() {
 										name='business_type'
 										value={attributes.business_type}
 										onChange={handleAttributeChange}
-										className='w-full border border-gray-300 rounded-lg px-4 py-2'
+										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
 										placeholder='e.g., Office, Retail, Warehouse'
 									/>
 								</div>
 								<div>
 									<label className='block text-sm font-medium text-gray-700 mb-2'>
-										Մակերես
+										Մակերես (քառակուսի ֆուտ)
 									</label>
 									<input
 										type='number'
@@ -677,7 +848,7 @@ export default function AddPropertyPage() {
 										onChange={handleAttributeChange}
 										required
 										min='0'
-										className='w-full border border-gray-300 rounded-lg px-4 py-2'
+										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
 									/>
 								</div>
 								<div>
@@ -690,13 +861,12 @@ export default function AddPropertyPage() {
 										value={attributes.floors}
 										onChange={handleAttributeChange}
 										min='1'
-										className='w-full border border-gray-300 rounded-lg px-4 py-2'
+										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
 									/>
 								</div>
-
 								<div>
 									<label className='block text-sm font-medium text-gray-700 mb-2'>
-										Առաստաղի բարձրությունը
+										Առաստաղի բարձրությունը (ֆուտ)
 									</label>
 									<input
 										type='number'
@@ -705,7 +875,7 @@ export default function AddPropertyPage() {
 										onChange={handleAttributeChange}
 										min='0'
 										step='0.1'
-										className='w-full border border-gray-300 rounded-lg px-4 py-2'
+										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
 									/>
 								</div>
 							</div>
@@ -716,7 +886,7 @@ export default function AddPropertyPage() {
 							<div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
 								<div>
 									<label className='block text-sm font-medium text-gray-700 mb-2'>
-										Մակերես
+										Մակերես (էյկր)
 									</label>
 									<input
 										type='number'
@@ -726,7 +896,7 @@ export default function AddPropertyPage() {
 										required
 										min='0'
 										step='0.01'
-										className='w-full border border-gray-300 rounded-lg px-4 py-2'
+										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
 									/>
 								</div>
 							</div>

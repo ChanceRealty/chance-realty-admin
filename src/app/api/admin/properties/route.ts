@@ -1,4 +1,4 @@
-// src/app/api/admin/properties/route.ts - Updated with enhanced ImageKit integration
+// src/app/api/admin/properties/route.ts - Updated with owner fields
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { verifyToken } from '@/lib/auth'
@@ -40,9 +40,9 @@ export async function POST(request: Request) {
 		console.log('Creating property with data:', {
 			title: propertyData.title,
 			customId: propertyData.custom_id,
+			ownerName: propertyData.owner_name,
+			ownerPhone: propertyData.owner_phone,
 			mediaCount: mediaFiles.length,
-			mediaTypes: mediaTypes,
-			primaryIndex: primaryMediaIndex,
 		})
 
 		// Start a transaction
@@ -61,6 +61,15 @@ export async function POST(request: Request) {
 				)
 			}
 
+			// Validate required owner fields
+			if (!propertyData.owner_name?.trim()) {
+				throw new Error('Owner name is required')
+			}
+
+			if (!propertyData.owner_phone?.trim()) {
+				throw new Error('Owner phone is required')
+			}
+
 			// Validate bathrooms value
 			if (
 				attributesData.bathrooms &&
@@ -69,13 +78,13 @@ export async function POST(request: Request) {
 				throw new Error('Bathroom count must be less than 100')
 			}
 
-			// Insert the main property
+			// Insert the main property with owner details
 			const propertyResult = await sql.query(
 				`INSERT INTO properties (
 					user_id, custom_id, title, description, property_type, listing_type,
 					price, currency, state_id, city_id, address, postal_code,
-					latitude, longitude, featured, status
-				) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+					latitude, longitude, featured, status, owner_name, owner_phone
+				) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
 				RETURNING id, custom_id`,
 				[
 					user.id,
@@ -94,13 +103,15 @@ export async function POST(request: Request) {
 					propertyData.longitude,
 					propertyData.featured,
 					'available', // Default status for new properties
+					propertyData.owner_name.trim(),
+					propertyData.owner_phone.trim(),
 				]
 			)
 
 			const propertyId = propertyResult.rows[0].id
 			console.log(`Created property with ID: ${propertyId}`)
 
-			// Insert property type specific attributes
+			// Insert property type specific attributes (same as before)
 			switch (propertyData.property_type as PropertyType) {
 				case 'house':
 					await sql.query(
@@ -161,7 +172,7 @@ export async function POST(request: Request) {
 					break
 			}
 
-			// Insert property features
+			// Insert property features (same as before)
 			if (
 				propertyData.selectedFeatures &&
 				propertyData.selectedFeatures.length > 0
@@ -175,7 +186,7 @@ export async function POST(request: Request) {
 				}
 			}
 
-			// Handle media files upload using enhanced ImageKit integration
+			// Handle media files upload (same as before)
 			if (mediaFiles && mediaFiles.length > 0) {
 				console.log(
 					`Starting upload of ${mediaFiles.length} media files to ImageKit...`
@@ -306,7 +317,7 @@ export async function POST(request: Request) {
 	}
 }
 
-// GET function remains the same...
+// GET function updated to include owner details for admin
 export async function GET() {
 	try {
 		const cookieStore = cookies()
@@ -336,6 +347,8 @@ export async function GET() {
         p.featured,
         p.views,
         p.created_at,
+        p.owner_name,
+        p.owner_phone,
         u.email as user_email,
         s.name as state_name,
         c.name as city_name,

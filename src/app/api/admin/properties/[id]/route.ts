@@ -1,4 +1,4 @@
-// src/app/api/admin/properties/[id]/route.ts
+// src/app/api/admin/properties/[id]/route.ts - Updated with owner fields
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { verifyToken } from '@/lib/auth'
@@ -6,7 +6,7 @@ import { sql } from '@vercel/postgres'
 import { PropertyType } from '@/types/property'
 import { uploadToImageKit } from '@/lib/imagekit'
 
-// GET - Fetch single property for editing
+// GET - Fetch single property for editing (updated to include owner details)
 export async function GET(
 	request: Request,
 	{ params }: { params: Promise<{ id: string }> }
@@ -38,7 +38,7 @@ export async function GET(
 			)
 		}
 
-		// Fetch property with all details
+		// Fetch property with all details including owner information
 		const propertyResult = await sql`
 			SELECT 
 				p.*,
@@ -112,7 +112,7 @@ export async function GET(
 	}
 }
 
-// PUT - Update property
+// PUT - Update property (updated to handle owner fields)
 export async function PUT(
 	request: Request,
 	{ params }: { params: Promise<{ id: string }> }
@@ -160,6 +160,8 @@ export async function PUT(
 		console.log('Updating property:', {
 			id,
 			title: propertyData.title,
+			ownerName: propertyData.owner_name,
+			ownerPhone: propertyData.owner_phone,
 			newMediaCount: mediaFiles.length,
 		})
 
@@ -171,6 +173,20 @@ export async function PUT(
 		if (!propertyData.custom_id?.trim()) {
 			return NextResponse.json(
 				{ error: 'Property ID is required' },
+				{ status: 400 }
+			)
+		}
+
+		if (!propertyData.owner_name?.trim()) {
+			return NextResponse.json(
+				{ error: 'Owner name is required' },
+				{ status: 400 }
+			)
+		}
+
+		if (!propertyData.owner_phone?.trim()) {
+			return NextResponse.json(
+				{ error: 'Owner phone is required' },
 				{ status: 400 }
 			)
 		}
@@ -189,7 +205,7 @@ export async function PUT(
 				throw new Error('Property ID already exists for another property')
 			}
 
-			// Update main property
+			// Update main property including owner details
 			await sql.query(
 				`UPDATE properties SET
 					custom_id = $1,
@@ -207,8 +223,10 @@ export async function PUT(
 					longitude = $13,
 					featured = $14,
 					status = $15,
+					owner_name = $16,
+					owner_phone = $17,
 					updated_at = CURRENT_TIMESTAMP
-				WHERE id = $16`,
+				WHERE id = $18`,
 				[
 					propertyData.custom_id.trim(),
 					propertyData.title.trim(),
@@ -225,11 +243,13 @@ export async function PUT(
 					propertyData.longitude || null,
 					propertyData.featured || false,
 					propertyData.status,
+					propertyData.owner_name.trim(),
+					propertyData.owner_phone.trim(),
 					id,
 				]
 			)
 
-			// Update property-specific attributes
+			// Update property-specific attributes (same as before)
 			switch (propertyData.property_type as PropertyType) {
 				case 'house':
 					// Delete existing attributes
@@ -306,7 +326,7 @@ export async function PUT(
 					break
 			}
 
-			// Update property features
+			// Update property features (same as before)
 			// Delete existing features
 			await sql.query(
 				'DELETE FROM property_to_features WHERE property_id = $1',
@@ -326,7 +346,7 @@ export async function PUT(
 				}
 			}
 
-			// Handle new media files if any
+			// Handle new media files if any (same as before)
 			if (mediaFiles && mediaFiles.length > 0) {
 				console.log(`Uploading ${mediaFiles.length} new media files...`)
 
@@ -406,7 +426,7 @@ export async function PUT(
 	}
 }
 
-// DELETE - Delete property
+// DELETE function remains the same as it doesn't need changes for owner fields
 export async function DELETE(
 	request: Request,
 	{ params }: { params: Promise<{ id: string }> }
@@ -446,15 +466,6 @@ export async function DELETE(
 			const mediaResult = await sql`
 				SELECT file_id FROM property_media WHERE property_id = ${id}
 			`
-
-			// Delete from ImageKit (optional - you might want to keep files)
-			// for (const media of mediaResult.rows) {
-			// 	try {
-			// 		await imagekit.deleteFile(media.file_id)
-			// 	} catch (error) {
-			// 		console.warn('Failed to delete file from ImageKit:', media.file_id)
-			// 	}
-			// }
 
 			// Delete related records (cascading delete)
 			await sql.query('DELETE FROM property_media WHERE property_id = $1', [id])

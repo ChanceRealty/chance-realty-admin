@@ -1,4 +1,4 @@
-// src/app/admin/properties/page.tsx - This should be the main properties list page
+// src/app/admin/properties/page.tsx - Updated with owner details
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -16,6 +16,8 @@ import {
 	Landmark,
 	Trees,
 	Filter,
+	User,
+	Phone,
 } from 'lucide-react'
 import Image from 'next/image'
 
@@ -34,6 +36,8 @@ interface PropertyListItem {
 	state_name: string
 	city_name: string
 	primary_image?: string
+	owner_name?: string
+	owner_phone?: string
 }
 
 export default function PropertiesListPage() {
@@ -42,6 +46,7 @@ export default function PropertiesListPage() {
 	const [loading, setLoading] = useState(true)
 	const [searchTerm, setSearchTerm] = useState('')
 	const [showFilters, setShowFilters] = useState(false)
+	const [showOwnerDetails, setShowOwnerDetails] = useState(false)
 	const [deletingId, setDeletingId] = useState<number | null>(null)
 	const [filters, setFilters] = useState({
 		property_type: '',
@@ -129,9 +134,19 @@ export default function PropertiesListPage() {
 					customIdString === search || customIdString.includes(search)
 			}
 
+			// Check owner name and phone if available
+			let ownerMatches = false
+			if (property.owner_name || property.owner_phone) {
+				ownerMatches = !!(
+					property.owner_name?.toLowerCase().includes(search) ||
+					property.owner_phone?.toLowerCase().includes(search)
+				)
+			}
+
 			// If none of the fields match the search term, exclude this property
 			if (
 				!customIdMatches &&
+				!ownerMatches &&
 				!property.title.toLowerCase().includes(search) &&
 				!property.city_name.toLowerCase().includes(search) &&
 				!property.state_name.toLowerCase().includes(search)
@@ -234,7 +249,7 @@ export default function PropertiesListPage() {
 							<Search className='absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5' />
 							<input
 								type='text'
-								placeholder='Search by title, location, or property ID...'
+								placeholder='Search by title, location, property ID, or owner...'
 								value={searchTerm}
 								onChange={e => setSearchTerm(e.target.value)}
 								className='w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent'
@@ -246,6 +261,17 @@ export default function PropertiesListPage() {
 						>
 							<Filter className='w-5 h-5 mr-2' />
 							Filters
+						</button>
+						<button
+							onClick={() => setShowOwnerDetails(!showOwnerDetails)}
+							className={`inline-flex items-center px-4 py-2 rounded-lg ${
+								showOwnerDetails
+									? 'bg-red-100 text-red-700 border border-red-300'
+									: 'bg-gray-100 text-gray-700'
+							} hover:bg-opacity-80`}
+						>
+							<User className='w-5 h-5 mr-2' />
+							{showOwnerDetails ? 'Hide Owner Details' : 'Show Owner Details'}
 						</button>
 					</div>
 
@@ -322,6 +348,17 @@ export default function PropertiesListPage() {
 							</div>
 						</div>
 					)}
+
+					{/* Owner Details Warning */}
+					{showOwnerDetails && (
+						<div className='mt-4 p-3 bg-red-50 border border-red-200 rounded-lg'>
+							<p className='text-sm text-red-800 flex items-center'>
+								<User className='w-4 h-4 mr-2' />
+								⚠️ Owner details are visible. This information is confidential
+								and for admin use only.
+							</p>
+						</div>
+					)}
 				</div>
 
 				{/* Properties Table */}
@@ -339,6 +376,11 @@ export default function PropertiesListPage() {
 									<th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
 										Type
 									</th>
+									{showOwnerDetails && (
+										<th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-red-50'>
+											Owner Details
+										</th>
+									)}
 									<th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
 										Location
 									</th>
@@ -359,7 +401,10 @@ export default function PropertiesListPage() {
 							<tbody className='bg-white divide-y divide-gray-200'>
 								{loading ? (
 									<tr>
-										<td colSpan={8} className='px-6 py-4 text-center'>
+										<td
+											colSpan={showOwnerDetails ? 9 : 8}
+											className='px-6 py-4 text-center'
+										>
 											<div className='flex justify-center'>
 												<div className='animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900'></div>
 											</div>
@@ -368,7 +413,7 @@ export default function PropertiesListPage() {
 								) : filteredProperties.length === 0 ? (
 									<tr>
 										<td
-											colSpan={8}
+											colSpan={showOwnerDetails ? 9 : 8}
 											className='px-6 py-4 text-center text-gray-500'
 										>
 											No properties found
@@ -433,6 +478,24 @@ export default function PropertiesListPage() {
 														</span>
 													</div>
 												</td>
+												{showOwnerDetails && (
+													<td className='px-6 py-4 whitespace-nowrap bg-red-50'>
+														<div className='text-sm text-gray-900'>
+															<div className='flex items-center mb-1'>
+																<User className='h-3 w-3 text-gray-400 mr-1' />
+																<span className='font-medium'>
+																	{property.owner_name || 'N/A'}
+																</span>
+															</div>
+															<div className='flex items-center'>
+																<Phone className='h-3 w-3 text-gray-400 mr-1' />
+																<span className='text-gray-600'>
+																	{property.owner_phone || 'N/A'}
+																</span>
+															</div>
+														</div>
+													</td>
+												)}
 												<td className='px-6 py-4 whitespace-nowrap'>
 													<div className='text-sm text-gray-900'>
 														{property.city_name}

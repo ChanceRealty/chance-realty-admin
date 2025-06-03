@@ -1,4 +1,4 @@
-// src/app/admin/properties/edit/[id]/page.tsx
+// src/app/admin/properties/edit/[id]/page.tsx - Complete edit page with owner details, status, and all features
 'use client'
 
 import { useState, useEffect, use } from 'react'
@@ -8,6 +8,7 @@ import MediaUploadIntegrated from '@/components/MediaUpload'
 import {
 	PropertyType,
 	ListingType,
+	PropertyStatus,
 	State,
 	City,
 	PropertyFeature,
@@ -22,6 +23,7 @@ import {
 	MapPin,
 	Image as ImageIcon,
 	Loader2,
+	User,
 } from 'lucide-react'
 
 interface PropertyEditPageProps {
@@ -59,6 +61,10 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 		longitude: '',
 		featured: false,
 		selectedFeatures: [] as number[],
+		// Owner details (admin only)
+		owner_name: '',
+		owner_phone: '',
+		status: 'available' as PropertyStatus,
 	})
 
 	// Property type specific attributes
@@ -127,6 +133,10 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 					longitude: propertyData.longitude?.toString() || '',
 					featured: propertyData.featured || false,
 					selectedFeatures: propertyData.features?.map((f: any) => f.id) || [],
+					// Owner details
+					owner_name: propertyData.owner_name || '',
+					owner_phone: propertyData.owner_phone || '',
+					status: propertyData.status || 'available',
 				})
 
 				// Populate attributes
@@ -286,6 +296,8 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 				city_id: parseInt(formData.city_id),
 				latitude: formData.latitude ? parseFloat(formData.latitude) : null,
 				longitude: formData.longitude ? parseFloat(formData.longitude) : null,
+				owner_name: formData.owner_name.trim(),
+				owner_phone: formData.owner_phone.trim(),
 			}
 
 			// Clean attributes based on property type
@@ -387,6 +399,13 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 		daily_rent: 'Օրյա վարձակալություն',
 	}
 
+	const statusDisplay: Record<PropertyStatus, string> = {
+		available: 'Հասանելի',
+		sold: 'Վաճառված',
+		rented: 'Վարձակալված',
+		pending: 'Սպասման մեջ',
+	}
+
 	if (loading) {
 		return (
 			<AdminLayout>
@@ -433,13 +452,13 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 									value={formData.title}
 									onChange={handleInputChange}
 									required
-									className='w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+									className='w-full border border-gray-300 text-black rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
 									placeholder='Enter property title'
 								/>
 							</div>
 						</div>
 
-						<div className='md:col-span-2'>
+						<div className='md:col-span-2 mt-6'>
 							<label className='block text-sm font-medium text-gray-700 mb-2'>
 								Նկարագրություն
 							</label>
@@ -448,12 +467,12 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 								value={formData.description}
 								onChange={handleInputChange}
 								rows={4}
-								className='w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+								className='w-full border border-gray-300 text-black rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
 								placeholder='Enter property description'
 							/>
 						</div>
 
-						<div>
+						<div className='mt-6'>
 							<label className='block text-sm font-medium text-gray-700 mb-2'>
 								Անշարժ գույքի տեսակը
 							</label>
@@ -485,7 +504,8 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 								})}
 							</div>
 						</div>
-						<div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
+
+						<div className='grid grid-cols-1 md:grid-cols-2 gap-6 mt-6'>
 							<div>
 								<label className='block text-sm font-medium text-gray-700 mb-2'>
 									Անշարժ գույքի ID
@@ -496,7 +516,7 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 									value={formData.custom_id}
 									onChange={handleInputChange}
 									required
-									className='w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+									className='w-full border border-gray-300 text-black rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
 									placeholder='e.g., GL100'
 								/>
 							</div>
@@ -544,11 +564,91 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 										required
 										min='0'
 										step='0.01'
-										className='flex-1 border border-gray-300 rounded-r-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+										className='flex-1 border border-gray-300 text-black rounded-r-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
 										placeholder='Enter price'
 									/>
 								</div>
 							</div>
+
+							<div>
+								<label className='block text-sm font-medium text-gray-700 mb-2'>
+									Կարգավիճակ
+								</label>
+								<select
+									name='status'
+									value={formData.status}
+									onChange={handleInputChange}
+									className='w-full border border-gray-300 text-gray-700 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+								>
+									{(Object.keys(statusDisplay) as PropertyStatus[]).map(
+										status => (
+											<option key={status} value={status}>
+												{statusDisplay[status]}
+											</option>
+										)
+									)}
+								</select>
+							</div>
+
+							<div className='flex items-center'>
+								<input
+									type='checkbox'
+									name='featured'
+									checked={formData.featured}
+									onChange={handleInputChange}
+									className='w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500'
+								/>
+								<label className='ml-2 text-sm font-medium text-gray-700'>
+									Առանձնակի (Featured)
+								</label>
+							</div>
+						</div>
+					</div>
+
+					{/* Owner Information (Admin Only) */}
+					<div className='bg-white shadow rounded-lg p-6 border-l-4 border-red-500'>
+						<h2 className='text-lg font-semibold mb-6 flex items-center text-gray-700'>
+							<User className='w-5 h-5 mr-2' />
+							Սեփականատիրոջ տեղեկություններ (միայն ադմինիստրատորի համար)
+						</h2>
+
+						<div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
+							<div>
+								<label className='block text-sm font-medium text-gray-700 mb-2'>
+									Սեփականատիրոջ անունը
+								</label>
+								<input
+									type='text'
+									name='owner_name'
+									value={formData.owner_name}
+									onChange={handleInputChange}
+									required
+									className='w-full border border-gray-300 text-black rounded-lg px-4 py-2 focus:ring-2 focus:ring-red-500 focus:border-transparent'
+									placeholder='Enter owner name'
+								/>
+							</div>
+
+							<div>
+								<label className='block text-sm font-medium text-gray-700 mb-2'>
+									Սեփականատիրոջ հեռախոսահամարը
+								</label>
+								<input
+									type='tel'
+									name='owner_phone'
+									value={formData.owner_phone}
+									onChange={handleInputChange}
+									required
+									className='w-full border border-gray-300 text-black rounded-lg px-4 py-2 focus:ring-2 focus:ring-red-500 focus:border-transparent'
+									placeholder='Enter owner phone number'
+								/>
+							</div>
+						</div>
+
+						<div className='mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg'>
+							<p className='text-sm text-yellow-800'>
+								⚠️ Այս տեղեկությունները հանրային կայքում չեն ցուցադրվի և միայն
+								ադմինիստրատորի համար են։
+							</p>
 						</div>
 					</div>
 
@@ -611,8 +711,52 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 									value={formData.address}
 									onChange={handleInputChange}
 									required
-									className='w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+									className='w-full border border-gray-300 text-black rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
 									placeholder='Enter property address'
+								/>
+							</div>
+
+							<div>
+								<label className='block text-sm font-medium text-gray-700 mb-2'>
+									Postal Code
+								</label>
+								<input
+									type='text'
+									name='postal_code'
+									value={formData.postal_code}
+									onChange={handleInputChange}
+									className='w-full border border-gray-300 text-black rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+									placeholder='Enter postal code'
+								/>
+							</div>
+
+							<div>
+								<label className='block text-sm font-medium text-gray-700 mb-2'>
+									Latitude
+								</label>
+								<input
+									type='number'
+									name='latitude'
+									value={formData.latitude}
+									onChange={handleInputChange}
+									step='0.000001'
+									className='w-full border border-gray-300 text-black rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+									placeholder='Enter latitude'
+								/>
+							</div>
+
+							<div>
+								<label className='block text-sm font-medium text-gray-700 mb-2'>
+									Longitude
+								</label>
+								<input
+									type='number'
+									name='longitude'
+									value={formData.longitude}
+									onChange={handleInputChange}
+									step='0.000001'
+									className='w-full border border-gray-300 text-black rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+									placeholder='Enter longitude'
 								/>
 							</div>
 						</div>
@@ -638,7 +782,7 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 										onChange={handleAttributeChange}
 										required
 										min='0'
-										className='w-full border border-gray-300 rounded-lg px-4 py-2'
+										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
 									/>
 								</div>
 								<div>
@@ -653,12 +797,12 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 										required
 										min='0'
 										step='0.5'
-										className='w-full border border-gray-300 rounded-lg px-4 py-2'
+										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
 									/>
 								</div>
 								<div>
 									<label className='block text-sm font-medium text-gray-700 mb-2'>
-										Մակերես
+										Մակերես (քառակուսի ֆուտ)
 									</label>
 									<input
 										type='number'
@@ -667,12 +811,12 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 										onChange={handleAttributeChange}
 										required
 										min='0'
-										className='w-full border border-gray-300 rounded-lg px-4 py-2'
+										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
 									/>
 								</div>
 								<div>
 									<label className='block text-sm font-medium text-gray-700 mb-2'>
-										Տարածքի մակերես
+										Տարածքի մակերես (քառակուսի ֆուտ)
 									</label>
 									<input
 										type='number'
@@ -680,7 +824,7 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 										value={attributes.lot_size_sqft}
 										onChange={handleAttributeChange}
 										min='0'
-										className='w-full border border-gray-300 rounded-lg px-4 py-2'
+										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
 									/>
 								</div>
 								<div>
@@ -693,7 +837,7 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 										value={attributes.floors}
 										onChange={handleAttributeChange}
 										min='1'
-										className='w-full border border-gray-300 rounded-lg px-4 py-2'
+										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
 									/>
 								</div>
 							</div>
@@ -713,7 +857,7 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 										onChange={handleAttributeChange}
 										required
 										min='0'
-										className='w-full border border-gray-300 rounded-lg px-4 py-2'
+										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
 									/>
 								</div>
 								<div>
@@ -728,12 +872,12 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 										required
 										min='0'
 										step='0.5'
-										className='w-full border border-gray-300 rounded-lg px-4 py-2'
+										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
 									/>
 								</div>
 								<div>
 									<label className='block text-sm font-medium text-gray-700 mb-2'>
-										Մակերես
+										Մակերես (քառակուսի ֆուտ)
 									</label>
 									<input
 										type='number'
@@ -742,12 +886,12 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 										onChange={handleAttributeChange}
 										required
 										min='0'
-										className='w-full border border-gray-300 rounded-lg px-4 py-2'
+										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
 									/>
 								</div>
 								<div>
 									<label className='block text-sm font-medium text-gray-700 mb-2'>
-										Հարկեր
+										Հարկ
 									</label>
 									<input
 										type='number'
@@ -755,7 +899,7 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 										value={attributes.floor}
 										onChange={handleAttributeChange}
 										required
-										className='w-full border border-gray-300 rounded-lg px-4 py-2'
+										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
 									/>
 								</div>
 								<div>
@@ -769,7 +913,7 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 										onChange={handleAttributeChange}
 										required
 										min='1'
-										className='w-full border border-gray-300 rounded-lg px-4 py-2'
+										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
 									/>
 								</div>
 							</div>
@@ -787,13 +931,13 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 										name='business_type'
 										value={attributes.business_type}
 										onChange={handleAttributeChange}
-										className='w-full border border-gray-300 rounded-lg px-4 py-2'
+										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
 										placeholder='e.g., Office, Retail, Warehouse'
 									/>
 								</div>
 								<div>
 									<label className='block text-sm font-medium text-gray-700 mb-2'>
-										Մակերես
+										Մակերես (քառակուսի ֆուտ)
 									</label>
 									<input
 										type='number'
@@ -802,7 +946,7 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 										onChange={handleAttributeChange}
 										required
 										min='0'
-										className='w-full border border-gray-300 rounded-lg px-4 py-2'
+										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
 									/>
 								</div>
 								<div>
@@ -815,13 +959,12 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 										value={attributes.floors}
 										onChange={handleAttributeChange}
 										min='1'
-										className='w-full border border-gray-300 rounded-lg px-4 py-2'
+										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
 									/>
 								</div>
-
 								<div>
 									<label className='block text-sm font-medium text-gray-700 mb-2'>
-										Առաստաղի բարձրությունը
+										Առաստաղի բարձրությունը (ֆուտ)
 									</label>
 									<input
 										type='number'
@@ -830,7 +973,7 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 										onChange={handleAttributeChange}
 										min='0'
 										step='0.1'
-										className='w-full border border-gray-300 rounded-lg px-4 py-2'
+										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
 									/>
 								</div>
 							</div>
@@ -841,7 +984,7 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 							<div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
 								<div>
 									<label className='block text-sm font-medium text-gray-700 mb-2'>
-										Մակերես
+										Մակերես (էյկր)
 									</label>
 									<input
 										type='number'
@@ -851,7 +994,7 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 										required
 										min='0'
 										step='0.01'
-										className='w-full border border-gray-300 rounded-lg px-4 py-2'
+										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
 									/>
 								</div>
 							</div>
@@ -932,7 +1075,7 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 						</div>
 					)}
 
-					{/* Property Media */}
+					{/* Property Media - Add New */}
 					<div className='bg-white shadow rounded-lg p-6'>
 						<h2 className='text-lg font-semibold mb-6 flex items-center'>
 							<ImageIcon className='w-5 h-5 mr-2' />
