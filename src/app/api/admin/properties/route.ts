@@ -78,12 +78,24 @@ export async function POST(request: Request) {
 				throw new Error('Bathroom count must be less than 100')
 			}
 
+			let statusId = 1 // default to available
+			if (propertyData.status) {
+				const statusResult = await sql`
+    SELECT id FROM property_statuses 
+    WHERE name = ${propertyData.status} AND is_active = true
+    LIMIT 1
+  `
+				if (statusResult.rows.length > 0) {
+					statusId = statusResult.rows[0].id
+				}
+			}
+
 			// Insert the main property with owner details
 			const propertyResult = await sql.query(
 				`INSERT INTO properties (
-					user_id, custom_id, title, description, property_type, listing_type,
-					price, currency, state_id, city_id, address, postal_code,
-					latitude, longitude, featured, status, owner_name, owner_phone
+				  user_id, custom_id, title, description, property_type, listing_type,
+				  price, currency, state_id, city_id, address, postal_code,
+				  latitude, longitude, featured, status, owner_name, owner_phone
 				) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
 				RETURNING id, custom_id`,
 				[
@@ -102,7 +114,7 @@ export async function POST(request: Request) {
 					propertyData.latitude,
 					propertyData.longitude,
 					propertyData.featured,
-					'available', // Default status for new properties
+					statusId, // ✅ Use status ID instead of status name
 					propertyData.owner_name.trim(),
 					propertyData.owner_phone.trim(),
 				]
@@ -352,6 +364,9 @@ export async function GET() {
         u.email as user_email,
         s.name as state_name,
         c.name as city_name,
+		  ps.name as status_name,
+  ps.display_name as status_display,
+  ps.display_name_armenian as status_armenian,
         (
           SELECT url 
           FROM property_media 
@@ -362,6 +377,7 @@ export async function GET() {
       JOIN users u ON p.user_id = u.id
       JOIN states s ON p.state_id = s.id
       JOIN cities c ON p.city_id = c.id
+	  LEFT JOIN property_statuses ps ON p.status = ps.id
       ORDER BY p.created_at DESC
     `
 

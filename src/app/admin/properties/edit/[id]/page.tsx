@@ -98,79 +98,51 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 		area_acres: '',
 	})
 
+	// In src/app/admin/properties/edit/[id]/page.tsx
+	// Replace the useEffect that fetches initial data:
+
 	useEffect(() => {
 		// Fetch initial data
 		Promise.all([
 			fetch('/api/properties/states').then(res => res.json()),
 			fetch('/api/properties/features').then(res => res.json()),
+			fetch('/api/admin/statuses').then(res => res.json()), // ✅ FIXED ENDPOINT
 			fetch(`/api/admin/properties/${resolvedParams.id}`).then(res =>
 				res.json()
 			),
 		])
-			.then(([statesData, featuresData, propertyData]) => {
-				setStates(statesData)
-				setFeatures(featuresData)
+			.then(([statesData, featuresData, statusesData, propertyData]) => {
+				console.log('✅ Edit page data fetched:')
+				console.log('States:', statesData)
+				console.log('Features:', featuresData)
+				console.log('Statuses:', statusesData)
+				console.log('Property:', propertyData)
+
+				setStates(statesData || [])
+				setFeatures(featuresData || [])
+
+				// ✅ Add safety check for statuses
+				if (Array.isArray(statusesData)) {
+					setStatuses(statusesData)
+				} else {
+					console.error('❌ Statuses data is not an array:', statusesData)
+					setStatuses([])
+				}
 
 				if (propertyData.error) {
 					setError(propertyData.error)
 					return
 				}
 
-				// Populate form with existing data
-				setFormData({
-					custom_id: propertyData.custom_id || '',
-					title: propertyData.title || '',
-					description: propertyData.description || '',
-					property_type: propertyData.property_type || 'house',
-					listing_type: propertyData.listing_type || 'sale',
-					price: propertyData.price?.toString() || '',
-					currency: propertyData.currency || 'USD',
-					state_id: propertyData.state_id?.toString() || '',
-					city_id: propertyData.city_id?.toString() || '',
-					address: propertyData.address || '',
-					postal_code: propertyData.postal_code || '',
-					latitude: propertyData.latitude?.toString() || '',
-					longitude: propertyData.longitude?.toString() || '',
-					featured: propertyData.featured || false,
-					selectedFeatures: propertyData.features?.map((f: any) => f.id) || [],
-					// Owner details
-					owner_name: propertyData.owner_name || '',
-					owner_phone: propertyData.owner_phone || '',
-					status: propertyData.status || 'available',
-				})
-
-				// Populate attributes
-				if (propertyData.attributes) {
-					const attrs = propertyData.attributes
-					setAttributes({
-						bedrooms: attrs.bedrooms?.toString() || '',
-						bathrooms: attrs.bathrooms?.toString() || '',
-						area_sqft: attrs.area_sqft?.toString() || '',
-						year_built: attrs.year_built?.toString() || '',
-						lot_size_sqft: attrs.lot_size_sqft?.toString() || '',
-						floors: attrs.floors?.toString() || '',
-						roof_type: attrs.roof_type || '',
-						floor: attrs.floor?.toString() || '',
-						total_floors: attrs.total_floors?.toString() || '',
-						unit_number: attrs.unit_number || '',
-						business_type: attrs.business_type || '',
-						ceiling_height: attrs.ceiling_height?.toString() || '',
-						area_acres: attrs.area_acres?.toString() || '',
-					})
-				}
-
-				// Fetch existing media
-				return fetch(`/api/media/property/${resolvedParams.id}`)
-			})
-			.then(res => res?.json())
-			.then(mediaData => {
-				if (mediaData && Array.isArray(mediaData)) {
-					setExistingMedia(mediaData)
-				}
+				// ... rest of your property data population code
 			})
 			.catch(error => {
-				console.error('Error loading property data:', error)
+				console.error('❌ Error loading property data:', error)
 				setError('Failed to load property data')
+				// Set safe defaults
+				setStates([])
+				setFeatures([])
+				setStatuses([])
 			})
 			.finally(() => {
 				setLoading(false)

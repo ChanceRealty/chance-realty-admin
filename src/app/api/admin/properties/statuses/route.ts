@@ -1,4 +1,5 @@
-// src/app/api/properties/statuses/route.ts - Public API for property forms
+// Create: src/app/api/properties/statuses/route.ts
+
 import { NextResponse } from 'next/server'
 import { sql } from '@vercel/postgres'
 
@@ -19,7 +20,7 @@ export async function OPTIONS() {
 	return corsResponse(new NextResponse(null, { status: 204 }))
 }
 
-// GET - Fetch active statuses for property forms
+// GET - Fetch active statuses for property forms (public endpoint)
 export async function GET() {
 	try {
 		const result = await sql`

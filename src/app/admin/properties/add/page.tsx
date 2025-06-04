@@ -91,24 +91,45 @@ export default function AddPropertyPage() {
 		area_acres: '',
 	})
 
+	// In src/app/admin/properties/add/page.tsx
+	// Replace the useEffect that fetches data:
+
 	useEffect(() => {
 		// Fetch all required data
 		Promise.all([
 			fetch('/api/properties/states').then(res => res.json()),
 			fetch('/api/properties/features').then(res => res.json()),
-			fetch('/api/properties/statuses').then(res => res.json()),
+			fetch('/api/admin/statuses').then(res => res.json()), // ✅ FIXED ENDPOINT
 		])
 			.then(([statesData, featuresData, statusesData]) => {
-				setStates(statesData)
-				setFeatures(featuresData)
-				setStatuses(statusesData)
+				console.log('✅ Fetched data successfully:')
+				console.log('States:', statesData)
+				console.log('Features:', featuresData)
+				console.log('Statuses:', statusesData)
 
-				// Set default status to first available status
-				if (statusesData.length > 0) {
-					setFormData(prev => ({ ...prev, status: statusesData[0].name }))
+				setStates(statesData || [])
+				setFeatures(featuresData || [])
+
+				// ✅ Add safety check for statuses
+				if (Array.isArray(statusesData)) {
+					setStatuses(statusesData)
+
+					// Set default status to first available status
+					if (statusesData.length > 0) {
+						setFormData(prev => ({ ...prev, status: statusesData[0].name }))
+					}
+				} else {
+					console.error('❌ Statuses data is not an array:', statusesData)
+					setStatuses([])
 				}
 			})
-			.catch(error => console.error('Error fetching data:', error))
+			.catch(error => {
+				console.error('❌ Error fetching data:', error)
+				// Set safe defaults to prevent crashes
+				setStates([])
+				setFeatures([])
+				setStatuses([])
+			})
 	}, [])
 
 	useEffect(() => {
