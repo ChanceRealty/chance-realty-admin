@@ -94,9 +94,8 @@ export async function POST(request: Request) {
 			const propertyResult = await sql.query(
 				`INSERT INTO properties (
 				  user_id, custom_id, title, description, property_type, listing_type,
-				  price, currency, state_id, city_id, address, postal_code,
-				  latitude, longitude, featured, status, owner_name, owner_phone
-				) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+				  price, currency, state_id, city_id, address, status, owner_name, owner_phone
+				) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 				RETURNING id, custom_id`,
 				[
 					user.id,
@@ -110,10 +109,6 @@ export async function POST(request: Request) {
 					propertyData.state_id,
 					propertyData.city_id,
 					propertyData.address,
-					propertyData.postal_code,
-					propertyData.latitude,
-					propertyData.longitude,
-					propertyData.featured,
 					statusId, // ✅ Use status ID instead of status name
 					propertyData.owner_name.trim(),
 					propertyData.owner_phone.trim(),
@@ -356,7 +351,6 @@ export async function GET() {
         p.listing_type,
         p.price,
         p.status,
-        p.featured,
         p.views,
         p.created_at,
         p.owner_name,
@@ -365,8 +359,6 @@ export async function GET() {
         s.name as state_name,
         c.name as city_name,
 		  ps.name as status_name,
-  ps.display_name as status_display,
-  ps.display_name_armenian as status_armenian,
         (
           SELECT url 
           FROM property_media 

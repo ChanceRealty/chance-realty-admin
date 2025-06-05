@@ -9,8 +9,6 @@ export type PropertyType = 'house' | 'apartment' | 'commercial' | 'land'
 export interface PropertyStatus {
 	id: number
 	name: string
-	display_name: string
-	display_name_armenian?: string
 	color: string
 	is_active: boolean
 	sort_order: number
@@ -47,11 +45,7 @@ export interface BaseProperty {
 	state_id: number
 	city_id: number
 	address: string
-	postal_code?: string
-	latitude?: number
-	longitude?: number
 	status: string // Now references PropertyStatus.name
-	featured: boolean
 	views: number
 	created_at: Date
 	updated_at: Date
@@ -120,27 +114,6 @@ export interface PropertyImage {
 	image_type: string
 	display_order: number
 	is_primary: boolean
-}
-
-export interface PropertyDocument {
-	id: number
-	property_id: number
-	name: string
-	url: string
-	document_type?: string
-	uploaded_at: Date
-}
-
-export interface PropertyInquiry {
-	id: number
-	property_id: number
-	user_id?: number
-	name: string
-	email: string
-	phone?: string
-	message: string
-	status: string
-	created_at: Date
 }
 
 export interface PropertyFilter {

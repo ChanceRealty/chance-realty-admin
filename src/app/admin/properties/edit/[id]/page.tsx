@@ -1,4 +1,4 @@
-// src/app/admin/properties/edit/[id]/page.tsx - Fixed version based on add page
+// src/app/admin/properties/edit/[id]/page.tsx - FIXED VERSION
 'use client'
 
 import { useState, useEffect, use } from 'react'
@@ -99,15 +99,34 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 		area_acres: '',
 	})
 
+	// ✅ FIXED: Updated useEffect to use correct endpoint
 	useEffect(() => {
 		// Fetch all required data
 		Promise.all([
 			fetch('/api/properties/states').then(res => res.json()),
 			fetch('/api/properties/features').then(res => res.json()),
-			fetch('/api/admin/statuses').then(res => res.json()),
-			fetch(`/api/admin/properties/${resolvedParams.id}`).then(res =>
-				res.json()
-			),
+			fetch('/api/admin/statuses').then(res => {
+				if (!res.ok) {
+					console.error(
+						'❌ Failed to fetch statuses:',
+						res.status,
+						res.statusText
+					)
+					return []
+				}
+				return res.json()
+			}),
+			fetch(`/api/admin/properties/${resolvedParams.id}`).then(res => {
+				if (!res.ok) {
+					console.error(
+						'❌ Failed to fetch property:',
+						res.status,
+						res.statusText
+					)
+					throw new Error(`Failed to fetch property: ${res.status}`)
+				}
+				return res.json()
+			}),
 		])
 			.then(([statesData, featuresData, statusesData, propertyData]) => {
 				console.log('✅ Edit page data fetched:')
@@ -119,12 +138,35 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 				setStates(statesData || [])
 				setFeatures(featuresData || [])
 
-				// Add safety check for statuses
+				// ✅ Add safety check for statuses with better error handling
 				if (Array.isArray(statusesData)) {
 					setStatuses(statusesData)
 				} else {
 					console.error('❌ Statuses data is not an array:', statusesData)
-					setStatuses([])
+					// Set default statuses if API fails
+					setStatuses([
+						{
+							id: 1,
+							name: 'available',
+							color: '#green',
+							is_active: true,
+							sort_order: 1,
+						},
+						{
+							id: 2,
+							name: 'sold',
+							color: '#red',
+							is_active: true,
+							sort_order: 2,
+						},
+						{
+							id: 3,
+							name: 'rented',
+							color: '#blue',
+							is_active: true,
+							sort_order: 3,
+						},
+					])
 				}
 
 				if (propertyData.error) {
@@ -151,6 +193,7 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 					selectedFeatures: propertyData.features?.map((f: any) => f.id) || [],
 					owner_name: propertyData.owner_name || '',
 					owner_phone: propertyData.owner_phone || '',
+					// ✅ Handle status properly - it might be a number (ID) or string (name)
 					status: propertyData.status || 'available',
 				})
 
@@ -184,11 +227,21 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 			})
 			.catch(error => {
 				console.error('❌ Error loading property data:', error)
-				setError('Failed to load property data')
+				setError(
+					'Failed to load property data. Please check the console for details.'
+				)
 				// Set safe defaults
 				setStates([])
 				setFeatures([])
-				setStatuses([])
+				setStatuses([
+					{
+						id: 1,
+						name: 'available',
+						color: '#green',
+						is_active: true,
+						sort_order: 1,
+					},
+				])
 			})
 			.finally(() => {
 				setLoading(false)
@@ -607,7 +660,7 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 								>
 									{statuses.map(status => (
 										<option key={status.id} value={status.name}>
-											{status.display_name_armenian || status.display_name}
+											{status.name}
 										</option>
 									))}
 								</select>
@@ -624,8 +677,7 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 														selectedStatus.color
 													)}`}
 												>
-													{selectedStatus.display_name_armenian ||
-														selectedStatus.display_name}
+													{selectedStatus.name}
 												</span>
 											) : null
 										})()}

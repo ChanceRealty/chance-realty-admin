@@ -94,12 +94,25 @@ export default function AddPropertyPage() {
 	// In src/app/admin/properties/add/page.tsx
 	// Replace the useEffect that fetches data:
 
+	// src/app/admin/properties/add/page.tsx - FIXED useEffect section only
+	// Replace the existing useEffect that fetches data with this corrected version:
+
 	useEffect(() => {
 		// Fetch all required data
 		Promise.all([
 			fetch('/api/properties/states').then(res => res.json()),
 			fetch('/api/properties/features').then(res => res.json()),
-			fetch('/api/admin/statuses').then(res => res.json()), // ✅ FIXED ENDPOINT
+			fetch('/api/admin/statuses').then(res => {
+				if (!res.ok) {
+					console.error(
+						'❌ Failed to fetch statuses:',
+						res.status,
+						res.statusText
+					)
+					return []
+				}
+				return res.json()
+			}), // ✅ FIXED ENDPOINT
 		])
 			.then(([statesData, featuresData, statusesData]) => {
 				console.log('✅ Fetched data successfully:')
@@ -110,7 +123,7 @@ export default function AddPropertyPage() {
 				setStates(statesData || [])
 				setFeatures(featuresData || [])
 
-				// ✅ Add safety check for statuses
+				// ✅ Add safety check for statuses with better error handling
 				if (Array.isArray(statusesData)) {
 					setStatuses(statusesData)
 
@@ -120,7 +133,31 @@ export default function AddPropertyPage() {
 					}
 				} else {
 					console.error('❌ Statuses data is not an array:', statusesData)
-					setStatuses([])
+					// Set default statuses if API fails
+					setStatuses([
+						{
+							id: 1,
+							name: 'available',
+							color: '#green',
+							is_active: true,
+							sort_order: 1,
+						},
+						{
+							id: 2,
+							name: 'sold',
+							color: '#red',
+							is_active: true,
+							sort_order: 2,
+						},
+						{
+							id: 3,
+							name: 'rented',
+							color: '#blue',
+							is_active: true,
+							sort_order: 3,
+						},
+					])
+					setFormData(prev => ({ ...prev, status: 'available' }))
 				}
 			})
 			.catch(error => {
@@ -128,7 +165,16 @@ export default function AddPropertyPage() {
 				// Set safe defaults to prevent crashes
 				setStates([])
 				setFeatures([])
-				setStatuses([])
+				setStatuses([
+					{
+						id: 1,
+						name: 'available',
+						color: '#green',
+						is_active: true,
+						sort_order: 1,
+					},
+				])
+				setFormData(prev => ({ ...prev, status: 'available' }))
 			})
 	}, [])
 
@@ -487,7 +533,7 @@ export default function AddPropertyPage() {
 								>
 									{statuses.map(status => (
 										<option key={status.id} value={status.name}>
-											{status.display_name_armenian || status.display_name}
+											{status.name}
 										</option>
 									))}
 								</select>
@@ -504,8 +550,7 @@ export default function AddPropertyPage() {
 														selectedStatus.color
 													)}`}
 												>
-													{selectedStatus.display_name_armenian ||
-														selectedStatus.display_name}
+													{selectedStatus.name}
 												</span>
 											) : null
 										})()}

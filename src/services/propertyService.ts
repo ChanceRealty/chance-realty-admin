@@ -5,7 +5,6 @@ import { sql } from '@vercel/postgres'
 type PropertyFilter = {
 	property_type?: string
 	listing_type?: string
-	featured?: boolean
 	state_id?: number
 	city_id?: number
 	min_price?: number
@@ -31,10 +30,7 @@ export async function getProperties(filter: PropertyFilter = {}) {
         p.price,
         p.currency,
         ps.name as status, -- ✅ Get status name from property_statuses
-        ps.display_name as status_display,
-        ps.display_name_armenian as status_armenian,
         ps.color as status_color,
-        p.featured,
         p.views,
         p.created_at,
         p.updated_at,
@@ -120,12 +116,6 @@ export async function getProperties(filter: PropertyFilter = {}) {
 			paramIndex++
 		}
 
-		if (filter.featured !== undefined) {
-			query += ` AND p.featured = $${paramIndex}`
-			params.push(filter.featured)
-			paramIndex++
-		}
-
 		if (filter.state_id) {
 			query += ` AND p.state_id = $${paramIndex}`
 			params.push(filter.state_id)
@@ -150,10 +140,6 @@ export async function getProperties(filter: PropertyFilter = {}) {
 			paramIndex++
 		}
 
-		// ✅ REMOVED status filter here since we're already filtering for 'available' in the base query
-		// If you need to allow different status filters for admin, you can add a separate function
-
-		// Property-specific filters
 		if (filter.bedrooms && (filter.property_type === 'house' || filter.property_type === 'apartment' || !filter.property_type)) {
 			query += ` AND (
         (p.property_type = 'house' AND ha.bedrooms >= $${paramIndex}) OR
@@ -213,8 +199,6 @@ export async function getPropertyByCustomId(customId: string) {
       SELECT 
         p.*,
         ps.name as status, -- ✅ Get status name
-        ps.display_name as status_display,
-        ps.display_name_armenian as status_armenian,
         ps.color as status_color,
         s.name as state_name,
         c.name as city_name,
@@ -340,21 +324,6 @@ export async function getPropertyFeatures() {
 	}
 }
 
-
-export async function getFeaturedProperties() {
-	try {
-		// Reuse the existing getProperties function with featured filter
-		const featuredProperties = await getProperties({
-			featured: true,
-			limit: 6
-		})
-		
-		return featuredProperties
-	} catch (error) {
-		console.error('Error fetching featured properties:', error)
-		throw new Error('Failed to fetch featured properties')
-	}
-}
 
 export async function getRecentProperties(limit = 8) {
 	try {

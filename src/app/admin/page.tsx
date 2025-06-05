@@ -650,14 +650,10 @@ export default function AdminDashboard() {
 													<span
 														className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(
 															property.status_name ||
-																property.status_armenian ||
-																property.status_display ||
 																''
 														)}`}
 													>
-														{property.status_armenian ||
-															property.status_display ||
-															property.status_name ||
+														{property.status_name ||
 															'Անհայտ'}
 													</span>
 												</div>
@@ -846,14 +842,10 @@ export default function AdminDashboard() {
 													<span
 														className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(
 															property.status_name ||
-																property.status_armenian ||
-																property.status_display ||
 																''
 														)}`}
 													>
-														{property.status_armenian ||
-															property.status_display ||
-															property.status_name ||
+														{property.status_name ||
 															'Անհայտ'}
 													</span>
 												</td>
