@@ -1,4 +1,4 @@
-// src/app/admin/properties/edit/[id]/page.tsx - Complete edit page with owner details, status, and all features
+// src/app/admin/properties/edit/[id]/page.tsx - Fixed version based on add page
 'use client'
 
 import { useState, useEffect, use } from 'react'
@@ -39,6 +39,7 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 	const [states, setStates] = useState<State[]>([])
 	const [cities, setCities] = useState<City[]>([])
 	const [features, setFeatures] = useState<PropertyFeature[]>([])
+	const [statuses, setStatuses] = useState<PropertyStatus[]>([])
 	const [existingMedia, setExistingMedia] = useState<any[]>([])
 	const [mediaFiles, setMediaFiles] = useState<File[]>([])
 	const [mediaTypes, setMediaTypes] = useState<string[]>([])
@@ -64,7 +65,7 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 		// Owner details (admin only)
 		owner_name: '',
 		owner_phone: '',
-		status: 'available' as PropertyStatus,
+		status: 'available', // Default status
 	})
 
 	// Property type specific attributes
@@ -98,15 +99,12 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 		area_acres: '',
 	})
 
-	// In src/app/admin/properties/edit/[id]/page.tsx
-	// Replace the useEffect that fetches initial data:
-
 	useEffect(() => {
-		// Fetch initial data
+		// Fetch all required data
 		Promise.all([
 			fetch('/api/properties/states').then(res => res.json()),
 			fetch('/api/properties/features').then(res => res.json()),
-			fetch('/api/admin/statuses').then(res => res.json()), // ✅ FIXED ENDPOINT
+			fetch('/api/admin/statuses').then(res => res.json()),
 			fetch(`/api/admin/properties/${resolvedParams.id}`).then(res =>
 				res.json()
 			),
@@ -121,7 +119,7 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 				setStates(statesData || [])
 				setFeatures(featuresData || [])
 
-				// ✅ Add safety check for statuses
+				// Add safety check for statuses
 				if (Array.isArray(statusesData)) {
 					setStatuses(statusesData)
 				} else {
@@ -134,7 +132,55 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 					return
 				}
 
-				// ... rest of your property data population code
+				// Populate form data with existing property data
+				setFormData({
+					custom_id: propertyData.custom_id || '',
+					title: propertyData.title || '',
+					description: propertyData.description || '',
+					property_type: propertyData.property_type || 'house',
+					listing_type: propertyData.listing_type || 'sale',
+					price: propertyData.price?.toString() || '',
+					currency: propertyData.currency || 'USD',
+					state_id: propertyData.state_id?.toString() || '',
+					city_id: propertyData.city_id?.toString() || '',
+					address: propertyData.address || '',
+					postal_code: propertyData.postal_code || '',
+					latitude: propertyData.latitude?.toString() || '',
+					longitude: propertyData.longitude?.toString() || '',
+					featured: propertyData.featured || false,
+					selectedFeatures: propertyData.features?.map((f: any) => f.id) || [],
+					owner_name: propertyData.owner_name || '',
+					owner_phone: propertyData.owner_phone || '',
+					status: propertyData.status || 'available',
+				})
+
+				// Populate attributes based on property type
+				if (propertyData.attributes) {
+					const attrs = propertyData.attributes
+					setAttributes({
+						bedrooms: attrs.bedrooms?.toString() || '',
+						bathrooms: attrs.bathrooms?.toString() || '',
+						area_sqft: attrs.area_sqft?.toString() || '',
+						year_built: attrs.year_built?.toString() || '',
+						lot_size_sqft: attrs.lot_size_sqft?.toString() || '',
+						floors: attrs.floors?.toString() || '',
+						roof_type: attrs.roof_type || '',
+						floor: attrs.floor?.toString() || '',
+						total_floors: attrs.total_floors?.toString() || '',
+						unit_number: attrs.unit_number || '',
+						business_type: attrs.business_type || '',
+						ceiling_height: attrs.ceiling_height?.toString() || '',
+						area_acres: attrs.area_acres?.toString() || '',
+					})
+				}
+
+				// Fetch existing media
+				fetch(`/api/media/property/${resolvedParams.id}`)
+					.then(res => res.json())
+					.then(mediaData => {
+						setExistingMedia(mediaData || [])
+					})
+					.catch(error => console.error('Error fetching media:', error))
 			})
 			.catch(error => {
 				console.error('❌ Error loading property data:', error)
@@ -371,11 +417,18 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 		daily_rent: 'Օրյա վարձակալություն',
 	}
 
-	const statusDisplay: Record<PropertyStatus, string> = {
-		available: 'Հասանելի',
-		sold: 'Վաճառված',
-		rented: 'Վարձակալված',
-		pending: 'Սպասման մեջ',
+	// Get status color class
+	const getStatusColorClass = (color: string) => {
+		const colorMap: Record<string, string> = {
+			'#green': 'bg-green-100 text-green-800',
+			'#blue': 'bg-blue-100 text-blue-800',
+			'#red': 'bg-red-100 text-red-800',
+			'#yellow': 'bg-yellow-100 text-yellow-800',
+			'#purple': 'bg-purple-100 text-purple-800',
+			'#indigo': 'bg-indigo-100 text-indigo-800',
+			'#gray': 'bg-gray-100 text-gray-800',
+		}
+		return colorMap[color] || 'bg-gray-100 text-gray-800'
 	}
 
 	if (loading) {
@@ -552,14 +605,32 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 									onChange={handleInputChange}
 									className='w-full border border-gray-300 text-gray-700 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
 								>
-									{(Object.keys(statusDisplay) as PropertyStatus[]).map(
-										status => (
-											<option key={status} value={status}>
-												{statusDisplay[status]}
-											</option>
-										)
-									)}
+									{statuses.map(status => (
+										<option key={status.id} value={status.name}>
+											{status.display_name_armenian || status.display_name}
+										</option>
+									))}
 								</select>
+								{/* Show status preview */}
+								{formData.status && (
+									<div className='mt-2'>
+										{(() => {
+											const selectedStatus = statuses.find(
+												s => s.name === formData.status
+											)
+											return selectedStatus ? (
+												<span
+													className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColorClass(
+														selectedStatus.color
+													)}`}
+												>
+													{selectedStatus.display_name_armenian ||
+														selectedStatus.display_name}
+												</span>
+											) : null
+										})()}
+									</div>
+								)}
 							</div>
 
 							<div className='flex items-center'>
