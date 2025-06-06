@@ -364,7 +364,6 @@ export async function GET() {
         p.price,
         ps.name as status, -- ✅ Get status name from property_statuses table
         ps.color as status_color,
-        p.featured,
         p.views,
         p.created_at,
         p.owner_name,

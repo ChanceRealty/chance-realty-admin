@@ -1,3 +1,4 @@
+// src/app/api/public/properties/route.ts - FIXED VERSION
 import { NextResponse } from 'next/server'
 import { getProperties } from '@/services/propertyService'
 import { PropertyFilter } from '@/types/property'
@@ -44,7 +45,10 @@ export async function GET(request: Request) {
 			limit: searchParams.get('limit')
 				? parseInt(searchParams.get('limit')!)
 				: 20,
+			// ✅ ADDED: Support for featured filter
 		}
+
+		console.log('🔍 Public API received filter:', filter)
 
 		// Use your existing service but strip owner details for public access
 		const properties = await getProperties(filter)
@@ -55,10 +59,12 @@ export async function GET(request: Request) {
 			return publicProperty
 		})
 
+		console.log(`✅ Returning ${publicProperties.length} public properties`)
+
 		const response = NextResponse.json(publicProperties)
 		return corsResponse(response)
 	} catch (error) {
-		console.error('Error fetching public properties:', error)
+		console.error('❌ Error fetching public properties:', error)
 		const response = NextResponse.json(
 			{ error: 'Failed to fetch properties' },
 			{ status: 500 }

@@ -39,6 +39,9 @@ export async function getProperties(filter: PropertyFilter = {}) {
         p.address,
         s.name as state_name,
         c.name as city_name,
+        -- Get state and city objects
+        json_build_object('id', s.id, 'name', s.name) as state,
+        json_build_object('id', c.id, 'name', c.name) as city,
         -- Get property attributes based on type
         CASE 
           WHEN p.property_type = 'house' THEN json_build_object(
@@ -92,16 +95,19 @@ export async function getProperties(filter: PropertyFilter = {}) {
       FROM properties p
       JOIN states s ON p.state_id = s.id
       JOIN cities c ON p.city_id = c.id
-      LEFT JOIN property_statuses ps ON p.status = ps.id -- ✅ Join to get status info
+      LEFT JOIN property_statuses ps ON p.status = ps.id
       LEFT JOIN house_attributes ha ON p.id = ha.property_id AND p.property_type = 'house'
       LEFT JOIN apartment_attributes aa ON p.id = aa.property_id AND p.property_type = 'apartment'
       LEFT JOIN commercial_attributes ca ON p.id = ca.property_id AND p.property_type = 'commercial'
       LEFT JOIN land_attributes la ON p.id = la.property_id AND p.property_type = 'land'
-      WHERE ps.name = 'available' AND ps.is_active = true -- ✅ Only show available and active statuses
+      WHERE ps.is_active = true
     `
 
 		const params = []
 		let paramIndex = 1
+
+		// ✅ REMOVED the hard filter for only "available" status
+		// Now shows all properties with active statuses
 
 		// Apply filters
 		if (filter.property_type) {
@@ -140,7 +146,12 @@ export async function getProperties(filter: PropertyFilter = {}) {
 			paramIndex++
 		}
 
-		if (filter.bedrooms && (filter.property_type === 'house' || filter.property_type === 'apartment' || !filter.property_type)) {
+		if (
+			filter.bedrooms &&
+			(filter.property_type === 'house' ||
+				filter.property_type === 'apartment' ||
+				!filter.property_type)
+		) {
 			query += ` AND (
         (p.property_type = 'house' AND ha.bedrooms >= $${paramIndex}) OR
         (p.property_type = 'apartment' AND aa.bedrooms >= $${paramIndex})
@@ -149,7 +160,12 @@ export async function getProperties(filter: PropertyFilter = {}) {
 			paramIndex++
 		}
 
-		if (filter.bathrooms && (filter.property_type === 'house' || filter.property_type === 'apartment' || !filter.property_type)) {
+		if (
+			filter.bathrooms &&
+			(filter.property_type === 'house' ||
+				filter.property_type === 'apartment' ||
+				!filter.property_type)
+		) {
 			query += ` AND (
         (p.property_type = 'house' AND ha.bathrooms >= $${paramIndex}) OR
         (p.property_type = 'apartment' AND aa.bathrooms >= $${paramIndex})
@@ -161,12 +177,14 @@ export async function getProperties(filter: PropertyFilter = {}) {
 		// Sorting
 		const sortBy = filter.sort_by || 'created_at'
 		const sortOrder = filter.sort_order || 'desc'
-		
+
 		// Validate sort fields to prevent SQL injection
 		const allowedSortFields = ['price', 'created_at', 'views', 'title']
-		const safeSortBy = allowedSortFields.includes(sortBy) ? sortBy : 'created_at'
+		const safeSortBy = allowedSortFields.includes(sortBy)
+			? sortBy
+			: 'created_at'
 		const safeSortOrder = sortOrder === 'asc' ? 'asc' : 'desc'
-		
+
 		query += ` ORDER BY p.${safeSortBy} ${safeSortOrder}`
 
 		// Pagination
@@ -175,7 +193,7 @@ export async function getProperties(filter: PropertyFilter = {}) {
 		query += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`
 		params.push(limit, offset)
 
-		console.log('Executing property query with params:', params.length)
+		console.log('✅ Executing property query with params:', params.length)
 		const result = await sql.query(query, params)
 
 		// Transform the result to match expected format
@@ -202,6 +220,9 @@ export async function getPropertyByCustomId(customId: string) {
         ps.color as status_color,
         s.name as state_name,
         c.name as city_name,
+        -- Get state and city objects
+        json_build_object('id', s.id, 'name', s.name) as state,
+        json_build_object('id', c.id, 'name', c.name) as city,
         -- Get property attributes
         CASE 
           WHEN p.property_type = 'house' THEN json_build_object(
@@ -231,16 +252,16 @@ export async function getPropertyByCustomId(customId: string) {
       FROM properties p
       JOIN states s ON p.state_id = s.id
       JOIN cities c ON p.city_id = c.id
-      LEFT JOIN property_statuses ps ON p.status = ps.id -- ✅ Join to get status
+      LEFT JOIN property_statuses ps ON p.status = ps.id
       LEFT JOIN house_attributes ha ON p.id = ha.property_id AND p.property_type = 'house'
       LEFT JOIN apartment_attributes aa ON p.id = aa.property_id AND p.property_type = 'apartment'
       LEFT JOIN commercial_attributes ca ON p.id = ca.property_id AND p.property_type = 'commercial'
       LEFT JOIN land_attributes la ON p.id = la.property_id AND p.property_type = 'land'
-      WHERE p.custom_id = $1 AND ps.name = 'available' AND ps.is_active = true -- ✅ Filter by status name
+      WHERE p.custom_id = $1 AND ps.is_active = true
     `
 
 		const result = await sql.query(query, [customId])
-		
+
 		if (result.rows.length === 0) {
 			return null
 		}
@@ -248,20 +269,26 @@ export async function getPropertyByCustomId(customId: string) {
 		const property = result.rows[0]
 
 		// Get images separately
-		const imagesResult = await sql.query(`
+		const imagesResult = await sql.query(
+			`
 			SELECT id, url, thumbnail_url, type, is_primary, display_order
 			FROM property_media
 			WHERE property_id = $1
 			ORDER BY is_primary DESC, display_order, created_at
-		`, [property.id])
+		`,
+			[property.id]
+		)
 
-		// Get features separately  
-		const featuresResult = await sql.query(`
+		// Get features separately
+		const featuresResult = await sql.query(
+			`
 			SELECT pf.id, pf.name, pf.icon
 			FROM property_features pf
 			JOIN property_to_features ptf ON pf.id = ptf.feature_id
 			WHERE ptf.property_id = $1
-		`, [property.id])
+		`,
+			[property.id]
+		)
 
 		return {
 			...property,
@@ -282,7 +309,7 @@ export async function getStates() {
 			FROM states
 			ORDER BY name ASC
 		`
-		
+
 		const result = await sql.query(query)
 		return result.rows
 	} catch (error) {
@@ -299,7 +326,7 @@ export async function getCitiesByState(stateId: number) {
 			WHERE state_id = $1
 			ORDER BY name ASC
 		`
-		
+
 		const result = await sql.query(query, [stateId])
 		return result.rows
 	} catch (error) {
@@ -315,7 +342,7 @@ export async function getPropertyFeatures() {
 			FROM property_features
 			ORDER BY name ASC
 		`
-		
+
 		const result = await sql.query(query)
 		return result.rows
 	} catch (error) {
@@ -331,9 +358,9 @@ export async function getRecentProperties(limit = 8) {
 		const recentProperties = await getProperties({
 			sort_by: 'created_at',
 			sort_order: 'desc',
-			limit: limit
+			limit: limit,
 		})
-		
+
 		return recentProperties
 	} catch (error) {
 		console.error('Error fetching recent properties:', error)
@@ -342,20 +369,30 @@ export async function getRecentProperties(limit = 8) {
 }
 
 // Helper function to increment property views
-export async function incrementPropertyViews(propertyId: number, userId: number | null = null, ipAddress: string | null = null) {
+export async function incrementPropertyViews(
+	propertyId: number,
+	userId: number | null = null,
+	ipAddress: string | null = null
+) {
 	try {
 		// Insert view record
-		await sql.query(`
+		await sql.query(
+			`
 			INSERT INTO property_views (property_id, user_id, ip_address, viewed_at)
 			VALUES ($1, $2, $3, NOW())
-		`, [propertyId, userId, ipAddress])
+		`,
+			[propertyId, userId, ipAddress]
+		)
 
 		// Increment views counter
-		await sql.query(`
+		await sql.query(
+			`
 			UPDATE properties 
 			SET views = views + 1 
 			WHERE id = $1
-		`, [propertyId])
+		`,
+			[propertyId]
+		)
 
 		return true
 	} catch (error) {
