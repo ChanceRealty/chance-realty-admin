@@ -97,12 +97,24 @@ export default function AddPropertyPage() {
 	// src/app/admin/properties/add/page.tsx - FIXED useEffect section only
 	// Replace the existing useEffect that fetches data with this corrected version:
 
+	// src/app/admin/properties/add/page.tsx - FIXED useEffect section only
+	// Replace the existing useEffect that fetches data with this corrected version:
+
 	useEffect(() => {
+		console.log('🚀 Add Property: Starting data fetch...')
+
 		// Fetch all required data
 		Promise.all([
-			fetch('/api/properties/states').then(res => res.json()),
-			fetch('/api/properties/features').then(res => res.json()),
+			fetch('/api/properties/states').then(res => {
+				console.log('📍 States API response status:', res.status)
+				return res.json()
+			}),
+			fetch('/api/properties/features').then(res => {
+				console.log('🏷️ Features API response status:', res.status)
+				return res.json()
+			}),
 			fetch('/api/admin/statuses').then(res => {
+				console.log('📊 Statuses API response status:', res.status)
 				if (!res.ok) {
 					console.error(
 						'❌ Failed to fetch statuses:',
@@ -112,32 +124,36 @@ export default function AddPropertyPage() {
 					return []
 				}
 				return res.json()
-			}), // ✅ FIXED ENDPOINT
+			}), // ✅ FIXED ENDPOINT - removed '/properties' from path
 		])
 			.then(([statesData, featuresData, statusesData]) => {
-				console.log('✅ Fetched data successfully:')
-				console.log('States:', statesData)
-				console.log('Features:', featuresData)
-				console.log('Statuses:', statusesData)
+				console.log('✅ Add Property: All data fetched successfully:')
+				console.log('📍 States:', statesData?.length || 0, 'items')
+				console.log('🏷️ Features:', featuresData?.length || 0, 'items')
+				console.log('📊 Statuses:', statusesData?.length || 0, 'items')
+				console.log('📊 First status:', statusesData?.[0])
 
 				setStates(statesData || [])
 				setFeatures(featuresData || [])
 
 				// ✅ Add safety check for statuses with better error handling
-				if (Array.isArray(statusesData)) {
+				if (Array.isArray(statusesData) && statusesData.length > 0) {
+					console.log('✅ Setting statuses:', statusesData)
 					setStatuses(statusesData)
 
 					// Set default status to first available status
-					if (statusesData.length > 0) {
-						setFormData(prev => ({ ...prev, status: statusesData[0].name }))
-					}
+					const defaultStatus =
+						statusesData.find(s => s.name === 'available') || statusesData[0]
+					console.log('🎯 Setting default status:', defaultStatus?.name)
+					setFormData(prev => ({ ...prev, status: defaultStatus.name }))
 				} else {
-					console.error('❌ Statuses data is not an array:', statusesData)
+					console.error('❌ Statuses data is not a valid array:', statusesData)
 					// Set default statuses if API fails
-					setStatuses([
+					const fallbackStatuses = [
 						{
 							id: 1,
 							name: 'available',
+							display_name: 'Available',
 							color: '#green',
 							is_active: true,
 							sort_order: 1,
@@ -145,6 +161,7 @@ export default function AddPropertyPage() {
 						{
 							id: 2,
 							name: 'sold',
+							display_name: 'Sold',
 							color: '#red',
 							is_active: true,
 							sort_order: 2,
@@ -152,32 +169,36 @@ export default function AddPropertyPage() {
 						{
 							id: 3,
 							name: 'rented',
+							display_name: 'Rented',
 							color: '#blue',
 							is_active: true,
 							sort_order: 3,
 						},
-					])
+					]
+					console.log('🔄 Using fallback statuses')
+					setStatuses(fallbackStatuses)
 					setFormData(prev => ({ ...prev, status: 'available' }))
 				}
 			})
 			.catch(error => {
-				console.error('❌ Error fetching data:', error)
+				console.error('❌ Add Property: Error fetching data:', error)
 				// Set safe defaults to prevent crashes
 				setStates([])
 				setFeatures([])
-				setStatuses([
+				const fallbackStatuses = [
 					{
 						id: 1,
 						name: 'available',
+						display_name: 'Available',
 						color: '#green',
 						is_active: true,
 						sort_order: 1,
 					},
-				])
+				]
+				setStatuses(fallbackStatuses)
 				setFormData(prev => ({ ...prev, status: 'available' }))
 			})
 	}, [])
-
 	useEffect(() => {
 		if (formData.state_id) {
 			// Fetch cities for selected state
@@ -322,7 +343,7 @@ export default function AddPropertyPage() {
 				throw new Error(data.error || 'Failed to create property')
 			}
 
-			router.push('/admin/properties')
+			router.push('/admin')
 		} catch (error) {
 			console.error('Error creating property:', error)
 			setError(
@@ -557,19 +578,6 @@ export default function AddPropertyPage() {
 									</div>
 								)}
 							</div>
-
-							<div className='flex items-center'>
-								<input
-									type='checkbox'
-									name='featured'
-									checked={formData.featured}
-									onChange={handleInputChange}
-									className='w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500'
-								/>
-								<label className='ml-2 text-sm font-medium text-gray-700'>
-									Առանձնակի (Featured)
-								</label>
-							</div>
 						</div>
 					</div>
 
@@ -681,50 +689,6 @@ export default function AddPropertyPage() {
 									required
 									className='w-full border text-black border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
 									placeholder='Enter property address'
-								/>
-							</div>
-
-							<div>
-								<label className='block text-sm font-medium text-gray-700 mb-2'>
-									Postal Code
-								</label>
-								<input
-									type='text'
-									name='postal_code'
-									value={formData.postal_code}
-									onChange={handleInputChange}
-									className='w-full border border-gray-300 text-black rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-									placeholder='Enter postal code'
-								/>
-							</div>
-
-							<div>
-								<label className='block text-sm font-medium text-gray-700 mb-2'>
-									Latitude
-								</label>
-								<input
-									type='number'
-									name='latitude'
-									value={formData.latitude}
-									onChange={handleInputChange}
-									step='0.000001'
-									className='w-full border border-gray-300 text-black rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-									placeholder='Enter latitude'
-								/>
-							</div>
-
-							<div>
-								<label className='block text-sm font-medium text-gray-700 mb-2'>
-									Longitude
-								</label>
-								<input
-									type='number'
-									name='longitude'
-									value={formData.longitude}
-									onChange={handleInputChange}
-									step='0.000001'
-									className='w-full border border-gray-300 text-black rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-									placeholder='Enter longitude'
 								/>
 							</div>
 						</div>
@@ -1005,7 +969,7 @@ export default function AddPropertyPage() {
 					<div className='flex justify-end space-x-4'>
 						<button
 							type='button'
-							onClick={() => router.push('/admin/properties')}
+							onClick={() => router.push('/admin')}
 							className='px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50'
 						>
 							Չեղարկել

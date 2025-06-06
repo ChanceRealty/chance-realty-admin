@@ -7,6 +7,9 @@ import { PropertyType } from '@/types/property'
 import { uploadToImageKit } from '@/lib/imagekit'
 
 // GET - Fetch single property for editing (updated to include owner details)
+// src/app/api/admin/properties/[id]/route.ts - FIXED GET function
+// Replace the existing GET function with this corrected version:
+
 export async function GET(
 	request: Request,
 	{ params }: { params: Promise<{ id: string }> }
@@ -38,17 +41,22 @@ export async function GET(
 			)
 		}
 
-		// Fetch property with all details including owner information
+		console.log('🏠 Fetching property for edit, ID:', id)
+
+		// ✅ FIXED: Fetch property with proper status name join
 		const propertyResult = await sql`
 			SELECT 
 				p.*,
 				s.name as state_name,
 				c.name as city_name,
-				u.email as user_email
+				u.email as user_email,
+				ps.name as status_name,
+				ps.color as status_color
 			FROM properties p
 			JOIN states s ON p.state_id = s.id
 			JOIN cities c ON p.city_id = c.id
 			JOIN users u ON p.user_id = u.id
+			LEFT JOIN property_statuses ps ON p.status = ps.id
 			WHERE p.id = ${id}
 		`
 
@@ -57,6 +65,12 @@ export async function GET(
 		}
 
 		const property = propertyResult.rows[0]
+
+		console.log('📊 Property status info:', {
+			statusId: property.status,
+			statusName: property.status_name,
+			statusColor: property.status_color
+		})
 
 		// Fetch property-specific attributes
 		let attributes = {}
@@ -98,11 +112,18 @@ export async function GET(
 			WHERE ptf.property_id = ${id}
 		`
 
-		return NextResponse.json({
+		// ✅ FIXED: Return the property with status name instead of status ID
+		const responseData = {
 			...property,
+			status: property.status_name || 'available', // ✅ Use status name for frontend
+			status_id: property.status, // Keep the original ID for reference
 			attributes,
 			features: featuresResult.rows,
-		})
+		}
+
+		console.log('✅ Returning property data with status:', responseData.status)
+
+		return NextResponse.json(responseData)
 	} catch (error) {
 		console.error('Error fetching property for edit:', error)
 		return NextResponse.json(
@@ -113,6 +134,9 @@ export async function GET(
 }
 
 // PUT - Update property (updated to handle owner fields)
+// src/app/api/admin/properties/[id]/route.ts - FIXED PUT function
+// Replace the existing PUT function with this corrected version:
+
 export async function PUT(
 	request: Request,
 	{ params }: { params: Promise<{ id: string }> }
@@ -162,6 +186,7 @@ export async function PUT(
 			title: propertyData.title,
 			ownerName: propertyData.owner_name,
 			ownerPhone: propertyData.owner_phone,
+			statusFromForm: propertyData.status, // This is the status name like "sold"
 			newMediaCount: mediaFiles.length,
 		})
 
@@ -205,6 +230,26 @@ export async function PUT(
 				throw new Error('Property ID already exists for another property')
 			}
 
+			// ✅ FIX: Convert status name to status ID
+			let statusId = 1 // Default to available
+			if (propertyData.status) {
+				console.log('🔍 Looking up status ID for name:', propertyData.status)
+				
+				const statusResult = await sql.query(
+					'SELECT id FROM property_statuses WHERE name = $1 AND is_active = true LIMIT 1',
+					[propertyData.status.trim()]
+				)
+
+				if (statusResult.rows.length > 0) {
+					statusId = statusResult.rows[0].id
+					console.log('✅ Found status ID:', statusId, 'for name:', propertyData.status)
+				} else {
+					console.warn('⚠️ Status name not found, using default available (ID: 1)')
+				}
+			}
+
+			console.log('💾 Updating property with status ID:', statusId)
+
 			// Update main property including owner details
 			await sql.query(
 				`UPDATE properties SET
@@ -234,12 +279,14 @@ export async function PUT(
 					propertyData.state_id,
 					propertyData.city_id,
 					propertyData.address?.trim() || null,
-					propertyData.status,
+					statusId, // ✅ Use integer status ID instead of string status name
 					propertyData.owner_name.trim(),
 					propertyData.owner_phone.trim(),
 					id,
 				]
 			)
+
+			console.log('✅ Property basic info updated successfully')
 
 			// Update property-specific attributes (same as before)
 			switch (propertyData.property_type as PropertyType) {
@@ -395,6 +442,8 @@ export async function PUT(
 
 			// Commit transaction
 			await sql.query('COMMIT')
+
+			console.log('🎉 Property update completed successfully!')
 
 			return NextResponse.json({
 				success: true,

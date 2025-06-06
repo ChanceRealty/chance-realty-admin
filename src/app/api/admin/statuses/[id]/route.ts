@@ -1,4 +1,4 @@
-// src/app/api/admin/statuses/[id]/route.ts - Individual status management
+// src/app/api/admin/statuses/[id]/route.ts
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { verifyToken } from '@/lib/auth'
@@ -46,7 +46,9 @@ export async function GET(
 				name, 
 				color, 
 				is_active, 
-				sort_order
+				sort_order,
+				created_at,
+				updated_at
 			FROM property_statuses 
 			WHERE id = ${parseInt(id)}
 		`
@@ -98,10 +100,7 @@ export async function PUT(
 
 		// Validate required fields
 		if (!name) {
-			return NextResponse.json(
-				{ error: 'Name and display_name are required' },
-				{ status: 400 }
-			)
+			return NextResponse.json({ error: 'Name is required' }, { status: 400 })
 		}
 
 		// Check if name already exists for other statuses
@@ -123,7 +122,8 @@ export async function PUT(
 				name = ${name}, 
 				color = ${color || '#gray'}, 
 				is_active = ${is_active !== false}, 
-				sort_order = ${sort_order || 0}
+				sort_order = ${sort_order || 0},
+				updated_at = CURRENT_TIMESTAMP
 			WHERE id = ${parseInt(id)}
 			RETURNING *
 		`

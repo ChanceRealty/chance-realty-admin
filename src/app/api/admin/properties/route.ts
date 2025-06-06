@@ -6,6 +6,9 @@ import { sql } from '@vercel/postgres'
 import { PropertyType } from '@/types/property'
 import { uploadToImageKit } from '@/lib/imagekit'
 
+// src/app/api/admin/properties/route.ts - FIXED POST function
+// Replace the existing POST function with this corrected version:
+
 export async function POST(request: Request) {
 	try {
 		// Verify admin authentication
@@ -42,6 +45,7 @@ export async function POST(request: Request) {
 			customId: propertyData.custom_id,
 			ownerName: propertyData.owner_name,
 			ownerPhone: propertyData.owner_phone,
+			statusFromForm: propertyData.status, // This is the status name like "available"
 			mediaCount: mediaFiles.length,
 		})
 
@@ -78,17 +82,26 @@ export async function POST(request: Request) {
 				throw new Error('Bathroom count must be less than 100')
 			}
 
-			let statusId = 1 // default to available
+			// ✅ FIX: Convert status name to status ID
+			let statusId = 1 // Default to available (assuming ID 1 is available)
+
 			if (propertyData.status) {
-				const statusResult = await sql`
-    SELECT id FROM property_statuses 
-    WHERE name = ${propertyData.status} AND is_active = true
-    LIMIT 1
-  `
+				console.log('🔍 Looking up status ID for name:', propertyData.status)
+				
+				const statusResult = await sql.query(
+					'SELECT id FROM property_statuses WHERE name = $1 AND is_active = true LIMIT 1',
+					[propertyData.status.trim()]
+				)
+
 				if (statusResult.rows.length > 0) {
 					statusId = statusResult.rows[0].id
+					console.log('✅ Found status ID:', statusId, 'for name:', propertyData.status)
+				} else {
+					console.warn('⚠️ Status name not found, using default available (ID: 1)')
 				}
 			}
+
+			console.log('💾 Creating property with status ID:', statusId)
 
 			// Insert the main property with owner details
 			const propertyResult = await sql.query(
@@ -109,14 +122,14 @@ export async function POST(request: Request) {
 					propertyData.state_id,
 					propertyData.city_id,
 					propertyData.address,
-					statusId, // ✅ Use status ID instead of status name
+					statusId, // ✅ Use integer status ID instead of string status name
 					propertyData.owner_name.trim(),
 					propertyData.owner_phone.trim(),
 				]
 			)
 
 			const propertyId = propertyResult.rows[0].id
-			console.log(`Created property with ID: ${propertyId}`)
+			console.log(`✅ Created property with ID: ${propertyId}`)
 
 			// Insert property type specific attributes (same as before)
 			switch (propertyData.property_type as PropertyType) {
@@ -294,7 +307,7 @@ export async function POST(request: Request) {
 
 			// Commit transaction
 			await sql.query('COMMIT')
-			console.log('✅ Property creation transaction committed successfully')
+			console.log('🎉 Property creation transaction committed successfully')
 
 			return NextResponse.json({
 				success: true,

@@ -1,4 +1,4 @@
-// src/app/admin/page.tsx - Fixed Version with Always Visible Owner Details
+// src/app/admin/page.tsx 
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -110,35 +110,58 @@ export default function AdminDashboard() {
 		}
 	}
 
+	// Replace the fetchDashboardStats function in your admin dashboard with this fixed version:
+
 	const fetchDashboardStats = async () => {
 		try {
+			console.log('📊 Calculating dashboard stats...')
 			const response = await fetch('/api/admin/properties')
 			if (!response.ok) {
 				throw new Error('Failed to fetch properties')
 			}
 			const properties = await response.json()
 
-			// Calculate stats
+
+			// ✅ FIXED: Calculate stats using actual status_name values
 			const totalProperties = properties.length
+
+			// Count available properties (status_name = 'available')
 			const availableProperties = properties.filter(
-				(p: any) => p.status === 'available'
+				(p: any) => p.status_name?.toLowerCase() === 'available'
 			).length
-			const soldRentedProperties = properties.filter(
-				(p: any) => p.status === 'sold' || p.status === 'rented'
-			).length
+
+			// Count sold/rented properties (status_name = 'sold' OR 'rented')
+			const soldRentedProperties = properties.filter((p: any) => {
+				const status = p.status_name?.toLowerCase()
+				return status === 'sold' || status === 'rented'
+			}).length
+
+			// Count featured properties
 			const featuredProperties = properties.filter(
-				(p: any) => p.featured
+				(p: any) => p.featured === true
 			).length
+
+			// Calculate total views
 			const totalViews = properties.reduce(
 				(sum: number, p: any) => sum + (p.views || 0),
 				0
 			)
+
+			// Get recent properties
 			const recentProperties = properties
 				.sort(
 					(a: any, b: any) =>
 						new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
 				)
 				.slice(0, 5)
+
+			console.log('📊 Calculated stats:', {
+				totalProperties,
+				availableProperties,
+				soldRentedProperties,
+				featuredProperties,
+				totalViews,
+			})
 
 			setStats({
 				totalProperties,
@@ -248,6 +271,13 @@ export default function AdminDashboard() {
 		apartment: Building2,
 		commercial: Landmark,
 		land: Trees,
+	}
+
+	const propertyTypeDisplay: Record<string, string> = {
+		house: 'Տուն',
+		apartment: 'Բնակարան',
+		commercial: 'Կոմերցիոն',
+		land: 'Հողատարածք',
 	}
 
 	const formatPrice = (price: number) => {
@@ -598,10 +628,10 @@ export default function AdminDashboard() {
 																)
 																setShowMobileActions(null)
 															}}
-															className='w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center text-sm'
+															className='w-full text-gray-700 text-left px-4 py-2 hover:bg-gray-100 flex items-center text-sm'
 														>
 															<Edit className='w-4 h-4 mr-2' />
-															Խմբագրել
+															Փոփոխել
 														</button>
 														<button
 															onClick={() =>
@@ -617,10 +647,10 @@ export default function AdminDashboard() {
 														</button>
 														<button
 															onClick={() => setShowMobileActions(null)}
-															className='w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center text-sm'
+															className='w-full text-gray-700 text-left px-4 py-2 hover:bg-gray-100 flex items-center text-sm'
 														>
-															<X className='w-4 h-4 mr-2' />
-															Փակել
+															<EyeIcon className='w-4 h-4 mr-2' />
+															Դիտել
 														</button>
 													</div>
 												)}
@@ -633,8 +663,8 @@ export default function AdminDashboard() {
 												<div className='flex items-center mt-1'>
 													<Icon className='h-3 w-3 text-gray-400 mr-1' />
 													<span className='text-gray-900'>
-														{property.property_type.charAt(0).toUpperCase() +
-															property.property_type.slice(1)}
+														{propertyTypeDisplay[property.property_type] ||
+															property.property_type}
 													</span>
 												</div>
 											</div>
@@ -649,12 +679,10 @@ export default function AdminDashboard() {
 												<div className='mt-1'>
 													<span
 														className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(
-															property.status_name ||
-																''
+															property.status_name || ''
 														)}`}
 													>
-														{property.status_name ||
-															'Անհայտ'}
+														{property.status_name || 'Անհայտ'}
 													</span>
 												</div>
 											</div>
@@ -801,8 +829,8 @@ export default function AdminDashboard() {
 													<div className='flex items-center'>
 														<Icon className='h-4 w-4 text-gray-400 mr-2' />
 														<span className='text-sm text-gray-900'>
-															{property.property_type.charAt(0).toUpperCase() +
-																property.property_type.slice(1)}
+															{propertyTypeDisplay[property.property_type] ||
+																property.property_type}
 														</span>
 													</div>
 												</td>
@@ -841,12 +869,10 @@ export default function AdminDashboard() {
 												<td className='px-6 py-4 whitespace-nowrap'>
 													<span
 														className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(
-															property.status_name ||
-																''
+															property.status_name || ''
 														)}`}
 													>
-														{property.status_name ||
-															'Անհայտ'}
+														{property.status_name || 'Անհայտ'}
 													</span>
 												</td>
 												<td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>

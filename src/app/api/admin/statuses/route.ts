@@ -1,4 +1,4 @@
-// src/app/api/admin/statuses/route.ts - Status management API for admin
+// src/app/api/admin/statuses/route.ts
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { verifyToken } from '@/lib/auth'
@@ -19,36 +19,48 @@ export async function OPTIONS() {
 // GET - Fetch all statuses for admin management
 export async function GET() {
 	try {
+		console.log('📡 Statuses API: Fetching statuses...')
+
 		// Verify admin authentication
 		const cookieStore = cookies()
 		const token = (await cookieStore).get('token')?.value
 
 		if (!token) {
+			console.error('❌ No token provided')
 			return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 		}
 
 		const user = verifyToken(token)
 		if (!user || user.role !== 'admin') {
+			console.error('❌ Not an admin user')
 			return NextResponse.json(
 				{ error: 'Admin access required' },
 				{ status: 403 }
 			)
 		}
 
+		console.log('✅ Admin authenticated, fetching statuses from database...')
+
+		// Query that matches your exact database schema
 		const result = await sql`
 			SELECT 
 				id, 
 				name, 
 				color, 
 				is_active, 
-				sort_order
+				sort_order,
+				created_at,
+				updated_at
 			FROM property_statuses 
-			ORDER BY sort_order, display_name
+			WHERE is_active = true
+			ORDER BY sort_order, name
 		`
+
+		console.log(`✅ Found ${result.rows.length} statuses:`, result.rows)
 
 		return NextResponse.json(result.rows)
 	} catch (error) {
-		console.error('Error fetching statuses:', error)
+		console.error('❌ Error fetching statuses:', error)
 		return NextResponse.json(
 			{ error: 'Failed to fetch statuses' },
 			{ status: 500 }
@@ -84,10 +96,7 @@ export async function POST(request: Request) {
 
 		// Validate required fields
 		if (!name) {
-			return NextResponse.json(
-				{ error: 'Name and display_name are required' },
-				{ status: 400 }
-			)
+			return NextResponse.json({ error: 'Name is required' }, { status: 400 })
 		}
 
 		// Check if name already exists
@@ -107,13 +116,17 @@ export async function POST(request: Request) {
 				name, 
 				color, 
 				is_active, 
-				sort_order
+				sort_order,
+				created_at,
+				updated_at
 			)
 			VALUES (
 				${name}, 
 				${color || '#gray'}, 
 				${is_active !== false}, 
-				${sort_order || 0}
+				${sort_order || 0},
+				CURRENT_TIMESTAMP,
+				CURRENT_TIMESTAMP
 			)
 			RETURNING *
 		`
