@@ -10,6 +10,7 @@
 		"dev:debug": "cross-env NODE_OPTIONS=\"--max-old-space-size=4096 --inspect\" next dev"
 	},
 	"dependencies": {
+		"@google-cloud/translate": "^9.1.0",
 		"@vercel/postgres": "^0.10.0",
 		"bcryptjs": "^3.0.2",
 		"cookie": "^1.0.2",

@@ -1,13 +1,11 @@
-// src/app/api/admin/properties/route.ts - Updated with owner fields
+// src/app/api/admin/properties/route.ts - Updated with translation support
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { verifyToken } from '@/lib/auth'
 import { sql } from '@vercel/postgres'
 import { PropertyType } from '@/types/property'
 import { uploadToImageKit } from '@/lib/imagekit'
-
-// src/app/api/admin/properties/route.ts - FIXED POST function
-// Replace the existing POST function with this corrected version:
+import { translatePropertyData } from '@/lib/translateService'
 
 export async function POST(request: Request) {
 	try {
@@ -40,12 +38,12 @@ export async function POST(request: Request) {
 			(formData.get('primaryMediaIndex') as string) || '0'
 		)
 
-		console.log('Creating property with data:', {
+		console.log('Creating property with translations:', {
 			title: propertyData.title,
 			customId: propertyData.custom_id,
 			ownerName: propertyData.owner_name,
 			ownerPhone: propertyData.owner_phone,
-			statusFromForm: propertyData.status, // This is the status name like "available"
+			status: propertyData.status,
 			mediaCount: mediaFiles.length,
 		})
 
@@ -82,33 +80,60 @@ export async function POST(request: Request) {
 				throw new Error('Bathroom count must be less than 100')
 			}
 
-			// ✅ FIX: Convert status name to status ID
-			let statusId = 1 // Default to available (assuming ID 1 is available)
+			// Convert status to integer ID
+			let statusId = 1 // Default to "available" (ID 1)
 
 			if (propertyData.status) {
-				console.log('🔍 Looking up status ID for name:', propertyData.status)
-				
-				const statusResult = await sql.query(
-					'SELECT id FROM property_statuses WHERE name = $1 AND is_active = true LIMIT 1',
-					[propertyData.status.trim()]
-				)
+				if (typeof propertyData.status === 'number') {
+					statusId = propertyData.status
+				} else if (typeof propertyData.status === 'string') {
+					const statusResult = await sql.query(
+						'SELECT id FROM property_statuses WHERE name = $1 AND is_active = true LIMIT 1',
+						[propertyData.status.trim()]
+					)
 
-				if (statusResult.rows.length > 0) {
-					statusId = statusResult.rows[0].id
-					console.log('✅ Found status ID:', statusId, 'for name:', propertyData.status)
-				} else {
-					console.warn('⚠️ Status name not found, using default available (ID: 1)')
+					if (statusResult.rows.length > 0) {
+						statusId = statusResult.rows[0].id
+					}
 				}
 			}
 
-			console.log('💾 Creating property with status ID:', statusId)
+			console.log('Using status ID:', statusId)
 
-			// Insert the main property with owner details
+			// 🌐 TRANSLATE PROPERTY DATA
+			console.log('🌐 Starting property translation...')
+			let translations: {
+				title_ru?: string
+				title_en?: string
+				description_ru?: string
+				description_en?: string
+			} = {}
+
+			try {
+				translations = await translatePropertyData(
+					propertyData.title,
+					propertyData.description || ''
+				)
+				console.log('✅ Translation completed:', {
+					hasRussian: !!translations.title_ru,
+					hasEnglish: !!translations.title_en,
+				})
+			} catch (translationError) {
+				console.warn(
+					'⚠️ Translation failed, proceeding without translations:',
+					translationError
+				)
+				// Continue without translations rather than failing the entire process
+			}
+
+			// Insert the main property with translations
 			const propertyResult = await sql.query(
 				`INSERT INTO properties (
 				  user_id, custom_id, title, description, property_type, listing_type,
-				  price, currency, state_id, city_id, address, status, owner_name, owner_phone
-				) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+				  price, currency, state_id, city_id, address, status, owner_name, owner_phone,
+				  title_ru, title_en, description_ru, description_en, 
+				  translation_status, last_translated_at
+				) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
 				RETURNING id, custom_id`,
 				[
 					user.id,
@@ -122,14 +147,57 @@ export async function POST(request: Request) {
 					propertyData.state_id,
 					propertyData.city_id,
 					propertyData.address,
-					statusId, // ✅ Use integer status ID instead of string status name
+					statusId,
 					propertyData.owner_name.trim(),
 					propertyData.owner_phone.trim(),
+					translations.title_ru || null,
+					translations.title_en || null,
+					translations.description_ru || null,
+					translations.description_en || null,
+					translations.title_ru ? 'completed' : 'failed',
+					translations.title_ru ? new Date() : null,
 				]
 			)
 
 			const propertyId = propertyResult.rows[0].id
 			console.log(`✅ Created property with ID: ${propertyId}`)
+
+			// Insert translation records for tracking (optional, for detailed logging)
+			if (translations.title_ru) {
+				await sql.query(
+					`INSERT INTO property_translations (property_id, language_code, field_name, translated_text, translation_source)
+					 VALUES ($1, $2, $3, $4, $5), ($1, $6, $7, $8, $9)`,
+					[
+						propertyId,
+						'ru',
+						'title',
+						translations.title_ru,
+						'google',
+						'ru',
+						'description',
+						translations.description_ru,
+						'google',
+					]
+				)
+			}
+
+			if (translations.title_en) {
+				await sql.query(
+					`INSERT INTO property_translations (property_id, language_code, field_name, translated_text, translation_source)
+					 VALUES ($1, $2, $3, $4, $5), ($1, $6, $7, $8, $9)`,
+					[
+						propertyId,
+						'en',
+						'title',
+						translations.title_en,
+						'google',
+						'en',
+						'description',
+						translations.description_en,
+						'google',
+					]
+				)
+			}
 
 			// Insert property type specific attributes (same as before)
 			switch (propertyData.property_type as PropertyType) {
@@ -267,7 +335,6 @@ export async function POST(request: Request) {
 					} catch (uploadError) {
 						console.error(`❌ Failed to process ${file.name}:`, uploadError)
 
-						// Add to results but don't fail the entire transaction
 						uploadResults.push({
 							success: false,
 							fileName: file.name,
@@ -277,7 +344,6 @@ export async function POST(request: Request) {
 									: 'Unknown upload error',
 						})
 
-						// If it's a critical error (like auth failure), throw to rollback
 						if (
 							uploadError instanceof Error &&
 							(uploadError.message.includes('authenticate') ||
@@ -290,7 +356,6 @@ export async function POST(request: Request) {
 
 				console.log('Upload results:', uploadResults)
 
-				// Check if any files failed to upload
 				const failedUploads = uploadResults.filter(r => !r.success)
 				if (failedUploads.length > 0) {
 					console.warn(
@@ -307,14 +372,20 @@ export async function POST(request: Request) {
 
 			// Commit transaction
 			await sql.query('COMMIT')
-			console.log('🎉 Property creation transaction committed successfully')
+			console.log(
+				'🎉 Property creation with translations completed successfully!'
+			)
 
 			return NextResponse.json({
 				success: true,
 				propertyId,
 				customId: propertyResult.rows[0].custom_id,
-				message: 'Property created successfully',
+				message: 'Property created successfully with translations',
 				mediaUploaded: mediaFiles.length,
+				translations: {
+					russian: !!translations.title_ru,
+					english: !!translations.title_en,
+				},
 			})
 		} catch (error) {
 			// Rollback transaction on error
@@ -337,7 +408,7 @@ export async function POST(request: Request) {
 	}
 }
 
-// GET function updated to include owner details for admin
+// Updated GET function to include translations
 export async function GET() {
 	try {
 		const cookieStore = cookies()
@@ -360,10 +431,18 @@ export async function GET() {
         p.id,
         p.custom_id,
         p.title,
+        p.title_ru,
+        p.title_en,
+        p.description,
+        p.description_ru,
+        p.description_en,
         p.property_type,
         p.listing_type,
         p.price,
-        p.status,
+        p.translation_status,
+        p.last_translated_at,
+        ps.name as status,
+        ps.color as status_color,
         p.views,
         p.created_at,
         p.owner_name,
@@ -371,7 +450,6 @@ export async function GET() {
         u.email as user_email,
         s.name as state_name,
         c.name as city_name,
-		  ps.name as status_name,
         (
           SELECT url 
           FROM property_media 
@@ -382,7 +460,7 @@ export async function GET() {
       JOIN users u ON p.user_id = u.id
       JOIN states s ON p.state_id = s.id
       JOIN cities c ON p.city_id = c.id
-	  LEFT JOIN property_statuses ps ON p.status = ps.id
+      LEFT JOIN property_statuses ps ON p.status = ps.id
       ORDER BY p.created_at DESC
     `
 
