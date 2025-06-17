@@ -515,9 +515,6 @@ export async function DELETE(
 				[id]
 			)
 			await sql.query('DELETE FROM property_views WHERE property_id = $1', [id])
-			await sql.query('DELETE FROM property_inquiries WHERE property_id = $1', [
-				id,
-			])
 			await sql.query('DELETE FROM favorites WHERE property_id = $1', [id])
 
 			// Delete property-specific attributes
