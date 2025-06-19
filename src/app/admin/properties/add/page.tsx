@@ -26,6 +26,8 @@ import {
 } from 'lucide-react'
 import LocationSelector from '@/components/LocationSelector'
 import YandexAddressAutocomplete from '@/components/YandexAddressAutocomplete'
+import SimpleAddressAutocomplete from '@/components/SimpleAddressAutocomplete'
+import FallbackAddressInput from '@/components/FallbackAddressInput'
 
 export default function AddPropertyPage() {
 	const router = useRouter()
@@ -712,7 +714,7 @@ export default function AddPropertyPage() {
 							<label className='block text-sm font-medium text-gray-700 mb-2'>
 								Հասցե <span className='text-red-500'>*</span>
 							</label>
-							<YandexAddressAutocomplete
+							<FallbackAddressInput
 								onAddressSelect={handleAddressSelect}
 								initialValue={formData.address}
 								placeholder='Մուտքագրեք անշարժ գույքի հասցեն...'

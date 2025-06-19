@@ -1,11 +1,11 @@
-// src/app/api/yandex/geocode/route.ts
+// src/app/api/yandex/geocode/route.ts - Fixed to use actual Yandex API
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { verifyToken } from '@/lib/auth'
 
 export async function POST(request: Request) {
 	try {
-		// Verify admin authentication (optional - remove if not needed)
+		// Verify admin authentication
 		const cookieStore = cookies()
 		const token = (await cookieStore).get('token')?.value
 
@@ -46,20 +46,29 @@ export async function POST(request: Request) {
 		url.searchParams.append('geocode', address)
 		url.searchParams.append('format', 'json')
 		url.searchParams.append('results', '1')
-		url.searchParams.append('kind', 'house') // More precise geocoding
+		url.searchParams.append('kind', 'house')
+
+		console.log('Making request to Yandex Geocoder API:', url.toString())
 
 		const response = await fetch(url.toString(), {
 			method: 'GET',
 			headers: {
 				Accept: 'application/json',
+				'User-Agent': 'ChanceRealty/1.0',
 			},
 		})
 
 		if (!response.ok) {
+			console.error(
+				'Yandex Geocoder API error:',
+				response.status,
+				response.statusText
+			)
 			throw new Error(`Yandex Geocoder API error: ${response.status}`)
 		}
 
 		const data = await response.json()
+		console.log('Yandex Geocoder API response:', data)
 
 		// Parse the response
 		const geoObjects = data.response?.GeoObjectCollection?.featureMember || []
@@ -117,7 +126,7 @@ export async function POST(request: Request) {
 	}
 }
 
-// Additional helper endpoint to reverse geocode (coordinates to address)
+// Reverse geocoding (coordinates to address)
 export async function GET(request: Request) {
 	try {
 		const cookieStore = cookies()
@@ -169,6 +178,7 @@ export async function GET(request: Request) {
 			method: 'GET',
 			headers: {
 				Accept: 'application/json',
+				'User-Agent': 'ChanceRealty/1.0',
 			},
 		})
 
