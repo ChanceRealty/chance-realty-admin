@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getStates } from '@/services/propertyService'
+import { sql } from '@vercel/postgres'
 
 function corsResponse(response: NextResponse) {
 	response.headers.set('Access-Control-Allow-Origin', '*')
@@ -14,8 +14,25 @@ export async function OPTIONS() {
 
 export async function GET() {
 	try {
-		const states = await getStates()
-		const response = NextResponse.json(states)
+		console.log('🌍 Public API: Fetching states with district information...')
+
+		const result = await sql`
+			SELECT 
+				s.id,
+				s.name,
+				s.uses_districts,
+				COUNT(d.id) as district_count,
+				COUNT(c.id) as city_count
+			FROM states s
+			LEFT JOIN districts d ON s.id = d.state_id
+			LEFT JOIN cities c ON s.id = c.state_id
+			GROUP BY s.id, s.name, s.uses_districts
+			ORDER BY s.name ASC
+		`
+
+		console.log(`✅ Public API: Found ${result.rows.length} states`)
+
+		const response = NextResponse.json(result.rows)
 		return corsResponse(response)
 	} catch (error) {
 		console.error('Error fetching states:', error)

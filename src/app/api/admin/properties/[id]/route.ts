@@ -48,13 +48,18 @@ export async function GET(
 			SELECT 
 				p.*,
 				s.name as state_name,
+				s.uses_districts,
 				c.name as city_name,
+				d.name_hy as district_name,
+				d.name_en as district_name_en,
+				d.name_ru as district_name_ru,
 				u.email as user_email,
 				ps.name as status_name,
 				ps.color as status_color
 			FROM properties p
 			JOIN states s ON p.state_id = s.id
 			JOIN cities c ON p.city_id = c.id
+			LEFT JOIN districts d ON p.district_id = d.id
 			JOIN users u ON p.user_id = u.id
 			LEFT JOIN property_statuses ps ON p.status = ps.id
 			WHERE p.id = ${id}
@@ -262,12 +267,13 @@ export async function PUT(
 					currency = $7,
 					state_id = $8,
 					city_id = $9,
-					address = $10,
-					status = $11,
-					owner_name = $12,
-					owner_phone = $13,
+					district_id = $10,
+					address = $11,
+					status = $12,
+					owner_name = $13,
+					owner_phone = $14,
 					updated_at = CURRENT_TIMESTAMP
-				WHERE id = $14`,
+				WHERE id = $15`,
 				[
 					propertyData.custom_id.trim(),
 					propertyData.title.trim(),
@@ -278,6 +284,7 @@ export async function PUT(
 					propertyData.currency,
 					propertyData.state_id,
 					propertyData.city_id,
+					propertyData.district_id,
 					propertyData.address?.trim() || null,
 					statusId, // ✅ Use integer status ID instead of string status name
 					propertyData.owner_name.trim(),

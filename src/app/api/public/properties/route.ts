@@ -209,6 +209,12 @@ export async function GET(request: Request) {
 			paramIndex++
 		}
 
+		if (filter.district_id) {
+			query += ` AND p.district_id = $${paramIndex}`
+			params.push(String(filter.district_id))
+			paramIndex++
+		}
+
 		if (filter.min_price) {
 			query += ` AND p.price >= $${paramIndex}`
 			params.push(String(filter.min_price))

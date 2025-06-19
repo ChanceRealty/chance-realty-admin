@@ -130,10 +130,10 @@ export async function POST(request: Request) {
 			const propertyResult = await sql.query(
 				`INSERT INTO properties (
 				  user_id, custom_id, title, description, property_type, listing_type,
-				  price, currency, state_id, city_id, address, status, owner_name, owner_phone,
+				  price, currency, state_id, city_id, district_id, address, status, owner_name, owner_phone,
 				  title_ru, title_en, description_ru, description_en, 
 				  translation_status, last_translated_at
-				) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+				) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
 				RETURNING id, custom_id`,
 				[
 					user.id,
@@ -146,6 +146,7 @@ export async function POST(request: Request) {
 					propertyData.currency,
 					propertyData.state_id,
 					propertyData.city_id,
+					propertyData.district_id,
 					propertyData.address,
 					statusId,
 					propertyData.owner_name.trim(),
@@ -449,7 +450,14 @@ export async function GET() {
         p.owner_phone,
         u.email as user_email,
         s.name as state_name,
+		s.uses_districts,
         c.name as city_name,
+		d.name_hy as district_name,
+		CASE 
+			WHEN d.name_hy IS NOT NULL THEN d.name_hy || ', ' || s.name
+			WHEN c.name IS NOT NULL THEN c.name || ', ' || s.name
+			ELSE s.name
+		END as location_display,
         (
           SELECT url 
           FROM property_media 
@@ -460,6 +468,7 @@ export async function GET() {
       JOIN users u ON p.user_id = u.id
       JOIN states s ON p.state_id = s.id
       JOIN cities c ON p.city_id = c.id
+	  LEFT JOIN districts d ON p.district_id = d.id
       LEFT JOIN property_statuses ps ON p.status = ps.id
       ORDER BY p.created_at DESC
     `

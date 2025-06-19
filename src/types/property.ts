@@ -14,16 +14,30 @@ export interface PropertyStatus {
 	sort_order: number
 }
 
+export interface District {
+	id: number
+	name: string
+	name_hy: string
+	name_en?: string
+	name_ru?: string
+	state_id: number
+}
+
 export interface State {
 	id: number
 	name: string
+	uses_districts: boolean
+	district_count?: number
+	city_count?: number
 }
 
 export interface City {
 	id: number
 	state_id: number
 	name: string
+	district_id?: number // Optional reference to district
 	state?: State
+	district?: District
 }
 
 export interface PropertyFeature {
@@ -44,6 +58,7 @@ export interface BaseProperty {
 	currency: string
 	state_id: number
 	city_id: number
+	district_id?: number // Add district support
 	address: string
 	status: string // Now references PropertyStatus.name
 	views: number
@@ -57,6 +72,7 @@ export interface BaseProperty {
 	// Relations
 	state?: State
 	city?: City
+	district?: District
 	features?: PropertyFeature[]
 	images?: PropertyImage[]
 	user?: User
@@ -121,6 +137,7 @@ export interface PropertyFilter {
 	listing_type?: ListingType
 	state_id?: number
 	city_id?: number
+	district_id?: number
 	min_price?: number
 	max_price?: number
 	bedrooms?: number
@@ -262,4 +279,28 @@ export function getStatusColorClass(status: PropertyStatus): string {
 	}
 
 	return colorMap[status.color] || 'bg-gray-100 text-gray-800'
+}
+
+
+export function getLocationDisplayName(property: BaseProperty): string {
+	const parts: string[] = []
+
+	if (property.district?.name_hy) {
+		parts.push(property.district.name_hy)
+	}
+
+	if (property.city?.name) {
+		parts.push(property.city.name)
+	}
+
+	if (property.state?.name) {
+		parts.push(property.state.name)
+	}
+
+	return parts.join(', ')
+}
+
+// Helper function to check if state uses districts
+export function stateUsesDistricts(state: State | undefined): boolean {
+	return state?.uses_districts === true
 }

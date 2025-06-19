@@ -237,72 +237,128 @@ export async function getProperties(filter: PropertyFilter = {}) {
 	}
 }
 
+export async function checkStateUsesDistricts(
+	stateId: number
+): Promise<boolean> {
+	try {
+		const query = `
+			SELECT uses_districts
+			FROM states
+			WHERE id = $1
+		`
+
+		const result = await sql.query(query, [stateId])
+		return result.rows[0]?.uses_districts || false
+	} catch (error) {
+		console.error('Error checking state district usage:', error)
+		return false
+	}
+}
+
+export async function getDistrictsByState(stateId: number) {
+	try {
+		const query = `
+			SELECT 
+				d.id,
+				d.name,
+				d.name_hy,
+				d.name_en,
+				d.name_ru,
+				d.state_id
+			FROM districts d
+			WHERE d.state_id = $1
+			ORDER BY d.name_hy ASC
+		`
+
+		const result = await sql.query(query, [stateId])
+		return result.rows
+	} catch (error) {
+		console.error('Error fetching districts:', error)
+		throw new Error('Failed to fetch districts')
+	}
+}
+
 export async function getPropertyByCustomId(customId: string, language = 'hy') {
 	try {
 		const query = `
-      SELECT 
-        p.*,
-        -- Language-specific title and description
-        CASE 
-          WHEN $2 = 'ru' THEN COALESCE(p.title_ru, p.title)
-          WHEN $2 = 'en' THEN COALESCE(p.title_en, p.title)
-          ELSE p.title
-        END as title_display,
-        CASE 
-          WHEN $2 = 'ru' THEN COALESCE(p.description_ru, p.description)
-          WHEN $2 = 'en' THEN COALESCE(p.description_en, p.description)
-          ELSE p.description
-        END as description_display,
-        ps.name as status,
-        ps.color as status_color,
-        s.name as state_name,
-        c.name as city_name,
-        -- Get state and city objects
-        json_build_object('id', s.id, 'name', s.name) as state,
-        json_build_object('id', c.id, 'name', c.name) as city,
-        -- Get property attributes
-        CASE 
-          WHEN p.property_type = 'house' THEN json_build_object(
-            'bedrooms', ha.bedrooms,
-            'bathrooms', ha.bathrooms,
-            'area_sqft', ha.area_sqft,
-            'lot_size_sqft', ha.lot_size_sqft,
-            'floors', ha.floors
-          )
-          WHEN p.property_type = 'apartment' THEN json_build_object(
-            'bedrooms', aa.bedrooms,
-            'bathrooms', aa.bathrooms,
-            'area_sqft', aa.area_sqft,
-            'floor', aa.floor,
-            'total_floors', aa.total_floors
-          )
-          WHEN p.property_type = 'commercial' THEN json_build_object(
-            'business_type', ca.business_type,
-            'area_sqft', ca.area_sqft,
-            'floors', ca.floors,
-            'ceiling_height', ca.ceiling_height
-          )
-          WHEN p.property_type = 'land' THEN json_build_object(
-            'area_acres', la.area_acres
-          )
-        END as attributes,
-        $2 as requested_language,
-        CASE 
-          WHEN $2 = 'ru' AND p.title_ru IS NOT NULL THEN 'translated'
-          WHEN $2 = 'en' AND p.title_en IS NOT NULL THEN 'translated'
-          WHEN $2 = 'hy' THEN 'original'
-          ELSE 'fallback'
-        END as language_status
-      FROM properties p
-      JOIN states s ON p.state_id = s.id
-      JOIN cities c ON p.city_id = c.id
-      LEFT JOIN property_statuses ps ON p.status = ps.id
-      LEFT JOIN house_attributes ha ON p.id = ha.property_id AND p.property_type = 'house'
-      LEFT JOIN apartment_attributes aa ON p.id = aa.property_id AND p.property_type = 'apartment'
-      LEFT JOIN commercial_attributes ca ON p.id = ca.property_id AND p.property_type = 'commercial'
-      LEFT JOIN land_attributes la ON p.id = la.property_id AND p.property_type = 'land'
-      WHERE p.custom_id = $1 AND ps.is_active = true
-    `
+			SELECT 
+				p.*,
+				-- Language-specific title and description
+				CASE 
+					WHEN $2 = 'ru' THEN COALESCE(p.title_ru, p.title)
+					WHEN $2 = 'en' THEN COALESCE(p.title_en, p.title)
+					ELSE p.title
+				END as title_display,
+				CASE 
+					WHEN $2 = 'ru' THEN COALESCE(p.description_ru, p.description)
+					WHEN $2 = 'en' THEN COALESCE(p.description_en, p.description)
+					ELSE p.description
+				END as description_display,
+				ps.name as status,
+				ps.color as status_color,
+				s.name as state_name,
+				s.uses_districts,
+				c.name as city_name,
+				d.name_hy as district_name,
+				d.name_en as district_name_en,
+				d.name_ru as district_name_ru,
+				-- Get state, city, and district objects
+				json_build_object('id', s.id, 'name', s.name, 'uses_districts', s.uses_districts) as state,
+				CASE WHEN c.id IS NOT NULL THEN
+					json_build_object('id', c.id, 'name', c.name)
+				ELSE NULL END as city,
+				CASE WHEN d.id IS NOT NULL THEN
+					json_build_object(
+						'id', d.id, 
+						'name', d.name_hy, 
+						'name_en', d.name_en, 
+						'name_ru', d.name_ru
+					)
+				ELSE NULL END as district,
+				-- Get property attributes
+				CASE 
+					WHEN p.property_type = 'house' THEN json_build_object(
+						'bedrooms', ha.bedrooms,
+						'bathrooms', ha.bathrooms,
+						'area_sqft', ha.area_sqft,
+						'lot_size_sqft', ha.lot_size_sqft,
+						'floors', ha.floors
+					)
+					WHEN p.property_type = 'apartment' THEN json_build_object(
+						'bedrooms', aa.bedrooms,
+						'bathrooms', aa.bathrooms,
+						'area_sqft', aa.area_sqft,
+						'floor', aa.floor,
+						'total_floors', aa.total_floors
+					)
+					WHEN p.property_type = 'commercial' THEN json_build_object(
+						'business_type', ca.business_type,
+						'area_sqft', ca.area_sqft,
+						'floors', ca.floors,
+						'ceiling_height', ca.ceiling_height
+					)
+					WHEN p.property_type = 'land' THEN json_build_object(
+						'area_acres', la.area_acres
+					)
+				END as attributes,
+				$2 as requested_language,
+				CASE 
+					WHEN $2 = 'ru' AND p.title_ru IS NOT NULL THEN 'translated'
+					WHEN $2 = 'en' AND p.title_en IS NOT NULL THEN 'translated'
+					WHEN $2 = 'hy' THEN 'original'
+					ELSE 'fallback'
+				END as language_status
+			FROM properties p
+			JOIN states s ON p.state_id = s.id
+			LEFT JOIN cities c ON p.city_id = c.id
+			LEFT JOIN districts d ON p.district_id = d.id
+			LEFT JOIN property_statuses ps ON p.status = ps.id
+			LEFT JOIN house_attributes ha ON p.id = ha.property_id AND p.property_type = 'house'
+			LEFT JOIN apartment_attributes aa ON p.id = aa.property_id AND p.property_type = 'apartment'
+			LEFT JOIN commercial_attributes ca ON p.id = ca.property_id AND p.property_type = 'commercial'
+			LEFT JOIN land_attributes la ON p.id = la.property_id AND p.property_type = 'land'
+			WHERE p.custom_id = $1 AND ps.is_active = true
+		`
 
 		const result = await sql.query(query, [customId, language])
 
@@ -340,10 +396,10 @@ export async function getPropertyByCustomId(customId: string, language = 'hy') {
 
 		return {
 			...rest,
-			title: title_display, // Use the language-appropriate title
-			description: description_display, // Use the language-appropriate description
-			title_original: title, // Keep original for reference
-			description_original: description, // Keep original for reference
+			title: title_display,
+			description: description_display,
+			title_original: title,
+			description_original: description,
 			images: imagesResult.rows || [],
 			features: featuresResult.rows || [],
 			attributes: property.attributes || {},
@@ -357,9 +413,17 @@ export async function getPropertyByCustomId(customId: string, language = 'hy') {
 export async function getStates() {
 	try {
 		const query = `
-			SELECT id, name
-			FROM states
-			ORDER BY name ASC
+			SELECT 
+				s.id,
+				s.name,
+				s.uses_districts,
+				COUNT(d.id) as district_count,
+				COUNT(c.id) as city_count
+			FROM states s
+			LEFT JOIN districts d ON s.id = d.state_id
+			LEFT JOIN cities c ON s.id = c.state_id
+			GROUP BY s.id, s.name, s.uses_districts
+			ORDER BY s.name ASC
 		`
 
 		const result = await sql.query(query)

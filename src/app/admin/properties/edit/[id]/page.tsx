@@ -25,6 +25,7 @@ import {
 	Loader2,
 	User,
 } from 'lucide-react'
+import LocationSelector from '@/components/LocationSelector'
 
 interface PropertyEditPageProps {
 	params: Promise<{ id: string }>
@@ -56,11 +57,8 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 		currency: 'USD',
 		state_id: '',
 		city_id: '',
+		district_id: '',
 		address: '',
-		postal_code: '',
-		latitude: '',
-		longitude: '',
-		featured: false,
 		selectedFeatures: [] as number[],
 		// Owner details (admin only)
 		owner_name: '',
@@ -208,11 +206,8 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 					currency: propertyData.currency || 'USD',
 					state_id: propertyData.state_id?.toString() || '',
 					city_id: propertyData.city_id?.toString() || '',
+					district_id: propertyData.district_id?.toString() || '',
 					address: propertyData.address || '',
-					postal_code: propertyData.postal_code || '',
-					latitude: propertyData.latitude?.toString() || '',
-					longitude: propertyData.longitude?.toString() || '',
-					featured: propertyData.featured || false,
 					selectedFeatures: propertyData.features?.map((f: any) => f.id) || [],
 					owner_name: propertyData.owner_name || '',
 					owner_phone: propertyData.owner_phone || '',
@@ -397,9 +392,10 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 				custom_id: formData.custom_id.trim(),
 				price: parseFloat(formData.price),
 				state_id: parseInt(formData.state_id),
+				district_id: formData.district_id
+					? parseInt(formData.district_id)
+					: null,
 				city_id: parseInt(formData.city_id),
-				latitude: formData.latitude ? parseFloat(formData.latitude) : null,
-				longitude: formData.longitude ? parseFloat(formData.longitude) : null,
 				owner_name: formData.owner_name.trim(),
 				owner_phone: formData.owner_phone.trim(),
 			}
@@ -774,62 +770,46 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 							Տեղանքի տեղեկատվություն
 						</h2>
 
-						<div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
-							<div>
-								<label className='block text-sm font-medium text-gray-700 mb-2'>
-									Մարզ
-								</label>
-								<select
-									name='state_id'
-									value={formData.state_id}
-									onChange={handleInputChange}
-									required
-									className='w-full border text-gray-700 border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-								>
-									<option value=''>Select State</option>
-									{states.map(state => (
-										<option key={state.id} value={state.id}>
-											{state.name}
-										</option>
-									))}
-								</select>
-							</div>
+						<LocationSelector
+							stateId={formData.state_id}
+							cityId={formData.city_id}
+							districtId={formData.district_id}
+							onStateChange={stateId =>
+								setFormData(prev => ({
+									...prev,
+									state_id: stateId,
+									city_id: '', // Reset city when state changes
+									district_id: '', // Reset district when state changes
+								}))
+							}
+							onCityChange={cityId =>
+								setFormData(prev => ({
+									...prev,
+									city_id: cityId,
+								}))
+							}
+							onDistrictChange={districtId =>
+								setFormData(prev => ({
+									...prev,
+									district_id: districtId,
+								}))
+							}
+							required={true}
+						/>
 
-							<div>
-								<label className='block text-sm font-medium text-gray-700 mb-2'>
-									Քաղաք
-								</label>
-								<select
-									name='city_id'
-									value={formData.city_id}
-									onChange={handleInputChange}
-									required
-									disabled={!formData.state_id}
-									className='w-full border text-gray-700 border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100'
-								>
-									<option value=''>Select City</option>
-									{cities.map(city => (
-										<option key={city.id} value={city.id}>
-											{city.name}
-										</option>
-									))}
-								</select>
-							</div>
-
-							<div className='md:col-span-2'>
-								<label className='block text-sm font-medium text-gray-700 mb-2'>
-									Address
-								</label>
-								<input
-									type='text'
-									name='address'
-									value={formData.address}
-									onChange={handleInputChange}
-									required
-									className='w-full border border-gray-300 text-black rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-									placeholder='Enter property address'
-								/>
-							</div>
+						<div className='mt-6'>
+							<label className='block text-sm font-medium text-gray-700 mb-2'>
+								Address
+							</label>
+							<input
+								type='text'
+								name='address'
+								value={formData.address}
+								onChange={handleInputChange}
+								required
+								className='w-full border border-gray-300 text-black rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+								placeholder='Enter property address'
+							/>
 						</div>
 					</div>
 

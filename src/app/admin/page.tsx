@@ -67,6 +67,8 @@ interface PropertyListItem {
 	description?: string
 	currency?: string
 	updated_at: string
+	location_display?: string
+	district_name?: string
 }
 
 export default function AdminDashboard() {
@@ -863,7 +865,11 @@ export default function AdminDashboard() {
 														{property.city_name}
 													</div>
 													<div className='text-sm text-gray-500'>
-														{property.state_name}
+														
+															{
+																property.district_name ||
+																''
+															}{property.state_name}
 													</div>
 												</td>
 												<td className='px-6 py-4 whitespace-nowrap'>

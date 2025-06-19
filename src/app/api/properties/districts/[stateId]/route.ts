@@ -18,32 +18,41 @@ export async function OPTIONS() {
 	return corsResponse(new NextResponse(null, { status: 204 }))
 }
 
-export async function GET() {
+export async function GET(
+	request: Request,
+	{ params }: { params: Promise<{ stateId: string }> }
+) {
 	try {
-		console.log('🌍 Fetching states with district information...')
+		const { stateId: stateIdStr } = await params
+		const stateId = parseInt(stateIdStr)
+
+		if (isNaN(stateId)) {
+			return NextResponse.json({ error: 'Invalid state ID' }, { status: 400 })
+		}
+
+		console.log(`🏘️ Fetching districts for state ID: ${stateId}`)
 
 		const result = await sql`
 			SELECT 
-				s.id,
-				s.name,
-				s.uses_districts,
-				COUNT(d.id) as district_count,
-				COUNT(c.id) as city_count
-			FROM states s
-			LEFT JOIN districts d ON s.id = d.state_id
-			LEFT JOIN cities c ON s.id = c.state_id
-			GROUP BY s.id, s.name, s.uses_districts
-			ORDER BY s.name ASC
+				d.id,
+				d.name,
+				d.name_hy,
+				d.name_en,
+				d.name_ru,
+				d.state_id
+			FROM districts d
+			WHERE d.state_id = ${stateId}
+			ORDER BY d.name_hy ASC
 		`
 
-		console.log(`✅ Found ${result.rows.length} states`)
+		console.log(`✅ Found ${result.rows.length} districts`)
 
 		const response = NextResponse.json(result.rows)
 		return corsResponse(response)
 	} catch (error) {
-		console.error('Error fetching states:', error)
+		console.error('Error fetching districts:', error)
 		const response = NextResponse.json(
-			{ error: 'Failed to fetch states' },
+			{ error: 'Failed to fetch districts' },
 			{ status: 500 }
 		)
 		return corsResponse(response)
