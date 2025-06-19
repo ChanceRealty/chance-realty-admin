@@ -1,4 +1,4 @@
-// src/components/LocationSelector.tsx
+// src/components/LocationSelector.tsx - Fixed for Yerevan districts (city_id nullable)
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -45,9 +45,19 @@ export default function LocationSelector({
 			setSelectedState(state || null)
 
 			if (state?.uses_districts) {
+				// For Yerevan: load districts and clear city_id (set to null)
+				console.log('🏘️ Yerevan selected - loading districts, clearing city_id')
 				fetchDistricts(parseInt(stateId))
+				setCities([])
+				onCityChange('') // Clear city_id for Yerevan (will be null in DB)
 			} else {
+				// For other states: load cities and clear district_id
+				console.log(
+					'🏙️ Non-Yerevan state selected - loading cities, clearing district_id'
+				)
 				fetchCities(parseInt(stateId))
+				setDistricts([])
+				onDistrictChange('') // Clear district_id for non-Yerevan states
 			}
 		} else {
 			setSelectedState(null)
@@ -103,7 +113,7 @@ export default function LocationSelector({
 
 	const handleStateChange = (value: string) => {
 		onStateChange(value)
-		// Reset city and district when state changes
+		// Reset both city and district when state changes
 		onCityChange('')
 		onDistrictChange('')
 	}
@@ -143,11 +153,11 @@ export default function LocationSelector({
 				</select>
 			</div>
 
-			{/* District Selection (for Yerevan) */}
+			{/* District Selection (for Yerevan only) */}
 			{selectedState?.uses_districts && (
 				<div>
 					<label className='block text-sm font-medium text-gray-700 mb-2'>
-						Թաղամաս
+						Թաղամաս <span className='text-red-500'>*</span>
 					</label>
 					<select
 						value={districtId}
@@ -167,14 +177,17 @@ export default function LocationSelector({
 							))
 						)}
 					</select>
+					<p className='text-sm text-blue-600 mt-1'>
+						💡 Երևանի համար ընտրեք թաղամասը (քաղաք ավտոմատ կնշվի)
+					</p>
 				</div>
 			)}
 
-			{/* City Selection (for non-Yerevan states) */}
+			{/* City Selection (for non-Yerevan states only) */}
 			{selectedState && !selectedState.uses_districts && (
 				<div>
 					<label className='block text-sm font-medium text-gray-700 mb-2'>
-						Քաղաք
+						Քաղաք <span className='text-red-500'>*</span>
 					</label>
 					<select
 						value={cityId}
@@ -198,10 +211,21 @@ export default function LocationSelector({
 			)}
 
 			{/* Helper Text */}
-			{selectedState?.uses_districts && (
-				<p className='text-sm text-gray-500'>
-					💡 Երևանի համար ընտրեք թաղամասը՝ քաղաքի փոխարեն
-				</p>
+			{selectedState && (
+				<div className='bg-blue-50 border border-blue-200 rounded-lg p-3'>
+					<p className='text-sm text-blue-800'>
+						{selectedState.uses_districts ? (
+							<>
+								<strong>Երևան:</strong> Ընտրեք թաղամասը։ Քաղաքը ավտոմատ կլինի
+								"Երևան"։
+							</>
+						) : (
+							<>
+								<strong>{selectedState.name}:</strong> Ընտրեք քաղաքը մարզում։
+							</>
+						)}
+					</p>
+				</div>
 			)}
 		</div>
 	)

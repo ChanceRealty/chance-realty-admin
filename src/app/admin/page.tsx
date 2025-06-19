@@ -145,12 +145,17 @@ export default function AdminDashboard() {
 			const properties = await response.json()
 
 			const totalProperties = properties.length
-			const availableProperties = properties.filter(
-				(p: any) => p.status?.toLowerCase() === 'available'
-			).length
+			const availableProperties = properties.filter((p: any) => {
+				const statusName =
+					p.status_name?.toLowerCase() || p.status?.toLowerCase()
+				console.log('Status check for available:', statusName)
+				return statusName === 'available'
+			}).length
 			const soldRentedProperties = properties.filter((p: any) => {
-				const status = p.status?.toLowerCase()
-				return status === 'sold' || status === 'rented'
+				const statusName =
+					p.status_name?.toLowerCase() || p.status?.toLowerCase()
+				console.log('Status check for sold/rented:', statusName)
+				return statusName === 'sold' || statusName === 'rented'
 			}).length
 			const featuredProperties = properties.filter(
 				(p: any) => p.featured === true
@@ -343,6 +348,33 @@ export default function AdminDashboard() {
 			day: 'numeric',
 			year: 'numeric',
 		})
+	}
+
+	const getLocationDisplay = (property: PropertyListItem) => {
+		// Use the pre-calculated location_display from the API if available
+		if (property.location_display) {
+			return property.location_display
+		}
+
+		// Fallback logic if location_display is not available
+		const parts = []
+
+		// Add district if available (for Yerevan)
+		if (property.district_name) {
+			parts.push(property.district_name)
+		}
+
+		// Add city (will be "Երևան" for districts or actual city name for others)
+		if (property.city_name) {
+			parts.push(property.city_name)
+		}
+
+		// Add state
+		if (property.state_name) {
+			parts.push(property.state_name)
+		}
+
+		return parts.length > 0 ? parts.join(', ') : 'Տեղեկություն չկա'
 	}
 
 	if (loading) {
@@ -862,16 +894,21 @@ export default function AdminDashboard() {
 												</td>
 												<td className='px-6 py-4 whitespace-nowrap'>
 													<div className='text-sm text-gray-900'>
-														{property.city_name}
+														{property.state_name === 'Երևան' ? (
+															property.district_name
+														) : (
+															<>
+																{property.city_name}
+																{property.district_name &&
+																	`, ${property.district_name}`}
+															</>
+														)}
 													</div>
 													<div className='text-sm text-gray-500'>
-														
-															{
-																property.district_name ||
-																''
-															}{property.state_name}
+														{property.state_name}
 													</div>
 												</td>
+
 												<td className='px-6 py-4 whitespace-nowrap'>
 													<div className='text-sm text-gray-900'>
 														{formatPrice(property.price)}

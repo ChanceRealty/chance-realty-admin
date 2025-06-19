@@ -1,4 +1,4 @@
-// src/app/admin/properties/add/page.tsx - Complete add property page with dynamic status and all features
+// src/app/admin/properties/add/page.tsx - FIXED with translated status names
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -89,14 +89,17 @@ export default function AddPropertyPage() {
 		area_acres: '',
 	})
 
-	// In src/app/admin/properties/add/page.tsx
-	// Replace the useEffect that fetches data:
-
-	// src/app/admin/properties/add/page.tsx - FIXED useEffect section only
-	// Replace the existing useEffect that fetches data with this corrected version:
-
-	// src/app/admin/properties/add/page.tsx - FIXED useEffect section only
-	// Replace the existing useEffect that fetches data with this corrected version:
+	// ✅ FIXED: Armenian translations for status names
+	const statusNameDisplay: Record<string, string> = {
+		available: 'Հասանելի է',
+		sold: 'Վաճառված',
+		rented: 'Վարձակալված',
+		pending: 'Սպասում է',
+		under_review: 'Գնահատվում է',
+		coming_soon: 'Շուտով',
+		draft: 'Նախագիծ',
+		archived: 'Արխիվացված',
+	}
 
 	useEffect(() => {
 		console.log('🚀 Add Property: Starting data fetch...')
@@ -122,7 +125,7 @@ export default function AddPropertyPage() {
 					return []
 				}
 				return res.json()
-			}), // ✅ FIXED ENDPOINT - removed '/properties' from path
+			}),
 		])
 			.then(([statesData, featuresData, statusesData]) => {
 				console.log('✅ Add Property: All data fetched successfully:')
@@ -197,6 +200,7 @@ export default function AddPropertyPage() {
 				setFormData(prev => ({ ...prev, status: 'available' }))
 			})
 	}, [])
+
 	useEffect(() => {
 		if (formData.state_id) {
 			// Fetch cities for selected state
@@ -263,16 +267,40 @@ export default function AddPropertyPage() {
 		setError('')
 
 		try {
+
+			let finalCityId = null
+			let finalDistrictId = null
+
+			// Check if the selected state uses districts (Yerevan)
+			const selectedState = states.find(
+				s => s.id === parseInt(formData.state_id)
+			)
+
+			if (selectedState?.uses_districts) {
+				// For Yerevan: district_id is set, city_id stays NULL
+				console.log(
+					'🏘️ Yerevan property: Using district_id, city_id will be NULL'
+				)
+				finalDistrictId = formData.district_id
+					? parseInt(formData.district_id)
+					: null
+				finalCityId = null // Important: city_id is NULL for Yerevan
+			} else {
+				// For other states: city_id is set, district_id stays NULL
+				console.log(
+					'🏙️ Non-Yerevan property: Using city_id, district_id will be NULL'
+				)
+				finalCityId = formData.city_id ? parseInt(formData.city_id) : null
+				finalDistrictId = null // Important: district_id is NULL for non-Yerevan
+			}
 			// Prepare form data
 			const propertyData = {
 				...formData,
 				custom_id: formData.custom_id.trim(),
 				price: parseFloat(formData.price),
 				state_id: parseInt(formData.state_id),
-				city_id: parseInt(formData.city_id),
-				district_id: formData.district_id
-					? parseInt(formData.district_id)
-					: null,
+				city_id: finalCityId, // ✅ NULL for Yerevan
+				district_id: finalDistrictId, // ✅ NULL for non-Yerevan
 				owner_name: formData.owner_name.trim(),
 				owner_phone: formData.owner_phone.trim(),
 			}
@@ -551,7 +579,7 @@ export default function AddPropertyPage() {
 								>
 									{statuses.map(status => (
 										<option key={status.id} value={status.name}>
-											{status.name}
+											{statusNameDisplay[status.name] || status.name}
 										</option>
 									))}
 								</select>
@@ -568,7 +596,8 @@ export default function AddPropertyPage() {
 														selectedStatus.color
 													)}`}
 												>
-													{selectedStatus.name}
+													{statusNameDisplay[selectedStatus.name] ||
+														selectedStatus.name}
 												</span>
 											) : null
 										})()}

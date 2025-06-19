@@ -428,50 +428,72 @@ export async function GET() {
 		}
 
 		const result = await sql`
-      SELECT 
-        p.id,
-        p.custom_id,
-        p.title,
-        p.title_ru,
-        p.title_en,
-        p.description,
-        p.description_ru,
-        p.description_en,
-        p.property_type,
-        p.listing_type,
-        p.price,
-        p.translation_status,
-        p.last_translated_at,
-        ps.name as status_name,
-        ps.color as status_color,
-        p.views,
-        p.created_at,
-        p.owner_name,
-        p.owner_phone,
-        u.email as user_email,
-        s.name as state_name,
-		s.uses_districts,
-        c.name as city_name,
-		d.name_hy as district_name,
-		CASE 
-			WHEN d.name_hy IS NOT NULL THEN d.name_hy || ', ' || s.name
-			WHEN c.name IS NOT NULL THEN c.name || ', ' || s.name
-			ELSE s.name
-		END as location_display,
-        (
-          SELECT url 
-          FROM property_media 
-          WHERE property_id = p.id AND is_primary = true AND type = 'image'
-          LIMIT 1
-        ) as primary_image
-      FROM properties p
-      JOIN users u ON p.user_id = u.id
-      JOIN states s ON p.state_id = s.id
-      JOIN cities c ON p.city_id = c.id
-	  LEFT JOIN districts d ON p.district_id = d.id
-      LEFT JOIN property_statuses ps ON p.status = ps.id
-      ORDER BY p.created_at DESC
-    `
+			SELECT 
+				p.id,
+				p.custom_id,
+				p.title,
+				p.title_ru,
+				p.title_en,
+				p.description,
+				p.description_ru,
+				p.description_en,
+				p.property_type,
+				p.listing_type,
+				p.price,
+				p.currency,
+				p.translation_status,
+				p.last_translated_at,
+				p.views,
+				p.created_at,
+				p.updated_at,
+				p.owner_name,
+				p.owner_phone,
+				ps.name as status_name,
+				ps.color as status_color,
+				ps.id as status_id,
+				u.email as user_email,
+				s.name as state_name,
+				s.uses_districts,
+				CASE 
+					WHEN c.id IS NOT NULL THEN c.name
+					WHEN d.id IS NOT NULL THEN 'Երևան'  -- Default city name for districts
+					ELSE 'Անհայտ քաղաք'
+				END as city_name,
+				d.name_hy as district_name,
+				d.name_en as district_name_en,
+				d.name_ru as district_name_ru,
+				CASE 
+					WHEN d.name_hy IS NOT NULL THEN d.name_hy || ', Երևան, ' || s.name
+					WHEN c.name IS NOT NULL THEN c.name || ', ' || s.name
+					ELSE s.name
+				END as location_display,
+				(
+					SELECT url 
+					FROM property_media 
+					WHERE property_id = p.id AND is_primary = true AND type = 'image'
+					LIMIT 1
+				) as primary_image
+			FROM properties p
+			JOIN users u ON p.user_id = u.id
+			JOIN states s ON p.state_id = s.id
+			LEFT JOIN cities c ON p.city_id = c.id
+			LEFT JOIN districts d ON p.district_id = d.id
+			LEFT JOIN property_statuses ps ON p.status = ps.id
+			WHERE (ps.is_active = true OR ps.id IS NULL)
+			ORDER BY p.created_at DESC
+		`
+
+		console.log(`✅ Admin API: Found ${result.rows.length} properties`)
+
+		// Log some examples for debugging
+		result.rows.slice(0, 3).forEach((row, index) => {
+			console.log(`📊 Property ${row.id}: 
+				- Location: ${row.location_display}
+				- City: ${row.city_name} 
+				- District: ${row.district_name || 'none'}
+				- Status: ${row.status_name}`)
+		})
+
 
 		return NextResponse.json(result.rows)
 	} catch (error) {
