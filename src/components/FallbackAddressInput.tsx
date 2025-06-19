@@ -98,6 +98,8 @@ const FallbackAddressInput: React.FC<FallbackAddressInputProps> = ({
 	const [selectedIndex, setSelectedIndex] = useState(-1)
 	const [coordinates, setCoordinates] = useState<Coordinates | null>(null)
 	const [useYandexFallback, setUseYandexFallback] = useState(true)
+	const [selectedSuggestion, setSelectedSuggestion] =
+		useState<Suggestion | null>(null)
 
 	const inputRef = useRef<HTMLInputElement>(null)
 	const suggestionRefs = useRef<(HTMLLIElement | null)[]>([])
@@ -191,16 +193,20 @@ const FallbackAddressInput: React.FC<FallbackAddressInputProps> = ({
 		const value = e.target.value
 		setInputValue(value)
 		setCoordinates(null)
+		setSelectedSuggestion(null) // Clear selected suggestion when typing
 		debouncedSearch(value)
 	}
 
 	const handleSuggestionSelect = async (suggestion: Suggestion) => {
 		console.log('🎯 Selected suggestion:', suggestion)
 
-		setInputValue(suggestion.name)
+		// Use the exact suggestion name as the address
+		const selectedAddress = suggestion.name
+		setInputValue(selectedAddress)
 		setShowSuggestions(false)
 		setSuggestions([])
 		setSelectedIndex(-1)
+		setSelectedSuggestion(suggestion)
 
 		const coords = {
 			lat: suggestion.lat,
@@ -209,11 +215,14 @@ const FallbackAddressInput: React.FC<FallbackAddressInputProps> = ({
 
 		setCoordinates(coords)
 
-		console.log('📍 Setting coordinates:', coords)
+		console.log('📍 Setting coordinates and address:', {
+			address: selectedAddress,
+			coordinates: coords,
+		})
 
-		// Call the parent callback
+		// Call the parent callback with the SELECTED address and coordinates
 		onAddressSelect({
-			address: suggestion.name,
+			address: selectedAddress, // ✅ Use the suggestion's formatted address
 			coordinates: coords,
 			details: 'originalData' in suggestion ? suggestion.originalData : {},
 		})
@@ -251,6 +260,7 @@ const FallbackAddressInput: React.FC<FallbackAddressInputProps> = ({
 		setSuggestions([])
 		setShowSuggestions(false)
 		setSelectedIndex(-1)
+		setSelectedSuggestion(null)
 		onAddressSelect({
 			address: '',
 			coordinates: null,
@@ -258,12 +268,18 @@ const FallbackAddressInput: React.FC<FallbackAddressInputProps> = ({
 		inputRef.current?.focus()
 	}
 
-	// Geocode manually entered address
+	// ✅ FIXED: Only geocode if user typed manually (not selected from suggestions)
 	const handleBlur = async () => {
-		if (inputValue && !coordinates && useYandexFallback) {
+		// Only geocode if there's text, no coordinates, and no suggestion was selected
+		if (
+			inputValue &&
+			!coordinates &&
+			!selectedSuggestion &&
+			useYandexFallback
+		) {
 			setIsLoading(true)
 			try {
-				console.log('🌐 Geocoding address:', inputValue)
+				console.log('🌐 Geocoding manually entered address:', inputValue)
 
 				const response = await fetch('/api/yandex/geocode', {
 					method: 'POST',
@@ -283,8 +299,13 @@ const FallbackAddressInput: React.FC<FallbackAddressInputProps> = ({
 							lon: data.coordinates.lon,
 						}
 						setCoordinates(coords)
+
+						// Use the formatted address from geocoding if available
+						const finalAddress = data.address_details?.formatted || inputValue
+						setInputValue(finalAddress)
+
 						onAddressSelect({
-							address: inputValue,
+							address: finalAddress,
 							coordinates: coords,
 						})
 						console.log('✅ Manual geocoding successful:', coords)
@@ -351,9 +372,7 @@ const FallbackAddressInput: React.FC<FallbackAddressInputProps> = ({
 					<div className='absolute inset-y-0 right-0 pr-3 flex items-center'>
 						{coordinates ? (
 							<span title='Կոորդինատները ստացված են'>
-								<Check
-									className='h-5 w-5 text-green-500'
-								/>
+								<Check className='h-5 w-5 text-green-500' />
 							</span>
 						) : (
 							<button
@@ -386,6 +405,11 @@ const FallbackAddressInput: React.FC<FallbackAddressInputProps> = ({
 							{coordinates.lat.toFixed(6)}, {coordinates.lon.toFixed(6)}
 						</span>
 					</div>
+					{selectedSuggestion && (
+						<div className='text-xs text-green-600 mt-1'>
+							✅ Ընտրված հասցե: {selectedSuggestion.name}
+						</div>
+					)}
 				</div>
 			)}
 

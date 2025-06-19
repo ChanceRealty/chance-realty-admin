@@ -130,10 +130,10 @@ export async function POST(request: Request) {
 			const propertyResult = await sql.query(
 				`INSERT INTO properties (
 				  user_id, custom_id, title, description, property_type, listing_type,
-				  price, currency, state_id, city_id, district_id, address, status, owner_name, owner_phone,
+				  price, currency, state_id, city_id, district_id, address, latitude, longitude, status, owner_name, owner_phone,
 				  title_ru, title_en, description_ru, description_en, 
 				  translation_status, last_translated_at
-				) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+				) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
 				RETURNING id, custom_id`,
 				[
 					user.id,
@@ -148,6 +148,8 @@ export async function POST(request: Request) {
 					propertyData.city_id,
 					propertyData.district_id,
 					propertyData.address,
+					propertyData.latitude,
+					propertyData.longitude,
 					statusId,
 					propertyData.owner_name.trim(),
 					propertyData.owner_phone.trim(),
@@ -206,8 +208,8 @@ export async function POST(request: Request) {
 					await sql.query(
 						`INSERT INTO house_attributes (
               property_id, bedrooms, bathrooms, area_sqft, lot_size_sqft,
-              floors
-            ) VALUES ($1, $2, $3, $4, $5, $6)`,
+              floors, ceiling_height
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
 						[
 							propertyId,
 							attributesData.bedrooms,
@@ -215,6 +217,7 @@ export async function POST(request: Request) {
 							attributesData.area_sqft,
 							attributesData.lot_size_sqft,
 							attributesData.floors,
+							attributesData.ceiling_height,
 						]
 					)
 					break
@@ -223,8 +226,8 @@ export async function POST(request: Request) {
 					await sql.query(
 						`INSERT INTO apartment_attributes (
               property_id, bedrooms, bathrooms, area_sqft, floor,
-              total_floors
-            ) VALUES ($1, $2, $3, $4, $5, $6)`,
+              total_floors, ceiling_height
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
 						[
 							propertyId,
 							attributesData.bedrooms,
@@ -232,6 +235,7 @@ export async function POST(request: Request) {
 							attributesData.area_sqft,
 							attributesData.floor,
 							attributesData.total_floors,
+							attributesData.ceiling_height,
 						]
 					)
 					break

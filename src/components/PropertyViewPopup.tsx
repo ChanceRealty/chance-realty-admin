@@ -16,6 +16,7 @@ import {
 	Maximize,
 	Building,
 	Star,
+	ArrowUp,
 } from 'lucide-react'
 
 interface PropertyViewPopupProps {
@@ -220,6 +221,20 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 													<div className='text-gray-600'>հատ</div>
 												</div>
 											</div>
+											{/* ✅ NEW: Show ceiling height for houses */}
+											{property.attributes?.ceiling_height && (
+												<div className='flex items-center space-x-2'>
+													<ArrowUp className='w-5 h-5 text-indigo-600' />
+													<div>
+														<div className='font-semibold'>
+															Առաստաղի բարձրություն
+														</div>
+														<div className='text-gray-600'>
+															{property.attributes.ceiling_height}մ
+														</div>
+													</div>
+												</div>
+											)}
 										</div>
 									</div>
 								)}
@@ -251,10 +266,64 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 													<div className='text-gray-600'>հատ</div>
 												</div>
 											</div>
+											{/* ✅ NEW: Show ceiling height for apartments */}
+											{property.attributes?.ceiling_height && (
+												<div className='flex items-center space-x-2'>
+													<ArrowUp className='w-5 h-5 text-indigo-600' />
+													<div>
+														<div className='font-semibold'>
+															Առաստաղի բարձրություն
+														</div>
+														<div className='text-gray-600'>
+															{property.attributes.ceiling_height}մ
+														</div>
+													</div>
+												</div>
+											)}
 										</div>
 									</div>
 								)}
 
+								{property.property_type === 'commercial' && (
+									<div className='bg-purple-50 rounded-xl p-6'>
+										<h3 className='text-lg font-semibold mb-4 text-gray-900'>
+											Կոմերցիոն հատկանիշներ
+										</h3>
+										<div className='grid grid-cols-2 md:grid-cols-3 gap-4'>
+											<div className='flex items-center space-x-2'>
+												<Building className='w-5 h-5 text-purple-600' />
+												<div>
+													<div className='font-semibold'>Բիզնեսի տեսակ</div>
+													<div className='text-gray-600'>
+														{property.attributes?.business_type || 'Նշված չէ'}
+													</div>
+												</div>
+											</div>
+											<div className='flex items-center space-x-2'>
+												<Maximize className='w-5 h-5 text-purple-600' />
+												<div>
+													<div className='font-semibold'>Մակերես</div>
+													<div className='text-gray-600'>
+														{property.attributes?.area_sqft} քառ. ֆտ
+													</div>
+												</div>
+											</div>
+											{property.attributes?.ceiling_height && (
+												<div className='flex items-center space-x-2'>
+													<ArrowUp className='w-5 h-5 text-indigo-600' />
+													<div>
+														<div className='font-semibold'>
+															Առաստաղի բարձրություն
+														</div>
+														<div className='text-gray-600'>
+															{property.attributes.ceiling_height}մ
+														</div>
+													</div>
+												</div>
+											)}
+										</div>
+									</div>
+								)}
 								{property.description && (
 									<div className='bg-gray-50 rounded-xl p-6'>
 										<h3 className='text-lg font-semibold mb-4 text-gray-900'>

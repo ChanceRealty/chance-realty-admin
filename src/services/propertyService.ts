@@ -71,13 +71,15 @@ export async function getProperties(filter: PropertyFilter = {}) {
             'area_sqft', ha.area_sqft,
             'lot_size_sqft', ha.lot_size_sqft,
             'floors', ha.floors
+			'ceiling_height', ha.ceiling_height
           )
           WHEN p.property_type = 'apartment' THEN json_build_object(
             'bedrooms', aa.bedrooms,
             'bathrooms', aa.bathrooms,
             'area_sqft', aa.area_sqft,
             'floor', aa.floor,
-            'total_floors', aa.total_floors
+            'total_floors', aa.total_floors,
+            'ceiling_height', aa.ceiling_height
           )
           WHEN p.property_type = 'commercial' THEN json_build_object(
             'business_type', ca.business_type,
@@ -322,14 +324,16 @@ export async function getPropertyByCustomId(customId: string, language = 'hy') {
 						'bathrooms', ha.bathrooms,
 						'area_sqft', ha.area_sqft,
 						'lot_size_sqft', ha.lot_size_sqft,
-						'floors', ha.floors
+						'floors', ha.floors,
+						'ceiling_height', ha.ceiling_height
 					)
 					WHEN p.property_type = 'apartment' THEN json_build_object(
 						'bedrooms', aa.bedrooms,
 						'bathrooms', aa.bathrooms,
 						'area_sqft', aa.area_sqft,
 						'floor', aa.floor,
-						'total_floors', aa.total_floors
+						'total_floors', aa.total_floors,
+						'ceiling_height', aa.ceiling_height
 					)
 					WHEN p.property_type = 'commercial' THEN json_build_object(
 						'business_type', ca.business_type,

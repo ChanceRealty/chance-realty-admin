@@ -98,6 +98,7 @@ export interface HouseAttributes {
 	area_sqft: number
 	lot_size_sqft?: number
 	floors?: number
+	ceiling_height?: number
 }
 
 export interface ApartmentAttributes {
@@ -107,6 +108,7 @@ export interface ApartmentAttributes {
 	area_sqft: number
 	floor: number
 	total_floors: number
+	ceiling_height?: number
 }
 
 export interface CommercialAttributes {

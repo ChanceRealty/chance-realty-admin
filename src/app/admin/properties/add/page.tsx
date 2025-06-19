@@ -322,6 +322,9 @@ export default function AddPropertyPage() {
 							? parseInt(attributes.lot_size_sqft)
 							: null,
 						floors: attributes.floors ? parseInt(attributes.floors) : null,
+						ceiling_height: attributes.ceiling_height // ✅ Added for houses
+							? parseFloat(attributes.ceiling_height)
+							: null,
 					})
 					break
 				case 'apartment':
@@ -331,6 +334,9 @@ export default function AddPropertyPage() {
 						area_sqft: parseInt(attributes.area_sqft),
 						floor: parseInt(attributes.floor),
 						total_floors: parseInt(attributes.total_floors),
+						ceiling_height: attributes.ceiling_height // ✅ Added for houses
+							? parseFloat(attributes.ceiling_height)
+							: null,
 					})
 					break
 				case 'commercial':
@@ -425,14 +431,21 @@ export default function AddPropertyPage() {
 		coordinates: { lat: number; lon: number } | null
 		details?: any
 	}) => {
-		console.log('Selected address:', data)
+		console.log('🏠 Address selected in add page:', data)
 
 		setFormData(prev => ({
 			...prev,
-			address: data.address,
-			latitude: data.coordinates?.lat || null,
-			longitude: data.coordinates?.lon || null,
+			address: data.address, // ✅ Use the selected/formatted address
+			latitude: data.coordinates?.lat || null, // ✅ Save latitude
+			longitude: data.coordinates?.lon || null, // ✅ Save longitude
 		}))
+
+		// Log the update for debugging
+		console.log('📍 Updated form data with coordinates:', {
+			address: data.address,
+			latitude: data.coordinates?.lat,
+			longitude: data.coordinates?.lon,
+		})
 	}
 
 	return (
@@ -803,6 +816,21 @@ export default function AddPropertyPage() {
 										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
 									/>
 								</div>
+								<div>
+									<label className='block text-sm font-medium text-gray-700 mb-2'>
+										Առաստաղի բարձրությունը (մետր)
+									</label>
+									<input
+										type='number'
+										name='ceiling_height'
+										value={attributes.ceiling_height}
+										onChange={handleAttributeChange}
+										min='0'
+										step='0.1'
+										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
+										placeholder='օր․ 3.0'
+									/>
+								</div>
 							</div>
 						)}
 
@@ -877,6 +905,21 @@ export default function AddPropertyPage() {
 										required
 										min='1'
 										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
+									/>
+								</div>
+								<div>
+									<label className='block text-sm font-medium text-gray-700 mb-2'>
+										Առաստաղի բարձրությունը (մետր)
+									</label>
+									<input
+										type='number'
+										name='ceiling_height'
+										value={attributes.ceiling_height}
+										onChange={handleAttributeChange}
+										min='0'
+										step='0.1'
+										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
+										placeholder='օր․ 3.0'
 									/>
 								</div>
 							</div>

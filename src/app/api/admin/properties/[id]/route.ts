@@ -269,11 +269,13 @@ export async function PUT(
 					city_id = $9,
 					district_id = $10,
 					address = $11,
-					status = $12,
-					owner_name = $13,
-					owner_phone = $14,
+					latitude = $12,
+					longitude = $13,
+					status = $14,
+					owner_name = $15,
+					owner_phone = $16,
 					updated_at = CURRENT_TIMESTAMP
-				WHERE id = $15`,
+				WHERE id = $17`,
 				[
 					propertyData.custom_id.trim(),
 					propertyData.title.trim(),
@@ -286,7 +288,9 @@ export async function PUT(
 					propertyData.city_id,
 					propertyData.district_id,
 					propertyData.address?.trim() || null,
-					statusId, // ✅ Use integer status ID instead of string status name
+					propertyData.latitude, 
+					propertyData.longitude,
+					statusId, // ✅
 					propertyData.owner_name.trim(),
 					propertyData.owner_phone.trim(),
 					id,
@@ -306,8 +310,8 @@ export async function PUT(
 					// Insert new attributes
 					await sql.query(
 						`INSERT INTO house_attributes (
-							property_id, bedrooms, bathrooms, area_sqft, lot_size_sqft, floors
-						) VALUES ($1, $2, $3, $4, $5, $6)`,
+							property_id, bedrooms, bathrooms, area_sqft, lot_size_sqft, floors, ceiling_height
+						) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
 						[
 							id,
 							attributesData.bedrooms,
@@ -315,6 +319,7 @@ export async function PUT(
 							attributesData.area_sqft,
 							attributesData.lot_size_sqft,
 							attributesData.floors,
+							attributesData.ceiling_height,
 						]
 					)
 					break
@@ -326,8 +331,8 @@ export async function PUT(
 					)
 					await sql.query(
 						`INSERT INTO apartment_attributes (
-							property_id, bedrooms, bathrooms, area_sqft, floor, total_floors
-						) VALUES ($1, $2, $3, $4, $5, $6)`,
+							property_id, bedrooms, bathrooms, area_sqft, floor, total_floors, ceiling_height
+						) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
 						[
 							id,
 							attributesData.bedrooms,
@@ -335,6 +340,7 @@ export async function PUT(
 							attributesData.area_sqft,
 							attributesData.floor,
 							attributesData.total_floors,
+							attributesData.ceiling_height,
 						]
 					)
 					break
