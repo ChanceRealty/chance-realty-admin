@@ -25,8 +25,6 @@ import {
 	User,
 } from 'lucide-react'
 import LocationSelector from '@/components/LocationSelector'
-import YandexAddressAutocomplete from '@/components/YandexAddressAutocomplete'
-import SimpleAddressAutocomplete from '@/components/SimpleAddressAutocomplete'
 import FallbackAddressInput from '@/components/FallbackAddressInput'
 
 export default function AddPropertyPage() {
