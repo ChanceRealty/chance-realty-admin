@@ -25,6 +25,7 @@ import {
 	User,
 } from 'lucide-react'
 import LocationSelector from '@/components/LocationSelector'
+import YandexAddressAutocomplete from '@/components/YandexAddressAutocomplete'
 
 export default function AddPropertyPage() {
 	const router = useRouter()
@@ -51,6 +52,8 @@ export default function AddPropertyPage() {
 		city_id: '',
 		district_id: '',
 		address: '',
+		latitude: null as number | null,
+		longitude: null as number | null,
 		selectedFeatures: [] as number[],
 		// Owner details (admin only)
 		owner_name: '',
@@ -297,6 +300,8 @@ export default function AddPropertyPage() {
 			const propertyData = {
 				...formData,
 				custom_id: formData.custom_id.trim(),
+				latitude: formData.latitude,
+				longitude: formData.longitude,
 				price: parseFloat(formData.price),
 				state_id: parseInt(formData.state_id),
 				city_id: finalCityId, // ✅ NULL for Yerevan
@@ -413,6 +418,21 @@ export default function AddPropertyPage() {
 			'#gray': 'bg-gray-100 text-gray-800',
 		}
 		return colorMap[color] || 'bg-gray-100 text-gray-800'
+	}
+
+	const handleAddressSelect = (data: {
+		address: string
+		coordinates: { lat: number; lon: number } | null
+		details?: any
+	}) => {
+		console.log('Selected address:', data)
+
+		setFormData(prev => ({
+			...prev,
+			address: data.address,
+			latitude: data.coordinates?.lat || null,
+			longitude: data.coordinates?.lon || null,
+		}))
 	}
 
 	return (
@@ -690,17 +710,18 @@ export default function AddPropertyPage() {
 
 						<div className='mt-6'>
 							<label className='block text-sm font-medium text-gray-700 mb-2'>
-								Address
+								Հասցե <span className='text-red-500'>*</span>
 							</label>
-							<input
-								type='text'
-								name='address'
-								value={formData.address}
-								onChange={handleInputChange}
-								required
-								className='w-full border text-black border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-								placeholder='Մուտքագրեք գույքի հասցեն'
+							<YandexAddressAutocomplete
+								onAddressSelect={handleAddressSelect}
+								initialValue={formData.address}
+								placeholder='Մուտքագրեք անշարժ գույքի հասցեն...'
+								required={true}
+								className='w-full'
 							/>
+							<p className='text-sm text-gray-500 mt-1'>
+								Սկսեք մուտքագրել հասցեն և ընտրեք առաջարկությունների ցուցակից
+							</p>
 						</div>
 					</div>
 
