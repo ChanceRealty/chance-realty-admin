@@ -1,10 +1,11 @@
-// src/app/admin/page.tsx 
+// src/app/admin/page.tsx - Updated with popup and Armenian translations
 'use client'
 
 import { useState, useEffect } from 'react'
 import AdminLayout from '@/components/AdminLayout'
 import Link from 'next/link'
 import Image from 'next/image'
+import PropertyViewPopup from '@/components/PropertyViewPopup' // Import the popup component
 import {
 	Home,
 	Building2,
@@ -62,6 +63,10 @@ interface PropertyListItem {
 	primary_image?: string
 	owner_name?: string
 	owner_phone?: string
+	address?: string
+	description?: string
+	currency?: string
+	updated_at: string
 }
 
 export default function AdminDashboard() {
@@ -84,11 +89,29 @@ export default function AdminDashboard() {
 	const [showMobileActions, setShowMobileActions] = useState<number | null>(
 		null
 	)
+	const [showPropertyPopup, setShowPropertyPopup] = useState(false)
 	const [filters, setFilters] = useState({
 		property_type: '',
 		listing_type: '',
 		status: '',
 	})
+
+	// Armenian translations for listing types
+	const listingTypeDisplay: Record<string, string> = {
+		sale: 'Վաճառք',
+		rent: 'Վարձակալություն',
+		daily_rent: 'Օրյա վարձակալություն',
+	}
+
+	// Armenian translations for status names - add these mappings
+	const statusNameDisplay: Record<string, string> = {
+		available: 'Հասանելի է',
+		sold: 'Վաճառված',
+		rented: 'Վարձակալված',
+		pending: 'Սպասում է',
+		under_review: 'Գնահատվում է',
+		coming_soon: 'Շուտով',
+	}
 
 	useEffect(() => {
 		fetchProperties()
@@ -110,8 +133,6 @@ export default function AdminDashboard() {
 		}
 	}
 
-	// Replace the fetchDashboardStats function in your admin dashboard with this fixed version:
-
 	const fetchDashboardStats = async () => {
 		try {
 			console.log('📊 Calculating dashboard stats...')
@@ -121,47 +142,27 @@ export default function AdminDashboard() {
 			}
 			const properties = await response.json()
 
-
-			// ✅ FIXED: Calculate stats using actual status_name values
 			const totalProperties = properties.length
-
-			// Count available properties (status_name = 'available')
 			const availableProperties = properties.filter(
-				(p: any) => p.status_name?.toLowerCase() === 'available'
+				(p: any) => p.status?.toLowerCase() === 'available'
 			).length
-
-			// Count sold/rented properties (status_name = 'sold' OR 'rented')
 			const soldRentedProperties = properties.filter((p: any) => {
-				const status = p.status_name?.toLowerCase()
+				const status = p.status?.toLowerCase()
 				return status === 'sold' || status === 'rented'
 			}).length
-
-			// Count featured properties
 			const featuredProperties = properties.filter(
 				(p: any) => p.featured === true
 			).length
-
-			// Calculate total views
 			const totalViews = properties.reduce(
 				(sum: number, p: any) => sum + (p.views || 0),
 				0
 			)
-
-			// Get recent properties
 			const recentProperties = properties
 				.sort(
 					(a: any, b: any) =>
 						new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
 				)
 				.slice(0, 5)
-
-			console.log('📊 Calculated stats:', {
-				totalProperties,
-				availableProperties,
-				soldRentedProperties,
-				featuredProperties,
-				totalViews,
-			})
 
 			setStats({
 				totalProperties,
@@ -201,10 +202,7 @@ export default function AdminDashboard() {
 				throw new Error(data.error || 'Failed to delete property')
 			}
 
-			// Remove the property from the local state
 			setProperties(prev => prev.filter(property => property.id !== propertyId))
-
-			// Show success message (optional)
 			alert('Property deleted successfully')
 		} catch (error) {
 			console.error('Error deleting property:', error)
@@ -219,11 +217,18 @@ export default function AdminDashboard() {
 		}
 	}
 
+	// Handle view property click
+	const handleViewProperty = (property: PropertyListItem) => {
+		setSelectedProperty(property)
+		setShowPropertyPopup(true)
+		setShowMobileActions(null)
+	}
+
 	const filteredProperties = properties.filter(property => {
 		const search = searchTerm.toLowerCase().trim()
 
 		if (search === '') {
-			// Return all properties if search is empty (only apply other filters)
+			// Return all properties if search is empty
 		} else {
 			let customIdMatches = false
 
@@ -289,7 +294,7 @@ export default function AdminDashboard() {
 	}
 
 	const getStatusColor = (status: string) => {
-		switch (status.toLowerCase()) {
+		switch (status?.toLowerCase()) {
 			case 'available':
 			case 'հասանելի է':
 				return 'bg-green-100 text-green-800'
@@ -306,6 +311,7 @@ export default function AdminDashboard() {
 				return 'bg-gray-100 text-gray-800'
 		}
 	}
+
 	const propertyTypeOptions = [
 		{ value: '', label: 'Բոլորը' },
 		{ value: 'house', label: 'Առանձնատուն' },
@@ -622,6 +628,13 @@ export default function AdminDashboard() {
 												{showMobileActions === property.id && (
 													<div className='absolute right-0 top-10 w-48 bg-white rounded-lg shadow-lg border z-10'>
 														<button
+															onClick={() => handleViewProperty(property)}
+															className='w-full text-gray-700 text-left px-4 py-2 hover:bg-gray-100 flex items-center text-sm'
+														>
+															<EyeIcon className='w-4 h-4 mr-2' />
+															Դիտել
+														</button>
+														<button
 															onClick={() => {
 																router.push(
 																	`/admin/properties/edit/${property.id}`
@@ -644,13 +657,6 @@ export default function AdminDashboard() {
 														>
 															<Trash2 className='w-4 h-4 mr-2' />
 															Ջնջել
-														</button>
-														<button
-															onClick={() => setShowMobileActions(null)}
-															className='w-full text-gray-700 text-left px-4 py-2 hover:bg-gray-100 flex items-center text-sm'
-														>
-															<EyeIcon className='w-4 h-4 mr-2' />
-															Դիտել
 														</button>
 													</div>
 												)}
@@ -682,7 +688,9 @@ export default function AdminDashboard() {
 															property.status_name || ''
 														)}`}
 													>
-														{property.status_name || 'Անհայտ'}
+														{statusNameDisplay[property.status_name] ||
+															property.status_name ||
+															'Չի նշված'}
 													</span>
 												</div>
 											</div>
@@ -863,7 +871,8 @@ export default function AdminDashboard() {
 														{formatPrice(property.price)}
 													</div>
 													<div className='text-sm text-gray-500'>
-														{property.listing_type.replace('_', ' ')}
+														{listingTypeDisplay[property.listing_type] ||
+															property.listing_type}
 													</div>
 												</td>
 												<td className='px-6 py-4 whitespace-nowrap'>
@@ -872,7 +881,9 @@ export default function AdminDashboard() {
 															property.status_name || ''
 														)}`}
 													>
-														{property.status_name || 'Անհայտ'}
+														{statusNameDisplay[property.status_name] ||
+															property.status_name ||
+															'Չի նշված'}
 													</span>
 												</td>
 												<td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
@@ -884,9 +895,7 @@ export default function AdminDashboard() {
 												<td className='px-6 py-4 whitespace-nowrap text-sm font-medium'>
 													<div className='flex space-x-2'>
 														<button
-															onClick={() =>
-																router.push(`/properties/${property.custom_id}`)
-															}
+															onClick={() => handleViewProperty(property)}
 															disabled={isDeleting}
 															className='text-indigo-600 hover:text-indigo-900 disabled:opacity-50'
 															title='View property'
@@ -932,6 +941,16 @@ export default function AdminDashboard() {
 						</table>
 					</div>
 				</div>
+
+				{/* Property View Popup */}
+				<PropertyViewPopup
+					property={selectedProperty}
+					isOpen={showPropertyPopup}
+					onClose={() => {
+						setShowPropertyPopup(false)
+						setSelectedProperty(null)
+					}}
+				/>
 			</div>
 		</AdminLayout>
 	)

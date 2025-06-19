@@ -4,7 +4,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Search, Bell, ChevronDown, LogOut } from 'lucide-react'
+import { ChevronDown } from 'lucide-react'
 
 interface AdminLayoutProps {
 	children: React.ReactNode
@@ -36,17 +36,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 			{/* Top Navigation */}
 			<header className='bg-white shadow-sm'>
 				<div className='flex items-center justify-between px-4 py-3'>
-					{/* Removed sidebar toggle button */}
-
 					<div className='flex items-center space-x-4 ml-auto'>
-					
-
-						{/* Notifications
-						<button className='p-2 rounded-lg hover:bg-gray-100 relative'>
-							<Bell className='w-6 h-6' />
-							<span className='absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full'></span>
-						</button> */}
-
 						{/* Profile Menu */}
 						<div className='relative'>
 							<button
@@ -56,8 +46,10 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 								<div className='w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center'>
 									<span className='text-gray-600 font-medium'>A</span>
 								</div>
-								<span className='hidden md:inline text-gray-700'>Ադմինիստրատոր</span>
-								<ChevronDown className='w-4 h-4' />
+								<span className='hidden md:inline text-gray-700'>
+									Ադմինիստրատոր
+								</span>
+								<ChevronDown className='w-4 h-4 text-gray-700' />
 							</button>
 
 							{isProfileMenuOpen && (

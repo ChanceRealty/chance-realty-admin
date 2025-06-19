@@ -441,7 +441,7 @@ export async function GET() {
         p.price,
         p.translation_status,
         p.last_translated_at,
-        ps.name as status,
+        ps.name as status_name,
         ps.color as status_color,
         p.views,
         p.created_at,

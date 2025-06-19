@@ -19,7 +19,8 @@ export async function GET(
 	{ params }: { params: { id: string } }
 ) {
 	try {
-		const propertyId = parseInt(params.id)
+		const { id } = await params
+		const propertyId = parseInt(id)
 
 		if (isNaN(propertyId)) {
 			return NextResponse.json(

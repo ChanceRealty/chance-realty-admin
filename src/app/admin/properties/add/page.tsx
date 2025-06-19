@@ -425,7 +425,7 @@ export default function AddPropertyPage() {
 									onChange={handleInputChange}
 									required
 									className='w-full border border-gray-300 text-black rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-									placeholder='Enter property title'
+									placeholder='Մուտքագրեք անշարժ գույքի անունը'
 								/>
 							</div>
 						</div>
@@ -440,7 +440,7 @@ export default function AddPropertyPage() {
 								onChange={handleInputChange}
 								rows={4}
 								className='w-full border border-gray-300 text-black rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-								placeholder='Enter property description'
+								placeholder='Մուտքագրեք անշարժ գույքի նկարագրությունը'
 							/>
 						</div>
 
@@ -489,7 +489,7 @@ export default function AddPropertyPage() {
 									onChange={handleInputChange}
 									required
 									className='w-full border text-black border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-									placeholder='e.g., GL100'
+									placeholder='Մուտքագրեք անշարժ գույքի ID-ն'
 								/>
 							</div>
 
@@ -525,8 +525,6 @@ export default function AddPropertyPage() {
 										className='border border-r-0 text-gray-700 border-gray-300 rounded-l-lg px-3 py-2 bg-gray-50'
 									>
 										<option value='USD'>USD</option>
-										<option value='EUR'>EUR</option>
-										<option value='GBP'>GBP</option>
 									</select>
 									<input
 										type='number'
@@ -537,7 +535,7 @@ export default function AddPropertyPage() {
 										min='0'
 										step='0.01'
 										className='flex-1 border text-black border-gray-300 rounded-r-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-										placeholder='Enter price'
+										placeholder='Մուտքագրեք գինը'
 									/>
 								</div>
 							</div>
@@ -647,7 +645,7 @@ export default function AddPropertyPage() {
 									required
 									className='w-full border text-gray-700 border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
 								>
-									<option value=''>Select State</option>
+									<option value=''>Ընտրեք տարածաշրջան</option>
 									{states.map(state => (
 										<option key={state.id} value={state.id}>
 											{state.name}
@@ -668,7 +666,7 @@ export default function AddPropertyPage() {
 									disabled={!formData.state_id}
 									className='w-full border text-gray-700 border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100'
 								>
-									<option value=''>Select City</option>
+									<option value=''>Ընտրեք քաղաքը</option>
 									{cities.map(city => (
 										<option key={city.id} value={city.id}>
 											{city.name}
@@ -688,7 +686,7 @@ export default function AddPropertyPage() {
 									onChange={handleInputChange}
 									required
 									className='w-full border text-black border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-									placeholder='Enter property address'
+									placeholder='Մուտքագրեք գույքի հասցեն'
 								/>
 							</div>
 						</div>
@@ -734,7 +732,7 @@ export default function AddPropertyPage() {
 								</div>
 								<div>
 									<label className='block text-sm font-medium text-gray-700 mb-2'>
-										Մակերես (քառակուսի ֆուտ)
+										Մակերես (քառակուսի մետր)
 									</label>
 									<input
 										type='number'
@@ -748,7 +746,7 @@ export default function AddPropertyPage() {
 								</div>
 								<div>
 									<label className='block text-sm font-medium text-gray-700 mb-2'>
-										Տարածքի մակերես (քառակուսի ֆուտ)
+										Տարածքի մակերես (քառակուսի մետր)
 									</label>
 									<input
 										type='number'
@@ -809,7 +807,7 @@ export default function AddPropertyPage() {
 								</div>
 								<div>
 									<label className='block text-sm font-medium text-gray-700 mb-2'>
-										Մակերես (քառակուսի ֆուտ)
+										Մակերես (քառակուսի մետր)
 									</label>
 									<input
 										type='number'
@@ -869,7 +867,7 @@ export default function AddPropertyPage() {
 								</div>
 								<div>
 									<label className='block text-sm font-medium text-gray-700 mb-2'>
-										Մակերես (քառակուսի ֆուտ)
+										Մակերես (քառակուսի մետր)
 									</label>
 									<input
 										type='number'
@@ -896,7 +894,7 @@ export default function AddPropertyPage() {
 								</div>
 								<div>
 									<label className='block text-sm font-medium text-gray-700 mb-2'>
-										Առաստաղի բարձրությունը (ֆուտ)
+										Առաստաղի բարձրությունը (մետր)
 									</label>
 									<input
 										type='number'
@@ -916,7 +914,7 @@ export default function AddPropertyPage() {
 							<div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
 								<div>
 									<label className='block text-sm font-medium text-gray-700 mb-2'>
-										Մակերես (էյկր)
+										Մակերես (քառակուսի մետր)
 									</label>
 									<input
 										type='number'
@@ -957,7 +955,7 @@ export default function AddPropertyPage() {
 
 					{/* Property Media */}
 					<div className='bg-white shadow rounded-lg p-6'>
-						<h2 className='text-lg font-semibold mb-6 flex items-center'>
+						<h2 className='text-lg text-gray-700 font-semibold mb-6 flex items-center'>
 							<ImageIcon className='w-5 h-5 mr-2' />
 							Հայտարարության նկարները և տեսանյութերը
 						</h2>
