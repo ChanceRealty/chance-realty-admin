@@ -53,6 +53,9 @@ export async function GET(request: Request) {
 			city_id: searchParams.get('city_id')
 				? parseInt(searchParams.get('city_id')!)
 				: undefined,
+			district_id: searchParams.get('district_id')
+				? parseInt(searchParams.get('district_id')!)
+				: undefined,
 			min_price: searchParams.get('min_price')
 				? parseFloat(searchParams.get('min_price')!)
 				: undefined,
@@ -107,11 +110,14 @@ export async function GET(request: Request) {
 				p.updated_at,
 				p.state_id,
 				p.city_id,
+				p.district_id,
 				p.address,
 				s.name as state_name,
 				c.name as city_name,
+				d.name as district_name,
 				json_build_object('id', s.id, 'name', s.name) as state,
 				json_build_object('id', c.id, 'name', c.name) as city,
+				json_build_object('id', d.id, 'name', d.name) as district,
 				-- Property attributes based on type
 				CASE 
 					WHEN p.property_type = 'house' THEN json_build_object(
@@ -175,6 +181,7 @@ export async function GET(request: Request) {
 			FROM properties p
 			JOIN states s ON p.state_id = s.id
 			JOIN cities c ON p.city_id = c.id
+			LEFT JOIN districts d ON p.district_id = d.id
 			LEFT JOIN property_statuses ps ON p.status = ps.id
 			LEFT JOIN house_attributes ha ON p.id = ha.property_id AND p.property_type = 'house'
 			LEFT JOIN apartment_attributes aa ON p.id = aa.property_id AND p.property_type = 'apartment'
@@ -368,8 +375,10 @@ export async function GET_SINGLE(
 				ps.color as status_color,
 				s.name as state_name,
 				c.name as city_name,
+				d.name as district_name,
 				json_build_object('id', s.id, 'name', s.name) as state,
 				json_build_object('id', c.id, 'name', c.name) as city,
+				json_build_object('id', d.id, 'name', d.name) as district,
 				-- Property attributes
 				CASE 
 					WHEN p.property_type = 'house' THEN json_build_object(
@@ -408,6 +417,7 @@ export async function GET_SINGLE(
 			FROM properties p
 			JOIN states s ON p.state_id = s.id
 			JOIN cities c ON p.city_id = c.id
+			LEFT JOIN districts d ON p.district_id = d.id
 			LEFT JOIN property_statuses ps ON p.status = ps.id
 			LEFT JOIN house_attributes ha ON p.id = ha.property_id AND p.property_type = 'house'
 			LEFT JOIN apartment_attributes aa ON p.id = aa.property_id AND p.property_type = 'apartment'

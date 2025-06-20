@@ -85,6 +85,7 @@ export async function getAuthenticationParameters() {
 }
 
 // Enhanced upload function with better error handling
+// Replace the uploadToImageKit function
 export async function uploadToImageKit(
 	file: Buffer,
 	fileName: string,
@@ -97,19 +98,53 @@ export async function uploadToImageKit(
 			)
 		}
 
-		console.log(`Uploading ${fileName} to ImageKit...`)
+		console.log(`Uploading ${fileName} to ImageKit with optimizations...`)
 
-		const uploadResponse = await imagekit.upload({
+		// Determine if it's an image or video
+		const isVideo = fileName.toLowerCase().match(/\.(mp4|avi|mov|wmv|flv|webm)$/i)
+		const isImage = fileName.toLowerCase().match(/\.(jpg|jpeg|png|gif|bmp|webp|avif)$/i)
+
+		// Enhanced upload configuration with quality settings
+		const uploadConfig: any = {
 			file: file,
 			fileName: fileName,
 			folder: folder || '/properties',
 			useUniqueFileName: true,
-		})
+			transformation: {
+				pre: [],
+				post: []
+			}
+		}
 
-		console.log(`✅ Successfully uploaded ${fileName}:`, {
+		if (isImage) {
+			// Image optimization settings
+			uploadConfig.transformation.post = [
+				{
+					quality: '85', // High quality but optimized (85 is sweet spot)
+					format: 'auto', // Auto format selection (WebP, AVIF when supported)
+					progressive: 'true', // Enable progressive loading
+					metadata: 'false' // Strip metadata to reduce file size
+				}
+			]
+		} else if (isVideo) {
+			// Video optimization settings
+			uploadConfig.transformation.post = [
+				{
+					quality: '75', // Good quality for videos
+					format: 'auto', // Auto format selection
+					videoCodec: 'auto', // Auto codec selection (H.264, VP9, AV1)
+					audioCodec: 'aac' // Standard audio codec
+				}
+			]
+		}
+
+		const uploadResponse = await imagekit.upload(uploadConfig)
+
+		console.log(`✅ Successfully uploaded ${fileName} with optimizations:`, {
 			fileId: uploadResponse.fileId,
 			url: uploadResponse.url,
 			size: uploadResponse.size,
+			optimized: true
 		})
 
 		return uploadResponse

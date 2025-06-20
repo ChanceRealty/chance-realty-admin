@@ -632,7 +632,9 @@ export default function AdminDashboard() {
 												</div>
 												<div className='ml-3 flex-grow'>
 													<div className='text-sm font-medium text-gray-900 line-clamp-1'>
-														{property.title}
+														{property.title.length > 12
+															? `${property.title.substring(0, 12)}...`
+															: property.title}
 													</div>
 													<div className='text-xs text-gray-500'>
 														ID:{' '}
@@ -851,7 +853,9 @@ export default function AdminDashboard() {
 														</div>
 														<div className='ml-4'>
 															<div className='text-sm font-medium text-gray-900'>
-																{property.title}
+																{property.title.length > 15
+																	? `${property.title.substring(0, 15)}...`
+																	: property.title}
 															</div>
 															<div className='text-sm text-gray-500'>
 																{property.user_email}

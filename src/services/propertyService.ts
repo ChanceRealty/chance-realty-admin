@@ -489,19 +489,38 @@ export async function getRecentProperties(limit = 8, language = 'hy') {
 }
 
 // Helper function to increment property views
+// Replace the incrementPropertyViews function
 export async function incrementPropertyViews(
 	propertyId: number,
 	userId: number | null = null,
 	ipAddress: string | null = null
 ) {
 	try {
+		// Check if this IP already viewed this property in the last hour
+		const recentViewCheck = await sql.query(
+			`
+			SELECT id FROM property_views 
+			WHERE property_id = $1 
+			AND ip_address = $2 
+			AND viewed_at > NOW() - INTERVAL '1 hour'
+			LIMIT 1
+		`,
+			[propertyId, ipAddress || 'unknown']
+		)
+
+		// If there's a recent view from this IP, don't count it again
+		if (recentViewCheck.rows.length > 0) {
+			console.log(`Duplicate view prevented for property ${propertyId} from IP ${ipAddress}`)
+			return false
+		}
+
 		// Insert view record
 		await sql.query(
 			`
 			INSERT INTO property_views (property_id, user_id, ip_address, viewed_at)
 			VALUES ($1, $2, $3, NOW())
 		`,
-			[propertyId, userId, ipAddress]
+			[propertyId, userId, ipAddress || 'unknown']
 		)
 
 		// Increment views counter
@@ -519,7 +538,7 @@ export async function incrementPropertyViews(
 		console.error('Error incrementing property views:', error)
 		return false
 	}
-}
+}	
 
 // New function to get supported languages
 export async function getSupportedLanguages() {
