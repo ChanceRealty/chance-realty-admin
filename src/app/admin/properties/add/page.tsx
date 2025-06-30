@@ -23,6 +23,7 @@ import {
 	MapPin,
 	Image as ImageIcon,
 	User,
+	Phone,
 } from 'lucide-react'
 import LocationSelector from '@/components/LocationSelector'
 import FallbackAddressInput from '@/components/FallbackAddressInput'
@@ -59,6 +60,9 @@ export default function AddPropertyPage() {
 		owner_name: '',
 		owner_phone: '',
 		status: 'available', // Default status
+		has_viber: false,
+		has_whatsapp: false,
+		has_telegram: false,
 	})
 
 	// Property type specific attributes
@@ -683,6 +687,81 @@ export default function AddPropertyPage() {
 							<p className='text-sm text-yellow-800'>
 								⚠️ Այս տեղեկությունները հանրային կայքում չեն ցուցադրվի և միայն
 								ադմինիստրատորի համար են։
+							</p>
+						</div>
+					</div>
+					<div className='bg-white shadow rounded-lg p-6 border-l-4 border-green-500'>
+						<h2 className='text-lg font-semibold mb-6 flex items-center text-gray-700'>
+							<Phone className='w-5 h-5 mr-2' />
+							Կապի եղանակներ (հանրային)
+						</h2>
+
+						<div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
+							<div className='flex items-center'>
+								<input
+									type='checkbox'
+									id='has_viber'
+									name='has_viber'
+									checked={formData.has_viber}
+									onChange={handleInputChange}
+									className='w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500'
+								/>
+								<label
+									htmlFor='has_viber'
+									className='ml-3 text-sm font-medium text-gray-700 flex items-center'
+								>
+									<span className='w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center text-white text-xs mr-2'>
+										V
+									</span>
+									Viber
+								</label>
+							</div>
+
+							<div className='flex items-center'>
+								<input
+									type='checkbox'
+									id='has_whatsapp'
+									name='has_whatsapp'
+									checked={formData.has_whatsapp}
+									onChange={handleInputChange}
+									className='w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500'
+								/>
+								<label
+									htmlFor='has_whatsapp'
+									className='ml-3 text-sm font-medium text-gray-700 flex items-center'
+								>
+									<span className='w-6 h-6 bg-green-500 rounded-full flex items-center justify-center text-white text-xs mr-2'>
+										W
+									</span>
+									WhatsApp
+								</label>
+							</div>
+
+							<div className='flex items-center'>
+								<input
+									type='checkbox'
+									id='has_telegram'
+									name='has_telegram'
+									checked={formData.has_telegram}
+									onChange={handleInputChange}
+									className='w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500'
+								/>
+								<label
+									htmlFor='has_telegram'
+									className='ml-3 text-sm font-medium text-gray-700 flex items-center'
+								>
+									<span className='w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs mr-2'>
+										T
+									</span>
+									Telegram
+								</label>
+							</div>
+						</div>
+
+						<div className='mt-4 p-3 bg-green-50 border border-green-200 rounded-lg'>
+							<p className='text-sm text-green-800'>
+								✅ Այս տեղեկությունները կցուցադրվեն հանրային կայքում՝
+								հաճախորդների հետ կապ հաստատելու համար։
 							</p>
 						</div>
 					</div>

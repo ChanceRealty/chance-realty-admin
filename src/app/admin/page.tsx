@@ -69,6 +69,9 @@ interface PropertyListItem {
 	updated_at: string
 	location_display?: string
 	district_name?: string
+	has_viber: boolean
+	has_whatsapp: boolean
+	has_telegram: boolean
 }
 
 export default function AdminDashboard() {
@@ -759,6 +762,34 @@ export default function AdminDashboard() {
 												</div>
 											</div>
 										)}
+										{(property.has_viber ||
+											property.has_whatsapp ||
+											property.has_telegram) && (
+											<div className='mt-3 pt-3 border-t border-gray-200'>
+												<div className='text-xs text-gray-800'>
+													<div className='font-medium mb-1'>
+														Կապի եղանակներ:
+													</div>
+													<div className='flex gap-1'>
+														{property.has_viber && (
+															<span className='inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800'>
+																Viber
+															</span>
+														)}
+														{property.has_whatsapp && (
+															<span className='inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800'>
+																WhatsApp
+															</span>
+														)}
+														{property.has_telegram && (
+															<span className='inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800'>
+																Telegram
+															</span>
+														)}
+													</div>
+												</div>
+											</div>
+										)}
 									</div>
 								)
 							})
@@ -783,6 +814,9 @@ export default function AdminDashboard() {
 									</th>
 									<th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
 										Սեփականատիրոջ մանրամասները
+									</th>
+									<th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+										Կապի եղանակներ
 									</th>
 									<th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
 										վայրը
@@ -894,6 +928,32 @@ export default function AdminDashboard() {
 																{property.owner_phone || 'Տեղեկություն չկա'}
 															</span>
 														</div>
+													</div>
+												</td>
+												<td className='px-6 py-4 whitespace-nowrap'>
+													<div className='flex space-x-1'>
+														{property.has_viber && (
+															<span className='inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800'>
+																V
+															</span>
+														)}
+														{property.has_whatsapp && (
+															<span className='inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800'>
+																W
+															</span>
+														)}
+														{property.has_telegram && (
+															<span className='inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800'>
+																T
+															</span>
+														)}
+														{!property.has_viber &&
+															!property.has_whatsapp &&
+															!property.has_telegram && (
+																<span className='text-gray-400 text-xs'>
+																	Չի նշված
+																</span>
+															)}
 													</div>
 												</td>
 												<td className='px-6 py-4 whitespace-nowrap'>

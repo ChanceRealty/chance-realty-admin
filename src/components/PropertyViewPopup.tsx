@@ -27,6 +27,7 @@ import {
 	Navigation,
 	Copy,
 } from 'lucide-react'
+import { get } from 'http'
 
 interface PropertyViewPopupProps {
 	property: any
@@ -53,30 +54,35 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 	}
 	const allMedia: MediaItem[] = []
 
-	// Add primary image first if exists
-	if (property.primary_image) {
+	if (
+		property.images &&
+		Array.isArray(property.images) &&
+		property.images.length > 0
+	) {
+		// Sort images with primary first
+		const sortedImages = [...property.images].sort((a, b) => {
+			if (a.is_primary && !b.is_primary) return -1
+			if (!a.is_primary && b.is_primary) return 1
+			return (a.display_order || 0) - (b.display_order || 0)
+		})
+
+		sortedImages.forEach((img: any, index: number) => {
+			allMedia.push({
+				id: `img-${img.id || index}`, // ✅ FIX: Unique IDs
+				url: img.url,
+				thumbnail_url: img.thumbnail_url || img.url,
+				type: img.type || 'image',
+				is_primary: img.is_primary || false,
+			})
+		})
+	} else if (property.primary_image) {
+		// Fallback to primary_image only if no images array
 		allMedia.push({
-			id: 'primary',
+			id: 'primary-fallback',
 			url: property.primary_image,
 			type: 'image',
 			is_primary: true,
-			thumbnail_url: property.primary_image, // fallback or set undefined if not available
-		})
-	}
-
-	// Add other media from the property if available
-	if (property.images && Array.isArray(property.images)) {
-		property.images.forEach((img: any) => {
-			// Don't duplicate primary image
-			if (!property.primary_image || img.url !== property.primary_image) {
-				allMedia.push({
-					id: img.id,
-					url: img.url,
-					thumbnail_url: img.thumbnail_url,
-					type: img.type || 'image',
-					is_primary: img.is_primary || false,
-				})
-			}
+			thumbnail_url: property.primary_image,
 		})
 	}
 
@@ -87,6 +93,20 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 	const prevMedia = () => {
 		setCurrentMediaIndex(prev => (prev === 0 ? allMedia.length - 1 : prev - 1))
 	}
+	const getAttributeValue = (key: string) => {
+		// Check in property.attributes first
+		if (property.attributes && property.attributes[key] !== undefined) {
+			return property.attributes[key]
+		}
+		// Check in property root level as fallback
+		if (property[key] !== undefined) {
+			return property[key]
+		}
+		return null
+	}
+
+	// ✅ FIX: Properly handle features
+	const propertyFeatures = property.features || []
 
 	// Property type icons
 	const propertyTypeIcons = {
@@ -222,7 +242,6 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 						<div className='grid grid-cols-1 lg:grid-cols-3 gap-8'>
 							{/* Left Column - Media & Main Details */}
 							<div className='lg:col-span-2 space-y-6'>
-								{/* Media Slider */}
 								<div className='relative h-96 rounded-xl overflow-hidden bg-gray-200'>
 									{allMedia.length > 0 ? (
 										<>
@@ -238,10 +257,7 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 												</div>
 											) : (
 												<Image
-													src={
-														allMedia[currentMediaIndex]?.url ||
-														property.primary_image
-													}
+													src={allMedia[currentMediaIndex]?.url}
 													alt={property.title}
 													fill
 													className='object-cover'
@@ -252,13 +268,21 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 											{allMedia.length > 1 && (
 												<>
 													<button
-														onClick={prevMedia}
+														onClick={() =>
+															setCurrentMediaIndex(prev =>
+																prev === 0 ? allMedia.length - 1 : prev - 1
+															)
+														}
 														className='absolute left-4 top-1/2 -translate-y-1/2 p-2 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-70 transition-all'
 													>
 														<ChevronLeft className='w-5 h-5' />
 													</button>
 													<button
-														onClick={nextMedia}
+														onClick={() =>
+															setCurrentMediaIndex(prev =>
+																prev === allMedia.length - 1 ? 0 : prev + 1
+															)
+														}
 														className='absolute right-4 top-1/2 -translate-y-1/2 p-2 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-70 transition-all'
 													>
 														<ChevronRight className='w-5 h-5' />
@@ -270,22 +294,6 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 													</div>
 												</>
 											)}
-
-											{/* Media Type Badge */}
-											{allMedia[currentMediaIndex]?.type === 'video' && (
-												<div className='absolute top-4 left-4 bg-red-600 text-white px-3 py-1 rounded-full text-sm flex items-center'>
-													<Play className='w-3 h-3 mr-1' />
-													Տեսանյութ
-												</div>
-											)}
-
-											{/* Primary Badge */}
-											{allMedia[currentMediaIndex]?.is_primary && (
-												<div className='absolute top-4 right-4 bg-blue-600 text-white px-3 py-1 rounded-full text-sm flex items-center'>
-													<Star className='w-3 h-3 mr-1' />
-													Գլխավոր
-												</div>
-											)}
 										</>
 									) : (
 										<div className='flex items-center justify-center h-full'>
@@ -293,12 +301,13 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 										</div>
 									)}
 								</div>
-								{/* Media Thumbnails */}
+
+								{/* ✅ FIXED: Media Thumbnails for all images */}
 								{allMedia.length > 1 && (
 									<div className='flex gap-2 overflow-x-auto pb-2'>
 										{allMedia.map((media, index) => (
 											<button
-												key={media.id}
+												key={`media-thumb-${index}`} // ✅ FIX: Use index-based key
 												onClick={() => setCurrentMediaIndex(index)}
 												className={`relative flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-all ${
 													currentMediaIndex === index
@@ -374,13 +383,12 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 											Տան հատկանիշներ
 										</h3>
 										<div className='grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4'>
-											{(property.bedrooms || property.attributes?.bedrooms) && (
+											{getAttributeValue('bedrooms') && (
 												<div className='flex items-center space-x-2 bg-white p-3 rounded-lg'>
 													<Bed className='w-5 h-5 text-green-600' />
 													<div>
 														<div className='font-semibold'>
-															{property.bedrooms ||
-																property.attributes?.bedrooms}
+															{getAttributeValue('bedrooms')}
 														</div>
 														<div className='text-xs text-gray-600'>
 															Ննջասենյակ
@@ -388,51 +396,45 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 													</div>
 												</div>
 											)}
-											{(property.bathrooms ||
-												property.attributes?.bathrooms) && (
+											{getAttributeValue('bathrooms') && (
 												<div className='flex items-center space-x-2 bg-white p-3 rounded-lg'>
 													<Bath className='w-5 h-5 text-blue-600' />
 													<div>
 														<div className='font-semibold'>
-															{property.bathrooms ||
-																property.attributes?.bathrooms}
+															{getAttributeValue('bathrooms')}
 														</div>
 														<div className='text-xs text-gray-600'>Լոգարան</div>
 													</div>
 												</div>
 											)}
-											{(property.area_sqft ||
-												property.attributes?.area_sqft) && (
+											{getAttributeValue('area_sqft') && (
 												<div className='flex items-center space-x-2 bg-white p-3 rounded-lg'>
 													<Maximize className='w-5 h-5 text-purple-600' />
 													<div>
 														<div className='font-semibold'>
-															{property.area_sqft ||
-																property.attributes?.area_sqft}
+															{getAttributeValue('area_sqft')}
 														</div>
 														<div className='text-xs text-gray-600'>քառ. մ</div>
 													</div>
 												</div>
 											)}
-											{(property.floors || property.attributes?.floors) && (
+											{getAttributeValue('floors') && (
 												<div className='flex items-center space-x-2 bg-white p-3 rounded-lg'>
 													<Building className='w-5 h-5 text-orange-600' />
 													<div>
 														<div className='font-semibold'>
-															{property.floors || property.attributes?.floors}
+															{getAttributeValue('floors')}
 														</div>
 														<div className='text-xs text-gray-600'>Հարկ</div>
 													</div>
 												</div>
 											)}
-											{(property.lot_size_sqft ||
-												property.attributes?.lot_size_sqft) && (
+											{getAttributeValue('lot_size_sqft') && (
 												<div className='flex items-center space-x-2 bg-white p-3 rounded-lg'>
 													<Maximize className='w-5 h-5 text-indigo-600' />
 													<div>
 														<div className='font-semibold'>
-															{property.lot_size_sqft ||
-																property.attributes?.lot_size_sqft}
+															{getAttributeValue('lot_size_sqft')}
 														</div>
 														<div className='text-xs text-gray-600'>
 															կից տարածք քառ.մ
@@ -440,15 +442,12 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 													</div>
 												</div>
 											)}
-											{(property.ceiling_height ||
-												property.attributes?.ceiling_height) && (
+											{getAttributeValue('ceiling_height') && (
 												<div className='flex items-center space-x-2 bg-white p-3 rounded-lg'>
 													<ArrowUp className='w-5 h-5 text-pink-600' />
 													<div>
 														<div className='font-semibold'>
-															{property.ceiling_height ||
-																property.attributes?.ceiling_height}
-															м
+															{getAttributeValue('ceiling_height')}մ
 														</div>
 														<div className='text-xs text-gray-600'>
 															Առաստաղի բարձր.
@@ -471,8 +470,7 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 													<Bed className='w-5 h-5 text-blue-600' />
 													<div>
 														<div className='font-semibold'>
-															{property.bedrooms ||
-																property.attributes?.bedrooms}
+															{getAttributeValue('bedrooms')}
 														</div>
 														<div className='text-xs text-gray-600'>
 															Ննջասենյակ
@@ -486,8 +484,7 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 													<Bath className='w-5 h-5 text-blue-600' />
 													<div>
 														<div className='font-semibold'>
-															{property.bathrooms ||
-																property.attributes?.bathrooms}
+															{getAttributeValue('bathrooms')}
 														</div>
 														<div className='text-xs text-gray-600'>Լոգարան</div>
 													</div>
@@ -499,8 +496,7 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 													<Maximize className='w-5 h-5 text-blue-600' />
 													<div>
 														<div className='font-semibold'>
-															{property.area_sqft ||
-																property.attributes?.area_sqft}
+															{getAttributeValue('area_sqft')}
 														</div>
 														<div className='text-xs text-gray-600'>քառ. մ</div>
 													</div>
@@ -511,7 +507,7 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 													<Building className='w-5 h-5 text-blue-600' />
 													<div>
 														<div className='font-semibold'>
-															{property.floor || property.attributes?.floor}
+															{getAttributeValue('floor')}
 														</div>
 														<div className='text-xs text-gray-600'>Հարկ</div>
 													</div>
@@ -523,8 +519,7 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 													<Building className='w-5 h-5 text-blue-600' />
 													<div>
 														<div className='font-semibold'>
-															{property.total_floors ||
-																property.attributes?.total_floors}
+															{getAttributeValue('total_floors')}
 														</div>
 														<div className='text-xs text-gray-600'>
 															Ընդհանուր հարկ
@@ -538,9 +533,7 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 													<ArrowUp className='w-5 h-5 text-indigo-600' />
 													<div>
 														<div className='font-semibold'>
-															{property.ceiling_height ||
-																property.attributes?.ceiling_height}
-															м
+															{getAttributeValue('ceiling_height')}м
 														</div>
 														<div className='text-xs text-gray-600'>
 															Առաստաղի բարձր.
@@ -564,8 +557,7 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 													<Building className='w-5 h-5 text-purple-600' />
 													<div>
 														<div className='font-semibold'>
-															{property.business_type ||
-																property.attributes?.business_type}
+															{getAttributeValue('business_type')}
 														</div>
 														<div className='text-xs text-gray-600'>
 															Բիզնեսի տեսակ
@@ -579,8 +571,7 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 													<Maximize className='w-5 h-5 text-purple-600' />
 													<div>
 														<div className='font-semibold'>
-															{property.area_sqft ||
-																property.attributes?.area_sqft}
+															{getAttributeValue('area_sqft')}
 														</div>
 														<div className='text-xs text-gray-600'>քառ. մ</div>
 													</div>
@@ -591,7 +582,7 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 													<Building className='w-5 h-5 text-purple-600' />
 													<div>
 														<div className='font-semibold'>
-															{property.floors || property.attributes?.floors}
+															{getAttributeValue('floors')}
 														</div>
 														<div className='text-xs text-gray-600'>Հարկ</div>
 													</div>
@@ -603,9 +594,7 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 													<ArrowUp className='w-5 h-5 text-indigo-600' />
 													<div>
 														<div className='font-semibold'>
-															{property.ceiling_height ||
-																property.attributes?.ceiling_height}
-															м
+															{getAttributeValue('ceiling_height')}м
 														</div>
 														<div className='text-xs text-gray-600'>
 															Առաստաղի բարձր.
@@ -627,8 +616,7 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 												<Maximize className='w-6 h-6 text-yellow-600' />
 												<div>
 													<div className='text-xl font-semibold'>
-														{property.area_acres ||
-															property.attributes?.area_acres}
+														{getAttributeValue('area_acres')}
 													</div>
 													<div className='text-sm text-gray-600'>
 														քառակուսի մետր
@@ -647,35 +635,30 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 										</h3>
 										<div className='space-y-2'>
 											{/* ✅ FIX: Handle both features array and selectedFeatures */}
-											{property.features && property.features.length > 0
-												? property.features.map((feature: any) => (
-														<div
-															key={feature.id}
-															className='flex items-center space-x-2 bg-white p-2 rounded-lg'
-														>
-															{feature.icon && (
-																<span className='text-lg'>{feature.icon}</span>
-															)}
-															<span className='text-sm font-medium text-gray-700'>
-																{feature.name}
-															</span>
-														</div>
-												  ))
-												: property.selectedFeatures &&
-												  Array.isArray(property.selectedFeatures)
-												? property.selectedFeatures.map(
-														(featureId: number, index: number) => (
+											{propertyFeatures && propertyFeatures.length > 0 && (
+												<div className='bg-teal-50 rounded-xl p-6'>
+													<h3 className='text-lg font-semibold mb-4 text-gray-900'>
+														Հատկանիշներ և հարմարություններ
+													</h3>
+													<div className='grid grid-cols-2 md:grid-cols-3 gap-2'>
+														{propertyFeatures.map((feature: any) => (
 															<div
-																key={featureId}
+																key={feature.id}
 																className='flex items-center space-x-2 bg-white p-2 rounded-lg'
 															>
+																{feature.icon && (
+																	<span className='text-lg'>
+																		{feature.icon}
+																	</span>
+																)}
 																<span className='text-sm font-medium text-gray-700'>
-																	Feature ID: {featureId}
+																	{feature.name}
 																</span>
 															</div>
-														)
-												  )
-												: null}
+														))}
+													</div>
+												</div>
+											)}
 										</div>
 									</div>
 								)}
@@ -697,14 +680,16 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 										Գտնվելու վայրի մանրամասներ
 									</h3>
 									<div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-										<div className='bg-white p-4 rounded-lg'>
-											<div className='text-sm text-gray-700'>
-												Ամբողջական հասցե
+										{property.address && (
+											<div className='bg-white p-4 rounded-lg'>
+												<div className='text-sm text-gray-700'>
+													Ամբողջական հասցե
+												</div>
+												<div className='font-medium text-gray-600'>
+													{property.address}
+												</div>
 											</div>
-											<div className='font-medium text-gray-600'>
-												{property.address || 'Նշված չէ'}
-											</div>
-										</div>
+										)}
 										<div className='bg-white p-4 rounded-lg'>
 											<div className='text-sm text-gray-700'>Մարզ/Նահանգ</div>
 											<div className='font-medium text-gray-600'>
@@ -758,7 +743,69 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 										</div>
 									</div>
 								</div>
-
+								{(property.has_viber ||
+									property.has_whatsapp ||
+									property.has_telegram) && (
+									<div className='bg-gradient-to-br from-green-50 to-blue-50 rounded-xl p-6 border border-green-200'>
+										<h3 className='text-lg font-semibold mb-4 text-gray-900 flex items-center'>
+											<Phone className='w-5 h-5 mr-2 text-green-600' />
+											Հասանելի կապի եղանակներ
+										</h3>
+										<div className='flex flex-wrap gap-3'>
+											{property.has_viber && (
+												<div className='flex items-center space-x-2 bg-white p-3 rounded-lg border border-purple-200'>
+													<div className='w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center text-white font-bold text-sm'>
+														V
+													</div>
+													<div>
+														<div className='font-medium text-gray-900'>
+															Viber
+														</div>
+														<div className='text-sm text-gray-600'>
+															Հասանելի է
+														</div>
+													</div>
+												</div>
+											)}
+											{property.has_whatsapp && (
+												<div className='flex items-center space-x-2 bg-white p-3 rounded-lg border border-green-200'>
+													<div className='w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white font-bold text-sm'>
+														W
+													</div>
+													<div>
+														<div className='font-medium text-gray-900'>
+															WhatsApp
+														</div>
+														<div className='text-sm text-gray-600'>
+															Հասանելի է
+														</div>
+													</div>
+												</div>
+											)}
+											{property.has_telegram && (
+												<div className='flex items-center space-x-2 bg-white p-3 rounded-lg border border-blue-200'>
+													<div className='w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm'>
+														T
+													</div>
+													<div>
+														<div className='font-medium text-gray-900'>
+															Telegram
+														</div>
+														<div className='text-sm text-gray-600'>
+															Հասանելի է
+														</div>
+													</div>
+												</div>
+											)}
+										</div>
+										<div className='mt-3 p-2 bg-blue-50 rounded-lg'>
+											<p className='text-sm text-blue-800'>
+												💬 Կապվեք սեփականատիրոջ հետ նշված հեռախոսահամարով՝
+												օգտագործելով այս հավելվածները
+											</p>
+										</div>
+									</div>
+								)}
 								{/* Property Meta Info */}
 								<div className='bg-gray-50 rounded-xl p-6'>
 									<h3 className='text-lg font-semibold mb-4 text-gray-900'>
@@ -805,7 +852,6 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 										</div>
 									</div>
 								)}
-
 								{/* Features */}
 								{property.features && property.features.length > 0 && (
 									<div className='bg-teal-50 rounded-xl p-6'>
@@ -829,7 +875,6 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 										</div>
 									</div>
 								)}
-
 								{/* Quick Actions */}
 								<div className='bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-6'>
 									<h3 className='text-lg font-semibold mb-4 text-gray-900'>

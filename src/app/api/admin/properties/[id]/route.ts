@@ -55,7 +55,10 @@ export async function GET(
 				d.name_ru as district_name_ru,
 				u.email as user_email,
 				ps.name as status_name,
-				ps.color as status_color
+				ps.color as status_color,
+				p.has_viber,
+				p.has_whatsapp,
+				p.has_telegram
 			FROM properties p
 			JOIN states s ON p.state_id = s.id
 			JOIN cities c ON p.city_id = c.id
@@ -274,8 +277,11 @@ export async function PUT(
 					status = $14,
 					owner_name = $15,
 					owner_phone = $16,
+					has_viber = $17,
+					has_whatsapp = $18,
+					has_telegram = $19,
 					updated_at = CURRENT_TIMESTAMP
-				WHERE id = $17`,
+				WHERE id = $20`,
 				[
 					propertyData.custom_id.trim(),
 					propertyData.title.trim(),
@@ -288,11 +294,14 @@ export async function PUT(
 					propertyData.city_id,
 					propertyData.district_id,
 					propertyData.address?.trim() || null,
-					propertyData.latitude, 
+					propertyData.latitude,
 					propertyData.longitude,
 					statusId, // ✅
 					propertyData.owner_name.trim(),
 					propertyData.owner_phone.trim(),
+					propertyData.has_viber || false,
+					propertyData.has_whatsapp || false,
+					propertyData.has_telegram || false,
 					id,
 				]
 			)

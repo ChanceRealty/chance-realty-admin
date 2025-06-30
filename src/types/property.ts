@@ -69,6 +69,10 @@ export interface BaseProperty {
 	owner_name?: string
 	owner_phone?: string
 
+	has_viber?: boolean
+	has_whatsapp?: boolean
+	has_telegram?: boolean
+
 	// Relations
 	state?: State
 	city?: City

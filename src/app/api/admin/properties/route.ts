@@ -131,9 +131,10 @@ export async function POST(request: Request) {
 				`INSERT INTO properties (
 				  user_id, custom_id, title, description, property_type, listing_type,
 				  price, currency, state_id, city_id, district_id, address, latitude, longitude, status, owner_name, owner_phone,
+				  has_viber, has_whatsapp, has_telegram,
 				  title_ru, title_en, description_ru, description_en, 
 				  translation_status, last_translated_at
-				) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
+				) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)
 				RETURNING id, custom_id`,
 				[
 					user.id,
@@ -153,6 +154,9 @@ export async function POST(request: Request) {
 					statusId,
 					propertyData.owner_name.trim(),
 					propertyData.owner_phone.trim(),
+					propertyData.has_viber || false,
+					propertyData.has_whatsapp || false,
+					propertyData.has_telegram || false,	
 					translations.title_ru || null,
 					translations.title_en || null,
 					translations.description_ru || null,
