@@ -40,11 +40,14 @@ const mockImagekit = {
   }
 
 
+// src/app/api/media/[id]/route.ts - Fix the DELETE function
 export async function DELETE(
-	context: { params: { id: string } }
+	request: Request,
+	{ params }: { params: Promise<{ id: string }> }
 ) {
 	try {
-		const { params } = context
+		// ✅ FIX: Await the params object
+		const { id } = await params
 		
 		const cookieStore = await cookies()
 		const token = cookieStore.get('token')?.value
@@ -60,7 +63,7 @@ export async function DELETE(
 			)
 		}
 
-		const mediaId = parseInt(params.id)
+		const mediaId = parseInt(id)
 		if (isNaN(mediaId)) {
 			return NextResponse.json({ error: 'Invalid media ID' }, { status: 400 })
 		}

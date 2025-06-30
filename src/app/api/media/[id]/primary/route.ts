@@ -4,12 +4,14 @@ import { cookies } from 'next/headers'
 import { verifyToken } from '@/lib/auth'
 import { sql } from '@vercel/postgres'
 
+// src/app/api/media/[id]/primary/route.ts - Fix the PUT function
 export async function PUT(
 	request: Request,
 	{ params }: { params: Promise<{ id: string }> }
 ) {
 	try {
-		const { id: mediaId } = await params
+		// ✅ FIX: Await the params object
+		const { id } = await params
 
 		const cookieStore = await cookies()
 		const token = cookieStore.get('token')?.value
@@ -26,14 +28,14 @@ export async function PUT(
 			)
 		}
 
-		const id = parseInt(mediaId)
-		if (isNaN(id)) {
+		const mediaId = parseInt(id)
+		if (isNaN(mediaId)) {
 			return NextResponse.json({ error: 'Invalid media ID' }, { status: 400 })
 		}
 
 		// Get the media item to check if it's an image and get property_id
 		const mediaResult = await sql`
-			SELECT property_id, type FROM property_media WHERE id = ${id}
+			SELECT property_id, type FROM property_media WHERE id = ${mediaId}
 		`
 
 		if (mediaResult.rows.length === 0) {
@@ -64,7 +66,7 @@ export async function PUT(
 			await sql`
 				UPDATE property_media 
 				SET is_primary = true 
-				WHERE id = ${id}
+				WHERE id = ${mediaId}
 			`
 
 			await sql.query('COMMIT')

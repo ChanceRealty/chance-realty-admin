@@ -24,8 +24,13 @@ import {
 	Image as ImageIcon,
 	Loader2,
 	User,
+	Trash2,
+	Star,
+	Video,
 } from 'lucide-react'
+import Image from 'next/image'
 import LocationSelector from '@/components/LocationSelector'
+import FallbackAddressInput from '@/components/FallbackAddressInput'
 
 interface PropertyEditPageProps {
 	params: Promise<{ id: string }>
@@ -388,13 +393,29 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 		}
 	}
 
+	// Add this function to handle address selection from FallbackAddressInput
+	// Add this handler to edit page
+	const handleAddressSelect = (data: {
+		address: string
+		coordinates: { lat: number; lon: number } | null
+		details?: any
+	}) => {
+		console.log('🏠 Address selected in edit page:', data)
+
+		setFormData(prev => ({
+			...prev,
+			address: data.address,
+			latitude: data.coordinates?.lat || null,
+			longitude: data.coordinates?.lon || null,
+		}))
+	}
+
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault()
 		setSaving(true)
 		setError('')
 
 		try {
-
 			let finalCityId = null
 			let finalDistrictId = null
 
@@ -748,10 +769,8 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 							</div>
 						</div>
 					</div>
-
 					{/* Continue with rest of the form sections... */}
 					{/* Note: I'll include the key sections but abbreviate for space */}
-
 					{/* Owner Information */}
 					<div className='bg-white shadow rounded-lg p-6 border-l-4 border-red-500'>
 						<h2 className='text-lg font-semibold mb-6 flex items-center text-gray-700'>
@@ -798,14 +817,12 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 							</p>
 						</div>
 					</div>
-
 					{/* Location Information */}
 					<div className='bg-white shadow rounded-lg p-6'>
 						<h2 className='text-lg font-semibold mb-6 flex items-center text-gray-700'>
 							<MapPin className='w-5 h-5 mr-2' />
 							Տեղանքի տեղեկատվություն
 						</h2>
-
 						<LocationSelector
 							stateId={formData.state_id}
 							cityId={formData.city_id}
@@ -832,23 +849,377 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 							}
 							required={true}
 						/>
-
 						<div className='mt-6'>
 							<label className='block text-sm font-medium text-gray-700 mb-2'>
-								Address
+								Հասցե <span className='text-red-500'>*</span>
 							</label>
-							<input
-								type='text'
-								name='address'
-								value={formData.address}
-								onChange={handleInputChange}
-								required
-								className='w-full border border-gray-300 text-black rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-								placeholder='Enter property address'
+							<FallbackAddressInput
+								onAddressSelect={handleAddressSelect}
+								initialValue={formData.address}
+								placeholder='Մուտքագրեք անշարժ գույքի հասցեն...'
+								required={true}
+								className='w-full'
 							/>
+							<p className='text-sm text-gray-500 mt-1'>
+								Սկսեք մուտքագրել հասցեն և ընտրեք առաջարկությունների ցուցակից
+							</p>
 						</div>
 					</div>
+					<div className='bg-white shadow rounded-lg p-6'>
+						<h2 className='text-lg font-semibold mb-6 text-gray-700'>
+							Հայտարարության մանրամասները
+						</h2>
 
+						{/* House Attributes */}
+						{formData.property_type === 'house' && (
+							<div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
+								<div>
+									<label className='block text-sm font-medium text-gray-700 mb-2'>
+										Ննջասենյակներ
+									</label>
+									<input
+										type='number'
+										name='bedrooms'
+										value={attributes.bedrooms}
+										onChange={handleAttributeChange}
+										required
+										min='0'
+										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
+									/>
+								</div>
+								<div>
+									<label className='block text-sm font-medium text-gray-700 mb-2'>
+										Լոգարաններ
+									</label>
+									<input
+										type='number'
+										name='bathrooms'
+										value={attributes.bathrooms}
+										onChange={handleAttributeChange}
+										required
+										min='0'
+										step='0.5'
+										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
+									/>
+								</div>
+								<div>
+									<label className='block text-sm font-medium text-gray-700 mb-2'>
+										Մակերես (քառակուսի մետր)
+									</label>
+									<input
+										type='number'
+										name='area_sqft'
+										value={attributes.area_sqft}
+										onChange={handleAttributeChange}
+										required
+										min='0'
+										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
+									/>
+								</div>
+								<div>
+									<label className='block text-sm font-medium text-gray-700 mb-2'>
+										Տարածքի մակերես (քառակուսի մետր)
+									</label>
+									<input
+										type='number'
+										name='lot_size_sqft'
+										value={attributes.lot_size_sqft}
+										onChange={handleAttributeChange}
+										min='0'
+										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
+									/>
+								</div>
+								<div>
+									<label className='block text-sm font-medium text-gray-700 mb-2'>
+										Հարկեր
+									</label>
+									<input
+										type='number'
+										name='floors'
+										value={attributes.floors}
+										onChange={handleAttributeChange}
+										min='1'
+										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
+									/>
+								</div>
+								<div>
+									<label className='block text-sm font-medium text-gray-700 mb-2'>
+										Առաստաղի բարձրությունը (մետր)
+									</label>
+									<input
+										type='number'
+										name='ceiling_height'
+										value={attributes.ceiling_height}
+										onChange={handleAttributeChange}
+										min='0'
+										step='0.1'
+										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
+										placeholder='օր․ 3.0'
+									/>
+								</div>
+							</div>
+						)}
+
+						{/* Apartment Attributes */}
+						{formData.property_type === 'apartment' && (
+							<div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
+								<div>
+									<label className='block text-sm font-medium text-gray-700 mb-2'>
+										Ննջասենյակներ
+									</label>
+									<input
+										type='number'
+										name='bedrooms'
+										value={attributes.bedrooms}
+										onChange={handleAttributeChange}
+										required
+										min='0'
+										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
+									/>
+								</div>
+								<div>
+									<label className='block text-sm font-medium text-gray-700 mb-2'>
+										Լոգարաններ
+									</label>
+									<input
+										type='number'
+										name='bathrooms'
+										value={attributes.bathrooms}
+										onChange={handleAttributeChange}
+										required
+										min='0'
+										step='0.5'
+										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
+									/>
+								</div>
+								<div>
+									<label className='block text-sm font-medium text-gray-700 mb-2'>
+										Մակերես (քառակուսի մետր)
+									</label>
+									<input
+										type='number'
+										name='area_sqft'
+										value={attributes.area_sqft}
+										onChange={handleAttributeChange}
+										required
+										min='0'
+										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
+									/>
+								</div>
+								<div>
+									<label className='block text-sm font-medium text-gray-700 mb-2'>
+										Հարկ
+									</label>
+									<input
+										type='number'
+										name='floor'
+										value={attributes.floor}
+										onChange={handleAttributeChange}
+										required
+										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
+									/>
+								</div>
+								<div>
+									<label className='block text-sm font-medium text-gray-700 mb-2'>
+										Հարկերի ընդհանուր քանակը
+									</label>
+									<input
+										type='number'
+										name='total_floors'
+										value={attributes.total_floors}
+										onChange={handleAttributeChange}
+										required
+										min='1'
+										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
+									/>
+								</div>
+								<div>
+									<label className='block text-sm font-medium text-gray-700 mb-2'>
+										Առաստաղի բարձրությունը (մետր)
+									</label>
+									<input
+										type='number'
+										name='ceiling_height'
+										value={attributes.ceiling_height}
+										onChange={handleAttributeChange}
+										min='0'
+										step='0.1'
+										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
+										placeholder='օր․ 3.0'
+									/>
+								</div>
+							</div>
+						)}
+
+						{/* Commercial Attributes */}
+						{formData.property_type === 'commercial' && (
+							<div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
+								<div>
+									<label className='block text-sm font-medium text-gray-700 mb-2'>
+										Բիզնեսի տեսակը
+									</label>
+									<input
+										type='text'
+										name='business_type'
+										value={attributes.business_type}
+										onChange={handleAttributeChange}
+										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
+										placeholder='e.g., Office, Retail, Warehouse'
+									/>
+								</div>
+								<div>
+									<label className='block text-sm font-medium text-gray-700 mb-2'>
+										Մակերես (քառակուսի մետր)
+									</label>
+									<input
+										type='number'
+										name='area_sqft'
+										value={attributes.area_sqft}
+										onChange={handleAttributeChange}
+										required
+										min='0'
+										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
+									/>
+								</div>
+								<div>
+									<label className='block text-sm font-medium text-gray-700 mb-2'>
+										Հարկեր
+									</label>
+									<input
+										type='number'
+										name='floors'
+										value={attributes.floors}
+										onChange={handleAttributeChange}
+										min='1'
+										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
+									/>
+								</div>
+								<div>
+									<label className='block text-sm font-medium text-gray-700 mb-2'>
+										Առաստաղի բարձրությունը (մետր)
+									</label>
+									<input
+										type='number'
+										name='ceiling_height'
+										value={attributes.ceiling_height}
+										onChange={handleAttributeChange}
+										min='0'
+										step='0.1'
+										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
+									/>
+								</div>
+							</div>
+						)}
+
+						{/* Land Attributes */}
+						{formData.property_type === 'land' && (
+							<div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
+								<div>
+									<label className='block text-sm font-medium text-gray-700 mb-2'>
+										Մակերես (քառակուսի մետր)
+									</label>
+									<input
+										type='number'
+										name='area_acres'
+										value={attributes.area_acres}
+										onChange={handleAttributeChange}
+										required
+										min='0'
+										step='0.01'
+										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
+									/>
+								</div>
+							</div>
+						)}
+					</div>
+					// Add after property attributes section /* Features */
+					<div className='bg-white shadow rounded-lg p-6'>
+						<h2 className='text-lg font-semibold mb-6 text-gray-700'>
+							Հատկանիշներ և հարմարություններ
+						</h2>
+						<div className='grid grid-cols-2 md:grid-cols-3 gap-4'>
+							{features.map(feature => (
+								<div key={feature.id} className='flex items-center'>
+									<input
+										type='checkbox'
+										checked={formData.selectedFeatures.includes(feature.id)}
+										onChange={() => handleFeatureToggle(feature.id)}
+										className='w-4 h-4 text-blue-600 border-gray-300 rounded'
+									/>
+									<label className='ml-2 text-sm text-gray-700'>
+										{feature.name}
+									</label>
+								</div>
+							))}
+						</div>
+					</div>
+					// Add existing media display and new media upload /* Existing Media
+					*/
+					{existingMedia.length > 0 && (
+						<div className='bg-white shadow rounded-lg p-6'>
+							<h2 className='text-lg font-semibold mb-6 text-gray-700'>
+								Առկա մեդիա ֆայլեր
+							</h2>
+							<div className='grid grid-cols-2 md:grid-cols-4 gap-4 mb-6'>
+								{existingMedia.map(media => (
+									<div
+										key={media.id}
+										className='relative group rounded-lg overflow-hidden'
+									>
+										{media.type === 'image' ? (
+											<div className='aspect-square relative'>
+												<Image
+													src={media.url}
+													alt={`Media ${media.id}`}
+													fill
+													className='object-cover'
+												/>
+											</div>
+										) : (
+											<div className='aspect-square relative bg-gray-100 flex items-center justify-center'>
+												<Video className='w-10 h-10 text-gray-500' />
+											</div>
+										)}
+
+										{media.is_primary && (
+											<div className='absolute top-2 left-2 bg-blue-600 text-white text-xs px-2 py-1 rounded-full'>
+												Primary
+											</div>
+										)}
+
+										<div className='absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2'>
+											{media.type === 'image' && !media.is_primary && (
+												<button
+													type='button'
+													onClick={() => handleSetPrimaryImage(media.id)}
+													className='p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700'
+													title='Set as primary'
+												>
+													<Star className='w-4 h-4' />
+												</button>
+											)}
+											<button
+												type='button'
+												onClick={() => handleDeleteExistingMedia(media.id)}
+												className='p-2 bg-red-600 text-white rounded-full hover:bg-red-700'
+												title='Delete media'
+											>
+												<Trash2 className='w-4 h-4' />
+											</button>
+										</div>
+									</div>
+								))}
+							</div>
+						</div>
+					)}
+					/* New Media Upload */
+					<div className='bg-white shadow rounded-lg p-6'>
+						<h2 className='text-lg text-gray-700 font-semibold mb-6 flex items-center'>
+							<ImageIcon className='w-5 h-5 mr-2' />
+							Ավելացնել նոր մեդիա ֆայլեր
+						</h2>
+						<MediaUploadIntegrated onMediaChange={handleMediaChange} />
+					</div>
 					{/* Submit Button */}
 					<div className='flex justify-end space-x-4'>
 						<button

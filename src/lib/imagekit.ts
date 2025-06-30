@@ -86,23 +86,38 @@ export async function getAuthenticationParameters() {
 
 // Enhanced upload function with better error handling
 // Replace the uploadToImageKit function
+// src/lib/imagekit.ts - Add debug logging and better error handling
 export async function uploadToImageKit(
 	file: Buffer,
 	fileName: string,
 	folder?: string
 ): Promise<ImageKitUploadResponse> {
 	try {
+		console.log('🔄 Starting ImageKit upload:', fileName)
+		console.log('📊 File size:', file.length, 'bytes')
+		console.log('📁 Target folder:', folder)
+
 		if (!configValidation.isValid) {
+			console.error('❌ ImageKit config invalid:', configValidation.issues)
 			throw new Error(
 				`ImageKit configuration invalid: ${configValidation.issues.join(', ')}`
 			)
 		}
 
-		console.log(`Uploading ${fileName} to ImageKit with optimizations...`)
+		// Test ImageKit connection before upload
+		console.log('🔗 Testing ImageKit connection...')
+		const connectionTest = await testImageKitConnection()
+		if (!connectionTest.success) {
+			console.error('❌ ImageKit connection test failed:', connectionTest.error)
+			throw new Error(`ImageKit connection failed: ${connectionTest.error}`)
+		}
+		console.log('✅ ImageKit connection successful')
 
 		// Determine if it's an image or video
 		const isVideo = fileName.toLowerCase().match(/\.(mp4|avi|mov|wmv|flv|webm)$/i)
 		const isImage = fileName.toLowerCase().match(/\.(jpg|jpeg|png|gif|bmp|webp|avif)$/i)
+
+		console.log('📄 File type detected:', isImage ? 'image' : isVideo ? 'video' : 'unknown')
 
 		// Enhanced upload configuration with quality settings
 		const uploadConfig: any = {
@@ -110,41 +125,20 @@ export async function uploadToImageKit(
 			fileName: fileName,
 			folder: folder || '/properties',
 			useUniqueFileName: true,
-			transformation: {
-				pre: [],
-				post: []
-			}
 		}
 
-		if (isImage) {
-			// Image optimization settings
-			uploadConfig.transformation.post = [
-				{
-					quality: '85', // High quality but optimized (85 is sweet spot)
-					format: 'auto', // Auto format selection (WebP, AVIF when supported)
-					progressive: 'true', // Enable progressive loading
-					metadata: 'false' // Strip metadata to reduce file size
-				}
-			]
-		} else if (isVideo) {
-			// Video optimization settings
-			uploadConfig.transformation.post = [
-				{
-					quality: '75', // Good quality for videos
-					format: 'auto', // Auto format selection
-					videoCodec: 'auto', // Auto codec selection (H.264, VP9, AV1)
-					audioCodec: 'aac' // Standard audio codec
-				}
-			]
-		}
+		console.log('📤 Uploading to ImageKit with config:', {
+			fileName: uploadConfig.fileName,
+			folder: uploadConfig.folder,
+			useUniqueFileName: uploadConfig.useUniqueFileName
+		})
 
 		const uploadResponse = await imagekit.upload(uploadConfig)
 
-		console.log(`✅ Successfully uploaded ${fileName} with optimizations:`, {
+		console.log(`✅ Successfully uploaded ${fileName}:`, {
 			fileId: uploadResponse.fileId,
 			url: uploadResponse.url,
 			size: uploadResponse.size,
-			optimized: true
 		})
 
 		return uploadResponse
@@ -153,21 +147,20 @@ export async function uploadToImageKit(
 
 		// Provide more specific error messages
 		if (error instanceof Error) {
-			if (error.message.includes('authenticate')) {
+			console.error('Error details:', {
+				message: error.message,
+				stack: error.stack
+			})
+			
+			if (error.message.includes('authenticate') || error.message.includes('401')) {
 				throw new Error(
-					`ImageKit authentication failed. Please check your credentials.`
+					`ImageKit authentication failed. Please check your credentials: ${error.message}`
 				)
-			} else if (
-				error.message.includes('quota') ||
-				error.message.includes('limit')
-			) {
-				throw new Error(`ImageKit quota exceeded or file size too large.`)
-			} else if (
-				error.message.includes('network') ||
-				error.message.includes('timeout')
-			) {
+			} else if (error.message.includes('quota') || error.message.includes('limit')) {
+				throw new Error(`ImageKit quota exceeded or file size too large: ${error.message}`)
+			} else if (error.message.includes('network') || error.message.includes('timeout')) {
 				throw new Error(
-					`Network error while uploading to ImageKit. Please try again.`
+					`Network error while uploading to ImageKit: ${error.message}`
 				)
 			}
 		}

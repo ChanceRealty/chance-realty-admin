@@ -118,13 +118,14 @@ export default function MediaUploadIntegrated({
 			setFileTypes(updatedTypes)
 			setPreviews(updatedPreviews)
 
-			// If we just added the first file and it's an image, set it as primary
+			let newPrimaryIndex = primaryIndex
 			if (files.length === 0 && validTypes[0] === 'image') {
+				newPrimaryIndex = 0
 				setPrimaryIndex(0)
 			}
 
-			// Notify parent component about change
-			onMediaChange(updatedFiles, updatedTypes, primaryIndex)
+			// ✅ FIX: Notify parent component with correct primary index
+			onMediaChange(updatedFiles, updatedTypes, newPrimaryIndex)
 		}
 	}
 
