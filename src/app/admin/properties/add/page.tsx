@@ -689,11 +689,9 @@ export default function AddPropertyPage() {
 								ադմինիստրատորի համար են։
 							</p>
 						</div>
-					</div>
-					<div className='bg-white shadow rounded-lg p-6 border-l-4 border-green-500'>
-						<h2 className='text-lg font-semibold mb-6 flex items-center text-gray-700'>
+						<h2 className='text-lg p-2 font-semibold mb-6 flex items-center text-gray-700'>
 							<Phone className='w-5 h-5 mr-2' />
-							Կապի եղանակներ (հանրային)
+							Կապի եղանակներ
 						</h2>
 
 						<div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
@@ -756,13 +754,6 @@ export default function AddPropertyPage() {
 									Telegram
 								</label>
 							</div>
-						</div>
-
-						<div className='mt-4 p-3 bg-green-50 border border-green-200 rounded-lg'>
-							<p className='text-sm text-green-800'>
-								✅ Այս տեղեկությունները կցուցադրվեն հանրային կայքում՝
-								հաճախորդների հետ կապ հաստատելու համար։
-							</p>
 						</div>
 					</div>
 

@@ -1,4 +1,4 @@
-// src/components/PropertyViewPopup.tsx - Complete fix with media slider
+// src/components/PropertyViewPopup.tsx - COMPLETE FIXED VERSION
 import React, { useState } from 'react'
 import Image from 'next/image'
 import {
@@ -27,7 +27,6 @@ import {
 	Navigation,
 	Copy,
 } from 'lucide-react'
-import { get } from 'http'
 
 interface PropertyViewPopupProps {
 	property: any
@@ -40,75 +39,134 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 	isOpen,
 	onClose,
 }) => {
+	// ✅ FIX: Move all hooks to the top to avoid hooks order violation
 	const [currentMediaIndex, setCurrentMediaIndex] = useState(0)
 
-	if (!isOpen || !property) return null
+	// ✅ FIX 3: Properly handle features array - moved to top
+	const propertyFeatures = React.useMemo(() => {
+		if (!property) return []
 
-	// Define media type with optional thumbnail_url
-	type MediaItem = {
-		id: string
-		url: any
-		type: string
-		is_primary: boolean
-		thumbnail_url?: string
-	}
-	const allMedia: MediaItem[] = []
+		console.log('🏷️ Processing features:', property.features)
 
-	if (
-		property.images &&
-		Array.isArray(property.images) &&
-		property.images.length > 0
-	) {
-		// Sort images with primary first
-		const sortedImages = [...property.images].sort((a, b) => {
+		if (Array.isArray(property.features)) {
+			return property.features
+		}
+
+		// Handle case where features might be a JSON string
+		if (typeof property.features === 'string') {
+			try {
+				const parsed = JSON.parse(property.features)
+				return Array.isArray(parsed) ? parsed : []
+			} catch (e) {
+				console.warn('Failed to parse features JSON:', e)
+				return []
+			}
+		}
+
+		return []
+	}, [property?.features])
+
+	// ✅ FIX 1: Properly collect ALL media (images + videos) - moved to useMemo
+	const allMedia = React.useMemo(() => {
+		if (!property) return []
+
+		const media: any[] = []
+
+		// Handle images array
+		if (property.images && Array.isArray(property.images)) {
+			console.log('📸 Found images array:', property.images.length)
+			property.images.forEach((img: any, index: number) => {
+				media.push({
+					id: `img-${img.id || index}`,
+					url: img.url,
+					thumbnail_url: img.thumbnail_url || img.url,
+					type: img.type || 'image',
+					is_primary: img.is_primary || false,
+					display_order: img.display_order || index,
+				})
+			})
+		}
+
+		// Handle videos if they exist in separate array or mixed with images
+		if (property.videos && Array.isArray(property.videos)) {
+			console.log('🎥 Found videos array:', property.videos.length)
+			property.videos.forEach((video: any, index: number) => {
+				media.push({
+					id: `video-${video.id || index}`,
+					url: video.url,
+					thumbnail_url: video.thumbnail_url || video.url,
+					type: 'video',
+					is_primary: false,
+					display_order: video.display_order || media.length + index,
+				})
+			})
+		}
+
+		// Fallback to primary_image if no media array exists
+		if (media.length === 0 && property.primary_image) {
+			console.log('📷 Using fallback primary_image')
+			media.push({
+				id: 'primary-fallback',
+				url: property.primary_image,
+				type: 'image',
+				is_primary: true,
+				thumbnail_url: property.primary_image,
+			})
+		}
+
+		// Sort media: primary first, then by display_order
+		media.sort((a, b) => {
 			if (a.is_primary && !b.is_primary) return -1
 			if (!a.is_primary && b.is_primary) return 1
 			return (a.display_order || 0) - (b.display_order || 0)
 		})
 
-		sortedImages.forEach((img: any, index: number) => {
-			allMedia.push({
-				id: `img-${img.id || index}`, // ✅ FIX: Unique IDs
-				url: img.url,
-				thumbnail_url: img.thumbnail_url || img.url,
-				type: img.type || 'image',
-				is_primary: img.is_primary || false,
-			})
-		})
-	} else if (property.primary_image) {
-		// Fallback to primary_image only if no images array
-		allMedia.push({
-			id: 'primary-fallback',
-			url: property.primary_image,
-			type: 'image',
-			is_primary: true,
-			thumbnail_url: property.primary_image,
-		})
-	}
+		console.log('🎬 Total media items processed:', media.length)
+		return media
+	}, [property?.images, property?.videos, property?.primary_image])
 
-	const nextMedia = () => {
-		setCurrentMediaIndex(prev => (prev === allMedia.length - 1 ? 0 : prev + 1))
-	}
+	// ✅ FIX 4: Check social media availability - moved to useMemo
+	const hasSocialMedia = React.useMemo(() => {
+		if (!property) return false
+		const result =
+			property.has_viber || property.has_whatsapp || property.has_telegram
+		console.log('📱 Social media status:', {
+			viber: property.has_viber,
+			whatsapp: property.has_whatsapp,
+			telegram: property.has_telegram,
+			hasSocialMedia: result,
+		})
+		return result
+	}, [property?.has_viber, property?.has_whatsapp, property?.has_telegram])
 
-	const prevMedia = () => {
-		setCurrentMediaIndex(prev => (prev === 0 ? allMedia.length - 1 : prev - 1))
-	}
+	// Early return after all hooks
+	if (!isOpen || !property) return null
+
+	console.log('🔍 PropertyViewPopup - Full property data:', property)
+
+	// ✅ FIX 2: Properly handle attributes based on property type
 	const getAttributeValue = (key: string) => {
-		// Check in property.attributes first
-		if (property.attributes && property.attributes[key] !== undefined) {
-			return property.attributes[key]
+		// Check in property.attributes first (main location)
+		if (property.attributes && typeof property.attributes === 'object') {
+			if (
+				property.attributes[key] !== undefined &&
+				property.attributes[key] !== null
+			) {
+				return property.attributes[key]
+			}
 		}
+
 		// Check in property root level as fallback
-		if (property[key] !== undefined) {
+		if (property[key] !== undefined && property[key] !== null) {
 			return property[key]
 		}
+
 		return null
 	}
 
-	// ✅ FIX: Properly handle features
-	const propertyFeatures = property.features || []
+	console.log('🏷️ Final features array:', propertyFeatures)
 
-	// Property type icons
+	// Property type icons and translations
 	const propertyTypeIcons = {
 		house: Home,
 		apartment: Building2,
@@ -123,14 +181,12 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 		land: 'Հողատարածք',
 	}
 
-	// Listing type translations
 	const listingTypeDisplay: Record<string, string> = {
 		sale: 'Վաճառք',
 		rent: 'Վարձակալություն',
 		daily_rent: 'Օրյա վարձակալություն',
 	}
 
-	// Status translations
 	const statusNameDisplay: Record<string, string> = {
 		available: 'Հասանելի է',
 		sold: 'Վաճառված',
@@ -142,7 +198,6 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 		archived: 'Արխիվացված',
 	}
 
-	// Status color helper
 	const getStatusColor = (status: string) => {
 		switch (status?.toLowerCase()) {
 			case 'available':
@@ -203,6 +258,14 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 			property.property_type as keyof typeof propertyTypeIcons
 		] || Home
 
+	const nextMedia = () => {
+		setCurrentMediaIndex(prev => (prev === allMedia.length - 1 ? 0 : prev + 1))
+	}
+
+	const prevMedia = () => {
+		setCurrentMediaIndex(prev => (prev === 0 ? allMedia.length - 1 : prev - 1))
+	}
+
 	return (
 		<div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50'>
 			<div className='bg-white rounded-2xl max-w-7xl w-full max-h-[95vh] overflow-hidden shadow-2xl'>
@@ -242,6 +305,7 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 						<div className='grid grid-cols-1 lg:grid-cols-3 gap-8'>
 							{/* Left Column - Media & Main Details */}
 							<div className='lg:col-span-2 space-y-6'>
+								{/* ✅ FIXED: Media Gallery */}
 								<div className='relative h-96 rounded-xl overflow-hidden bg-gray-200'>
 									{allMedia.length > 0 ? (
 										<>
@@ -261,6 +325,7 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 													alt={property.title}
 													fill
 													className='object-cover'
+													unoptimized
 												/>
 											)}
 
@@ -268,21 +333,13 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 											{allMedia.length > 1 && (
 												<>
 													<button
-														onClick={() =>
-															setCurrentMediaIndex(prev =>
-																prev === 0 ? allMedia.length - 1 : prev - 1
-															)
-														}
+														onClick={prevMedia}
 														className='absolute left-4 top-1/2 -translate-y-1/2 p-2 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-70 transition-all'
 													>
 														<ChevronLeft className='w-5 h-5' />
 													</button>
 													<button
-														onClick={() =>
-															setCurrentMediaIndex(prev =>
-																prev === allMedia.length - 1 ? 0 : prev + 1
-															)
-														}
+														onClick={nextMedia}
 														className='absolute right-4 top-1/2 -translate-y-1/2 p-2 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-70 transition-all'
 													>
 														<ChevronRight className='w-5 h-5' />
@@ -302,12 +359,12 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 									)}
 								</div>
 
-								{/* ✅ FIXED: Media Thumbnails for all images */}
+								{/* ✅ FIXED: All Media Thumbnails */}
 								{allMedia.length > 1 && (
 									<div className='flex gap-2 overflow-x-auto pb-2'>
 										{allMedia.map((media, index) => (
 											<button
-												key={`media-thumb-${index}`} // ✅ FIX: Use index-based key
+												key={`media-thumb-${media.id}-${index}`}
 												onClick={() => setCurrentMediaIndex(index)}
 												className={`relative flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-all ${
 													currentMediaIndex === index
@@ -325,6 +382,7 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 														alt={`Media ${index + 1}`}
 														fill
 														className='object-cover'
+														unoptimized
 													/>
 												)}
 												{media.is_primary && (
@@ -336,6 +394,7 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 										))}
 									</div>
 								)}
+
 								{/* Price & Key Info */}
 								<div className='bg-gradient-to-r from-green-50 to-blue-50 rounded-xl p-6'>
 									<div className='grid grid-cols-2 md:grid-cols-5 gap-4'>
@@ -371,12 +430,16 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 										</div>
 										<div className='text-center p-4 bg-white rounded-lg shadow-sm'>
 											<div className='text-md font-bold text-purple-600'>
-												{statusNameDisplay[property.status_name] || 'Անհայտ'}
+												{statusNameDisplay[
+													property.status_name || property.status
+												] || 'Անհայտ'}
 											</div>
 											<div className='text-sm text-gray-500 mt-1'>Վիճակ</div>
 										</div>
 									</div>
 								</div>
+
+								{/* ✅ FIXED: House Attributes */}
 								{property.property_type === 'house' && (
 									<div className='bg-green-50 rounded-xl p-6'>
 										<h3 className='text-lg font-semibold mb-4 text-gray-900'>
@@ -458,14 +521,15 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 										</div>
 									</div>
 								)}
-								{/* Apartment Attributes - FIXED */}
+
+								{/* ✅ FIXED: Apartment Attributes */}
 								{property.property_type === 'apartment' && (
 									<div className='bg-blue-50 rounded-xl p-6'>
 										<h3 className='text-lg font-semibold mb-4 text-gray-900'>
 											Բնակարանի հատկանիշներ
 										</h3>
 										<div className='grid grid-cols-2 md:grid-cols-3 gap-4'>
-											{(property.bedrooms || property.attributes?.bedrooms) && (
+											{getAttributeValue('bedrooms') && (
 												<div className='flex items-center space-x-2 bg-white p-3 rounded-lg'>
 													<Bed className='w-5 h-5 text-blue-600' />
 													<div>
@@ -478,8 +542,7 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 													</div>
 												</div>
 											)}
-											{(property.bathrooms ||
-												property.attributes?.bathrooms) && (
+											{getAttributeValue('bathrooms') && (
 												<div className='flex items-center space-x-2 bg-white p-3 rounded-lg'>
 													<Bath className='w-5 h-5 text-blue-600' />
 													<div>
@@ -490,8 +553,7 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 													</div>
 												</div>
 											)}
-											{(property.area_sqft ||
-												property.attributes?.area_sqft) && (
+											{getAttributeValue('area_sqft') && (
 												<div className='flex items-center space-x-2 bg-white p-3 rounded-lg'>
 													<Maximize className='w-5 h-5 text-blue-600' />
 													<div>
@@ -502,7 +564,7 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 													</div>
 												</div>
 											)}
-											{(property.floor || property.attributes?.floor) && (
+											{getAttributeValue('floor') && (
 												<div className='flex items-center space-x-2 bg-white p-3 rounded-lg'>
 													<Building className='w-5 h-5 text-blue-600' />
 													<div>
@@ -513,8 +575,7 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 													</div>
 												</div>
 											)}
-											{(property.total_floors ||
-												property.attributes?.total_floors) && (
+											{getAttributeValue('total_floors') && (
 												<div className='flex items-center space-x-2 bg-white p-3 rounded-lg'>
 													<Building className='w-5 h-5 text-blue-600' />
 													<div>
@@ -527,13 +588,12 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 													</div>
 												</div>
 											)}
-											{(property.ceiling_height ||
-												property.attributes?.ceiling_height) && (
+											{getAttributeValue('ceiling_height') && (
 												<div className='flex items-center space-x-2 bg-white p-3 rounded-lg'>
 													<ArrowUp className='w-5 h-5 text-indigo-600' />
 													<div>
 														<div className='font-semibold'>
-															{getAttributeValue('ceiling_height')}м
+															{getAttributeValue('ceiling_height')}մ
 														</div>
 														<div className='text-xs text-gray-600'>
 															Առաստաղի բարձր.
@@ -544,15 +604,15 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 										</div>
 									</div>
 								)}
-								{/* Commercial Attributes - FIXED */}
+
+								{/* ✅ FIXED: Commercial Attributes */}
 								{property.property_type === 'commercial' && (
 									<div className='bg-purple-50 rounded-xl p-6'>
 										<h3 className='text-lg font-semibold mb-4 text-gray-900'>
 											Կոմերցիոն հատկանիշներ
 										</h3>
 										<div className='grid grid-cols-2 md:grid-cols-3 gap-4'>
-											{(property.business_type ||
-												property.attributes?.business_type) && (
+											{getAttributeValue('business_type') && (
 												<div className='flex items-center space-x-2 bg-white p-3 rounded-lg'>
 													<Building className='w-5 h-5 text-purple-600' />
 													<div>
@@ -565,8 +625,7 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 													</div>
 												</div>
 											)}
-											{(property.area_sqft ||
-												property.attributes?.area_sqft) && (
+											{getAttributeValue('area_sqft') && (
 												<div className='flex items-center space-x-2 bg-white p-3 rounded-lg'>
 													<Maximize className='w-5 h-5 text-purple-600' />
 													<div>
@@ -577,7 +636,7 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 													</div>
 												</div>
 											)}
-											{(property.floors || property.attributes?.floors) && (
+											{getAttributeValue('floors') && (
 												<div className='flex items-center space-x-2 bg-white p-3 rounded-lg'>
 													<Building className='w-5 h-5 text-purple-600' />
 													<div>
@@ -588,13 +647,12 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 													</div>
 												</div>
 											)}
-											{(property.ceiling_height ||
-												property.attributes?.ceiling_height) && (
+											{getAttributeValue('ceiling_height') && (
 												<div className='flex items-center space-x-2 bg-white p-3 rounded-lg'>
 													<ArrowUp className='w-5 h-5 text-indigo-600' />
 													<div>
 														<div className='font-semibold'>
-															{getAttributeValue('ceiling_height')}м
+															{getAttributeValue('ceiling_height')}մ
 														</div>
 														<div className='text-xs text-gray-600'>
 															Առաստաղի բարձր.
@@ -605,9 +663,10 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 										</div>
 									</div>
 								)}
-								{/* Land Attributes - FIXED */}
+
+								{/* ✅ FIXED: Land Attributes */}
 								{property.property_type === 'land' &&
-									(property.area_acres || property.attributes?.area_acres) && (
+									getAttributeValue('area_acres') && (
 										<div className='bg-yellow-50 rounded-xl p-6'>
 											<h3 className='text-lg font-semibold mb-4 text-gray-900'>
 												Հողակտորի մակերես
@@ -625,43 +684,31 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 											</div>
 										</div>
 									)}
-								{/* Features Section - FIXED */}
-								{((property.features && property.features.length > 0) ||
-									(Array.isArray(property.selectedFeatures) &&
-										property.selectedFeatures.length > 0)) && (
+
+								{/* ✅ FIXED: Features Section */}
+								{propertyFeatures.length > 0 && (
 									<div className='bg-teal-50 rounded-xl p-6'>
 										<h3 className='text-lg font-semibold mb-4 text-gray-900'>
 											Հատկանիշներ և հարմարություններ
 										</h3>
-										<div className='space-y-2'>
-											{/* ✅ FIX: Handle both features array and selectedFeatures */}
-											{propertyFeatures && propertyFeatures.length > 0 && (
-												<div className='bg-teal-50 rounded-xl p-6'>
-													<h3 className='text-lg font-semibold mb-4 text-gray-900'>
-														Հատկանիշներ և հարմարություններ
-													</h3>
-													<div className='grid grid-cols-2 md:grid-cols-3 gap-2'>
-														{propertyFeatures.map((feature: any) => (
-															<div
-																key={feature.id}
-																className='flex items-center space-x-2 bg-white p-2 rounded-lg'
-															>
-																{feature.icon && (
-																	<span className='text-lg'>
-																		{feature.icon}
-																	</span>
-																)}
-																<span className='text-sm font-medium text-gray-700'>
-																	{feature.name}
-																</span>
-															</div>
-														))}
-													</div>
+										<div className='grid grid-cols-2 md:grid-cols-3 gap-2'>
+											{propertyFeatures.map((feature: any, index: number) => (
+												<div
+													key={feature.id || index}
+													className='flex items-center space-x-2 bg-white p-2 rounded-lg'
+												>
+													{feature.icon && (
+														<span className='text-lg'>{feature.icon}</span>
+													)}
+													<span className='text-sm font-medium text-gray-700'>
+														{feature.name}
+													</span>
 												</div>
-											)}
+											))}
 										</div>
 									</div>
 								)}
+
 								{/* Description */}
 								{property.description && (
 									<div className='bg-gray-50 rounded-xl p-6'>
@@ -673,7 +720,8 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 										</p>
 									</div>
 								)}
-								{/* Location Details */}
+
+								{/* ✅ FIXED: Location Details with better address handling */}
 								<div className='bg-indigo-50 rounded-xl p-6'>
 									<h3 className='text-lg font-semibold mb-4 text-gray-900 flex items-center'>
 										<Navigation className='w-5 h-5 mr-2' />
@@ -717,35 +765,37 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 							{/* Right Column - Owner & Additional Info */}
 							<div className='space-y-6'>
 								{/* Owner Information */}
-								<div className='bg-gradient-to-br from-red-50 to-pink-50 rounded-xl p-6 border border-red-200'>
-									<h3 className='text-lg font-semibold mb-4 text-gray-900 flex items-center'>
-										<User className='w-5 h-5 mr-2 text-red-600' />
-										Սեփականատիրոջ տվյալներ
-									</h3>
-									<div className='space-y-4'>
-										<div className='flex items-center space-x-3 bg-white p-3 rounded-lg'>
-											<User className='w-5 h-5 text-gray-700' />
-											<div>
-												<div className='text-sm text-gray-700'>Անուն</div>
-												<div className='font-medium text-gray-600'>
-													{property.owner_name || 'Տեղեկություն չկա'}
+								{(property.owner_name || property.owner_phone) && (
+									<div className='bg-gradient-to-br from-red-50 to-pink-50 rounded-xl p-6 border border-red-200'>
+										<h3 className='text-lg font-semibold mb-4 text-gray-900 flex items-center'>
+											<User className='w-5 h-5 mr-2 text-red-600' />
+											Սեփականատիրոջ տվյալներ
+										</h3>
+										<div className='space-y-4'>
+											<div className='flex items-center space-x-3 bg-white p-3 rounded-lg'>
+												<User className='w-5 h-5 text-gray-700' />
+												<div>
+													<div className='text-sm text-gray-700'>Անուն</div>
+													<div className='font-medium text-gray-600'>
+														{property.owner_name || 'Տեղեկություն չկա'}
+													</div>
 												</div>
 											</div>
-										</div>
-										<div className='flex items-center space-x-3 bg-white p-3 rounded-lg'>
-											<Phone className='w-5 h-5 text-gray-700' />
-											<div>
-												<div className='text-sm text-gray-700'>Հեռախոս</div>
-												<div className='font-medium text-gray-600'>
-													{property.owner_phone || 'Տեղեկություն չկա'}
+											<div className='flex items-center space-x-3 bg-white p-3 rounded-lg'>
+												<Phone className='w-5 h-5 text-gray-700' />
+												<div>
+													<div className='text-sm text-gray-700'>Հեռախոս</div>
+													<div className='font-medium text-gray-600'>
+														{property.owner_phone || 'Տեղեկություն չկա'}
+													</div>
 												</div>
 											</div>
 										</div>
 									</div>
-								</div>
-								{(property.has_viber ||
-									property.has_whatsapp ||
-									property.has_telegram) && (
+								)}
+
+								{/* ✅ FIXED: Social Media Communication Methods */}
+								{hasSocialMedia && (
 									<div className='bg-gradient-to-br from-green-50 to-blue-50 rounded-xl p-6 border border-green-200'>
 										<h3 className='text-lg font-semibold mb-4 text-gray-900 flex items-center'>
 											<Phone className='w-5 h-5 mr-2 text-green-600' />
@@ -806,6 +856,7 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 										</div>
 									</div>
 								)}
+
 								{/* Property Meta Info */}
 								<div className='bg-gray-50 rounded-xl p-6'>
 									<h3 className='text-lg font-semibold mb-4 text-gray-900'>
@@ -843,7 +894,8 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 										)}
 									</div>
 								</div>
-								{/* Featured Badge - continued */}
+
+								{/* Featured Badge */}
 								{property.featured && (
 									<div className='bg-gradient-to-r from-yellow-400 to-orange-400 rounded-xl p-4 text-white text-center'>
 										<Star className='w-6 h-6 mx-auto mb-2' />
@@ -852,29 +904,7 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 										</div>
 									</div>
 								)}
-								{/* Features */}
-								{property.features && property.features.length > 0 && (
-									<div className='bg-teal-50 rounded-xl p-6'>
-										<h3 className='text-lg font-semibold mb-4 text-gray-900'>
-											Հատկանիշներ և հարմարություններ
-										</h3>
-										<div className='space-y-2'>
-											{property.features.map((feature: any) => (
-												<div
-													key={feature.id}
-													className='flex items-center space-x-2 bg-white p-2 rounded-lg'
-												>
-													{feature.icon && (
-														<span className='text-lg'>{feature.icon}</span>
-													)}
-													<span className='text-sm font-medium text-gray-700'>
-														{feature.name}
-													</span>
-												</div>
-											))}
-										</div>
-									</div>
-								)}
+
 								{/* Quick Actions */}
 								<div className='bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-6'>
 									<h3 className='text-lg font-semibold mb-4 text-gray-900'>
