@@ -1,5 +1,4 @@
-// src/components/PropertyViewPopup.tsx - COMPLETE FIXED VERSION
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Image from 'next/image'
 import {
 	X,
@@ -26,6 +25,7 @@ import {
 	Globe,
 	Navigation,
 	Copy,
+	MessageCircle,
 } from 'lucide-react'
 
 interface PropertyViewPopupProps {
@@ -34,22 +34,117 @@ interface PropertyViewPopupProps {
 	onClose: () => void
 }
 
-const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
+export default function PropertyViewPopup({
 	property,
 	isOpen,
 	onClose,
-}) => {
-	// ✅ FIX: Move all hooks to the top to avoid hooks order violation
+}: PropertyViewPopupProps) {
 	const [currentMediaIndex, setCurrentMediaIndex] = useState(0)
+	const [copySuccess, setCopySuccess] = useState(false)
 
-	// ✅ FIX 3: Properly handle features array - moved to top
+	// ✅ FIX: Reset media index when property changes
+	useEffect(() => {
+		setCurrentMediaIndex(0)
+		setCopySuccess(false)
+	}, [property?.id])
+
+	// Early return after all hooks
+
+	console.log('🔍 PropertyViewPopup - Full property data:', property)
+
+	// ✅ FIX 1: Properly collect ALL media (images + videos)
+	const allMedia = React.useMemo(() => {
+		if (!property) return [] // Add this safety check here instead
+
+		const media: any[] = []
+
+		// Check for images array directly
+		if (property.images && Array.isArray(property.images)) {
+			console.log('📸 Found images array:', property.images.length)
+			property.images.forEach((img: any, index: number) => {
+				media.push({
+					id: `img-${img.id || index}`,
+					url: img.url,
+					thumbnail_url: img.thumbnail_url || img.url,
+					type: img.type || 'image',
+					is_primary: img.is_primary || false,
+					display_order: img.display_order ?? index,
+				})
+			})
+		}
+
+		// Check for videos if they exist in separate array
+		if (property.videos && Array.isArray(property.videos)) {
+			console.log('🎥 Found videos array:', property.videos.length)
+			property.videos.forEach((video: any, index: number) => {
+				media.push({
+					id: `video-${video.id || index}`,
+					url: video.url,
+					thumbnail_url: video.thumbnail_url || video.url,
+					type: 'video',
+					is_primary: false,
+					display_order: video.display_order ?? media.length + index,
+				})
+			})
+		}
+
+		// Check for mixed media in a general media array
+		if (property.media && Array.isArray(property.media)) {
+			console.log('🎬 Found general media array:', property.media.length)
+			property.media.forEach((item: any, index: number) => {
+				media.push({
+					id: `media-${item.id || index}`,
+					url: item.url,
+					thumbnail_url: item.thumbnail_url || item.url,
+					type: item.type || 'image',
+					is_primary: item.is_primary || false,
+					display_order: item.display_order ?? index,
+				})
+			})
+		}
+
+		// Fallback to primary_image if no media arrays exist
+		if (media.length === 0 && property.primary_image) {
+			console.log('📷 Using fallback primary_image')
+			media.push({
+				id: 'primary-fallback',
+				url: property.primary_image,
+				type: 'image',
+				is_primary: true,
+				thumbnail_url: property.primary_image,
+				display_order: 0,
+			})
+		}
+
+		// Sort media: primary first, then by display_order
+		media.sort((a, b) => {
+			if (a.is_primary && !b.is_primary) return -1
+			if (!a.is_primary && b.is_primary) return 1
+			return (a.display_order || 0) - (b.display_order || 0)
+		})
+
+		console.log('🎬 Total media items processed:', media.length)
+		return media
+	}, [
+		property?.images,
+		property?.videos,
+		property?.media,
+		property?.primary_image,
+	])
+
+	// ✅ FIX 2: Properly handle features
 	const propertyFeatures = React.useMemo(() => {
-		if (!property) return []
-
+		if(!property) return []
 		console.log('🏷️ Processing features:', property.features)
 
+		// Check if features is directly an array
 		if (Array.isArray(property.features)) {
 			return property.features
+		}
+
+		// Check if features might be nested in a different structure
+		if (property.feature_list && Array.isArray(property.feature_list)) {
+			return property.feature_list
 		}
 
 		// Handle case where features might be a JSON string
@@ -63,108 +158,72 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 			}
 		}
 
+		// Check for features in property.property_features
+		if (
+			property.property_features &&
+			Array.isArray(property.property_features)
+		) {
+			return property.property_features
+		}
+
 		return []
-	}, [property?.features])
+	}, [property?.features, property?.feature_list, property?.property_features])
 
-	// ✅ FIX 1: Properly collect ALL media (images + videos) - moved to useMemo
-	const allMedia = React.useMemo(() => {
-		if (!property) return []
-
-		const media: any[] = []
-
-		// Handle images array
-		if (property.images && Array.isArray(property.images)) {
-			console.log('📸 Found images array:', property.images.length)
-			property.images.forEach((img: any, index: number) => {
-				media.push({
-					id: `img-${img.id || index}`,
-					url: img.url,
-					thumbnail_url: img.thumbnail_url || img.url,
-					type: img.type || 'image',
-					is_primary: img.is_primary || false,
-					display_order: img.display_order || index,
-				})
-			})
-		}
-
-		// Handle videos if they exist in separate array or mixed with images
-		if (property.videos && Array.isArray(property.videos)) {
-			console.log('🎥 Found videos array:', property.videos.length)
-			property.videos.forEach((video: any, index: number) => {
-				media.push({
-					id: `video-${video.id || index}`,
-					url: video.url,
-					thumbnail_url: video.thumbnail_url || video.url,
-					type: 'video',
-					is_primary: false,
-					display_order: video.display_order || media.length + index,
-				})
-			})
-		}
-
-		// Fallback to primary_image if no media array exists
-		if (media.length === 0 && property.primary_image) {
-			console.log('📷 Using fallback primary_image')
-			media.push({
-				id: 'primary-fallback',
-				url: property.primary_image,
-				type: 'image',
-				is_primary: true,
-				thumbnail_url: property.primary_image,
-			})
-		}
-
-		// Sort media: primary first, then by display_order
-		media.sort((a, b) => {
-			if (a.is_primary && !b.is_primary) return -1
-			if (!a.is_primary && b.is_primary) return 1
-			return (a.display_order || 0) - (b.display_order || 0)
-		})
-
-		console.log('🎬 Total media items processed:', media.length)
-		return media
-	}, [property?.images, property?.videos, property?.primary_image])
-
-	// ✅ FIX 4: Check social media availability - moved to useMemo
-	const hasSocialMedia = React.useMemo(() => {
-		if (!property) return false
-		const result =
-			property.has_viber || property.has_whatsapp || property.has_telegram
-		console.log('📱 Social media status:', {
-			viber: property.has_viber,
-			whatsapp: property.has_whatsapp,
-			telegram: property.has_telegram,
-			hasSocialMedia: result,
-		})
-		return result
-	}, [property?.has_viber, property?.has_whatsapp, property?.has_telegram])
-
-	// Early return after all hooks
-	if (!isOpen || !property) return null
-
-	console.log('🔍 PropertyViewPopup - Full property data:', property)
-
-	// ✅ FIX 2: Properly handle attributes based on property type
+	// ✅ FIX 3: Properly handle attributes based on property type
 	const getAttributeValue = (key: string) => {
+		console.log(`🔍 Looking for attribute: ${key}`)
+		console.log('Available attributes object:', property.attributes)
+		console.log('Property type:', property.property_type)
+
 		// Check in property.attributes first (main location)
 		if (property.attributes && typeof property.attributes === 'object') {
 			if (
 				property.attributes[key] !== undefined &&
 				property.attributes[key] !== null
 			) {
+				console.log(`✅ Found ${key} in attributes:`, property.attributes[key])
 				return property.attributes[key]
 			}
 		}
 
 		// Check in property root level as fallback
 		if (property[key] !== undefined && property[key] !== null) {
+			console.log(`✅ Found ${key} in root property:`, property[key])
 			return property[key]
 		}
 
+		// Check in type-specific attributes (house_attributes, apartment_attributes, etc.)
+		const typeSpecificKey = `${property.property_type}_attributes`
+		if (
+			property[typeSpecificKey] &&
+			property[typeSpecificKey][key] !== undefined
+		) {
+			console.log(
+				`✅ Found ${key} in ${typeSpecificKey}:`,
+				property[typeSpecificKey][key]
+			)
+			return property[typeSpecificKey][key]
+		}
+
+		console.log(`❌ Could not find attribute: ${key}`)
 		return null
 	}
 
-	console.log('🏷️ Final features array:', propertyFeatures)
+	// ✅ FIX 4: Check social media availability with better debugging
+	const hasSocialMedia = React.useMemo(() => {
+		if (!property) return false
+		console.log('📱 Checking social media status:')
+		console.log('  - has_viber:', property.has_viber)
+		console.log('  - has_whatsapp:', property.has_whatsapp)
+		console.log('  - has_telegram:', property.has_telegram)
+
+		const result =
+			property.has_viber || property.has_whatsapp || property.has_telegram
+		console.log('  - hasSocialMedia result:', result)
+		return result
+	}, [property?.has_viber, property?.has_whatsapp, property?.has_telegram])
+
+	if(!isOpen || !property) return null
 
 	// Property type icons and translations
 	const propertyTypeIcons = {
@@ -266,47 +325,55 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 		setCurrentMediaIndex(prev => (prev === 0 ? allMedia.length - 1 : prev - 1))
 	}
 
+	const handleCopyLink = () => {
+		const url = `${window.location.origin}/properties/${property.custom_id}`
+		navigator.clipboard.writeText(url)
+		setCopySuccess(true)
+		setTimeout(() => setCopySuccess(false), 2000)
+	}
+
 	return (
-		<div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50'>
-			<div className='bg-white rounded-2xl max-w-7xl w-full max-h-[95vh] overflow-hidden shadow-2xl'>
-				{/* Header */}
-				<div className='flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50'>
-					<div className='flex items-center space-x-4'>
-						<div className='p-3 bg-blue-100 rounded-full'>
-							<Icon className='w-8 h-8 text-blue-600' />
+		<div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50'>
+			<div className='bg-white rounded-lg sm:rounded-2xl w-full max-w-7xl max-h-[98vh] sm:max-h-[95vh] overflow-hidden shadow-2xl'>
+				{/* ✅ MOBILE-RESPONSIVE Header */}
+				<div className='flex items-center justify-between p-3 sm:p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50'>
+					<div className='flex items-center space-x-2 sm:space-x-4 flex-1 min-w-0'>
+						<div className='p-2 sm:p-3 bg-blue-100 rounded-full flex-shrink-0'>
+							<Icon className='w-5 h-5 sm:w-8 sm:h-8 text-blue-600' />
 						</div>
-						<div>
-							<h2 className='text-2xl font-bold text-gray-900'>
+						<div className='min-w-0 flex-1'>
+							<h2 className='text-lg sm:text-2xl font-bold text-gray-900 truncate'>
 								{property.title}
 							</h2>
-							<div className='flex items-center space-x-4 text-gray-600'>
-								<div className='flex items-center'>
-									<MapPin className='w-4 h-4 mr-1' />
-									{getLocationDisplay()}
+							<div className='flex flex-col sm:flex-row sm:items-center sm:space-x-4 text-gray-600 text-sm'>
+								<div className='flex items-center truncate'>
+									<MapPin className='w-3 h-3 sm:w-4 sm:h-4 mr-1 flex-shrink-0' />
+									<span className='truncate'>{getLocationDisplay()}</span>
 								</div>
-								<div className='flex items-center'>
-									ID: {property.custom_id || '-'}
+								<div className='flex items-center mt-1 sm:mt-0'>
+									<Hash className='w-3 h-3 sm:w-4 sm:h-4 mr-1' />
+									<span>ID: {property.custom_id || '-'}</span>
 								</div>
 							</div>
 						</div>
 					</div>
 					<button
 						onClick={onClose}
-						className='p-2 hover:bg-gray-100 rounded-full text-gray-700 transition-colors'
+						className='p-2 hover:bg-gray-100 rounded-full text-gray-700 transition-colors flex-shrink-0 ml-2'
 					>
-						<X className='w-6 h-6' />
+						<X className='w-5 h-5 sm:w-6 sm:h-6' />
 					</button>
 				</div>
 
-				{/* Content */}
-				<div className='overflow-y-auto max-h-[calc(95vh-140px)]'>
-					<div className='p-6 space-y-8'>
-						{/* Main Content Grid */}
-						<div className='grid grid-cols-1 lg:grid-cols-3 gap-8'>
+				{/* ✅ MOBILE-RESPONSIVE Content */}
+				<div className='overflow-y-auto max-h-[calc(98vh-80px)] sm:max-h-[calc(95vh-140px)]'>
+					<div className='p-3 sm:p-6 space-y-4 sm:space-y-8'>
+						{/* ✅ MOBILE-RESPONSIVE Grid Layout */}
+						<div className='grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-8'>
 							{/* Left Column - Media & Main Details */}
-							<div className='lg:col-span-2 space-y-6'>
-								{/* ✅ FIXED: Media Gallery */}
-								<div className='relative h-96 rounded-xl overflow-hidden bg-gray-200'>
+							<div className='lg:col-span-2 space-y-4 sm:space-y-6'>
+								{/* ✅ MOBILE-RESPONSIVE Media Gallery */}
+								<div className='relative h-48 sm:h-64 md:h-80 lg:h-96 rounded-lg sm:rounded-xl overflow-hidden bg-gray-200'>
 									{allMedia.length > 0 ? (
 										<>
 											{allMedia[currentMediaIndex]?.type === 'video' ? (
@@ -321,7 +388,7 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 												</div>
 											) : (
 												<Image
-													src={allMedia[currentMediaIndex]?.url}
+													src={allMedia[currentMediaIndex]?.url || ''}
 													alt={property.title}
 													fill
 													className='object-cover'
@@ -334,19 +401,19 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 												<>
 													<button
 														onClick={prevMedia}
-														className='absolute left-4 top-1/2 -translate-y-1/2 p-2 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-70 transition-all'
+														className='absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 p-1.5 sm:p-2 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-70 transition-all'
 													>
-														<ChevronLeft className='w-5 h-5' />
+														<ChevronLeft className='w-4 h-4 sm:w-5 sm:h-5' />
 													</button>
 													<button
 														onClick={nextMedia}
-														className='absolute right-4 top-1/2 -translate-y-1/2 p-2 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-70 transition-all'
+														className='absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 p-1.5 sm:p-2 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-70 transition-all'
 													>
-														<ChevronRight className='w-5 h-5' />
+														<ChevronRight className='w-4 h-4 sm:w-5 sm:h-5' />
 													</button>
 
 													{/* Media Counter */}
-													<div className='absolute bottom-4 left-1/2 -translate-x-1/2 bg-black bg-opacity-50 text-white px-3 py-1 rounded-full text-sm'>
+													<div className='absolute bottom-2 sm:bottom-4 left-1/2 -translate-x-1/2 bg-black bg-opacity-50 text-white px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm'>
 														{currentMediaIndex + 1} / {allMedia.length}
 													</div>
 												</>
@@ -354,19 +421,19 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 										</>
 									) : (
 										<div className='flex items-center justify-center h-full'>
-											<Icon className='w-16 h-16 text-gray-400' />
+											<Icon className='w-12 h-12 sm:w-16 sm:h-16 text-gray-400' />
 										</div>
 									)}
 								</div>
 
-								{/* ✅ FIXED: All Media Thumbnails */}
+								{/* ✅ MOBILE-RESPONSIVE Media Thumbnails */}
 								{allMedia.length > 1 && (
-									<div className='flex gap-2 overflow-x-auto pb-2'>
+									<div className='flex gap-1 sm:gap-2 overflow-x-auto pb-2'>
 										{allMedia.map((media, index) => (
 											<button
 												key={`media-thumb-${media.id}-${index}`}
 												onClick={() => setCurrentMediaIndex(index)}
-												className={`relative flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-all ${
+												className={`relative flex-shrink-0 w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-md sm:rounded-lg overflow-hidden border-2 transition-all ${
 													currentMediaIndex === index
 														? 'border-blue-500'
 														: 'border-transparent hover:border-gray-300'
@@ -374,7 +441,7 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 											>
 												{media.type === 'video' ? (
 													<div className='w-full h-full bg-gray-200 flex items-center justify-center'>
-														<Play className='w-6 h-6 text-gray-500' />
+														<Play className='w-3 h-3 sm:w-4 sm:h-4 md:w-6 md:h-6 text-gray-500' />
 													</div>
 												) : (
 													<Image
@@ -386,8 +453,8 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 													/>
 												)}
 												{media.is_primary && (
-													<div className='absolute top-1 right-1'>
-														<Star className='w-3 h-3 text-yellow-500 fill-current' />
+													<div className='absolute top-0.5 right-0.5 sm:top-1 sm:right-1'>
+														<Star className='w-2 h-2 sm:w-3 sm:h-3 text-yellow-500 fill-current' />
 													</div>
 												)}
 											</button>
@@ -395,75 +462,83 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 									</div>
 								)}
 
-								{/* Price & Key Info */}
-								<div className='bg-gradient-to-r from-green-50 to-blue-50 rounded-xl p-6'>
-									<div className='grid grid-cols-2 md:grid-cols-5 gap-4'>
-										<div className='text-center p-4 bg-white rounded-lg shadow-sm'>
-											<div className='text-2xl font-bold text-green-600 flex items-center justify-center'>
-												<DollarSign className='w-6 h-6 mr-1' />
-												{formatPrice(property.price, property.currency)}
+								{/* ✅ MOBILE-RESPONSIVE Price & Key Info */}
+								<div className='bg-gradient-to-r from-green-50 to-blue-50 rounded-lg sm:rounded-xl p-3 sm:p-6'>
+									<div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4'>
+										<div className='col-span-2 sm:col-span-1 text-center p-2 sm:p-4 bg-white rounded-lg shadow-sm'>
+											<div className='text-lg sm:text-2xl font-bold text-green-600 flex items-center justify-center'>
+												<DollarSign className='w-4 h-4 sm:w-6 sm:h-6 mr-1' />
+												<span className='truncate'>
+													{formatPrice(property.price, property.currency)}
+												</span>
 											</div>
-											<div className='text-sm text-gray-500 mt-1'>Գինը</div>
+											<div className='text-xs sm:text-sm text-gray-500 mt-1'>
+												Գինը
+											</div>
 										</div>
-										<div className='text-center p-4 bg-white rounded-lg shadow-sm'>
-											<div className='text-2xl font-bold text-blue-600 flex items-center justify-center'>
-												<Eye className='w-5 h-5 mr-1' />
+										<div className='text-center p-2 sm:p-4 bg-white rounded-lg shadow-sm'>
+											<div className='text-lg sm:text-2xl font-bold text-blue-600 flex items-center justify-center'>
+												<Eye className='w-4 h-4 sm:w-5 sm:h-5 mr-1' />
 												{property.views || 0}
 											</div>
-											<div className='text-sm text-gray-500 mt-1'>
+											<div className='text-xs sm:text-sm text-gray-500 mt-1'>
 												Դիտումներ
 											</div>
 										</div>
-										<div className='text-center p-4 bg-white rounded-lg shadow-sm'>
-											<div className='text-md font-bold text-purple-600'>
+										<div className='text-center p-2 sm:p-4 bg-white rounded-lg shadow-sm'>
+											<div className='text-xs sm:text-md font-bold text-purple-600 truncate'>
 												{propertyTypeDisplay[property.property_type]}
 											</div>
-											<div className='text-sm text-gray-500 mt-1'>Տեսակ</div>
+											<div className='text-xs sm:text-sm text-gray-500 mt-1'>
+												Տեսակ
+											</div>
 										</div>
-										<div className='text-center p-4 bg-white rounded-lg shadow-sm'>
-											<div className='text-md font-bold text-purple-600'>
+										<div className='text-center p-2 sm:p-4 bg-white rounded-lg shadow-sm'>
+											<div className='text-xs sm:text-md font-bold text-purple-600 truncate'>
 												{listingTypeDisplay[property.listing_type] || 'Անհայտ'}
 											</div>
-											<div className='text-sm text-gray-500 mt-1'>
+											<div className='text-xs sm:text-sm text-gray-500 mt-1'>
 												Հայտարարության տեսակ
 											</div>
 										</div>
-										<div className='text-center p-4 bg-white rounded-lg shadow-sm'>
-											<div className='text-md font-bold text-purple-600'>
+										<div className='text-center p-2 sm:p-4 bg-white rounded-lg shadow-sm'>
+											<div className='text-xs sm:text-md font-bold text-purple-600 truncate'>
 												{statusNameDisplay[
 													property.status_name || property.status
 												] || 'Անհայտ'}
 											</div>
-											<div className='text-sm text-gray-500 mt-1'>Վիճակ</div>
+											<div className='text-xs sm:text-sm text-gray-500 mt-1'>
+												Վիճակ
+											</div>
 										</div>
 									</div>
 								</div>
 
-								{/* ✅ FIXED: House Attributes */}
+								{/* ✅ MOBILE-RESPONSIVE House Attributes */}
 								{property.property_type === 'house' && (
-									<div className='bg-green-50 rounded-xl p-6'>
-										<h3 className='text-lg font-semibold mb-4 text-gray-900'>
+									<div className='bg-green-50 rounded-lg sm:rounded-xl p-3 sm:p-6'>
+										<h3 className='text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-gray-900'>
 											Տան հատկանիշներ
 										</h3>
-										<div className='grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4'>
+										<div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4'>
 											{getAttributeValue('bedrooms') && (
-												<div className='flex items-center space-x-2 bg-white p-3 rounded-lg'>
-													<Bed className='w-5 h-5 text-green-600' />
-													<div>
-														<div className='font-semibold'>
+												<div className='flex items-center space-x-2 bg-white p-2 sm:p-3 rounded-lg'>
+													<Bed className='w-4 h-4 sm:w-5 sm:h-5 text-green-600 flex-shrink-0' />
+													<div className='min-w-0'>
+														<div className='font-semibold text-sm sm:text-base'>
 															{getAttributeValue('bedrooms')}
 														</div>
-														<div className='text-xs text-gray-600'>
+														<div className='text-xs text-gray-600 truncate'>
 															Ննջասենյակ
 														</div>
 													</div>
 												</div>
 											)}
 											{getAttributeValue('bathrooms') && (
-												<div className='flex items-center space-x-2 bg-white p-3 rounded-lg'>
-													<Bath className='w-5 h-5 text-blue-600' />
-													<div>
-														<div className='font-semibold'>
+												<div className='flex items-center space-x-2 bg-white p-2 sm:p-3 rounded-lg'>
+													<Bath className='w-4 h-4 sm:w-5 sm:h-5 text-blue-600 flex-shrink-0' />
+													<div className='min-w-0'>
+														<div className='font-semibold text-sm sm:text-base'>
 															{getAttributeValue('bathrooms')}
 														</div>
 														<div className='text-xs text-gray-600'>Լոգարան</div>
@@ -471,10 +546,10 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 												</div>
 											)}
 											{getAttributeValue('area_sqft') && (
-												<div className='flex items-center space-x-2 bg-white p-3 rounded-lg'>
-													<Maximize className='w-5 h-5 text-purple-600' />
-													<div>
-														<div className='font-semibold'>
+												<div className='flex items-center space-x-2 bg-white p-2 sm:p-3 rounded-lg'>
+													<Maximize className='w-4 h-4 sm:w-5 sm:h-5 text-purple-600 flex-shrink-0' />
+													<div className='min-w-0'>
+														<div className='font-semibold text-sm sm:text-base'>
 															{getAttributeValue('area_sqft')}
 														</div>
 														<div className='text-xs text-gray-600'>քառ. մ</div>
@@ -482,10 +557,10 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 												</div>
 											)}
 											{getAttributeValue('floors') && (
-												<div className='flex items-center space-x-2 bg-white p-3 rounded-lg'>
-													<Building className='w-5 h-5 text-orange-600' />
-													<div>
-														<div className='font-semibold'>
+												<div className='flex items-center space-x-2 bg-white p-2 sm:p-3 rounded-lg'>
+													<Building className='w-4 h-4 sm:w-5 sm:h-5 text-orange-600 flex-shrink-0' />
+													<div className='min-w-0'>
+														<div className='font-semibold text-sm sm:text-base'>
 															{getAttributeValue('floors')}
 														</div>
 														<div className='text-xs text-gray-600'>Հարկ</div>
@@ -493,10 +568,10 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 												</div>
 											)}
 											{getAttributeValue('lot_size_sqft') && (
-												<div className='flex items-center space-x-2 bg-white p-3 rounded-lg'>
-													<Maximize className='w-5 h-5 text-indigo-600' />
-													<div>
-														<div className='font-semibold'>
+												<div className='flex items-center space-x-2 bg-white p-2 sm:p-3 rounded-lg'>
+													<Maximize className='w-4 h-4 sm:w-5 sm:h-5 text-indigo-600 flex-shrink-0' />
+													<div className='min-w-0'>
+														<div className='font-semibold text-sm sm:text-base'>
 															{getAttributeValue('lot_size_sqft')}
 														</div>
 														<div className='text-xs text-gray-600'>
@@ -506,10 +581,10 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 												</div>
 											)}
 											{getAttributeValue('ceiling_height') && (
-												<div className='flex items-center space-x-2 bg-white p-3 rounded-lg'>
-													<ArrowUp className='w-5 h-5 text-pink-600' />
-													<div>
-														<div className='font-semibold'>
+												<div className='flex items-center space-x-2 bg-white p-2 sm:p-3 rounded-lg'>
+													<ArrowUp className='w-4 h-4 sm:w-5 sm:h-5 text-pink-600 flex-shrink-0' />
+													<div className='min-w-0'>
+														<div className='font-semibold text-sm sm:text-base'>
 															{getAttributeValue('ceiling_height')}մ
 														</div>
 														<div className='text-xs text-gray-600'>
@@ -522,101 +597,18 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 									</div>
 								)}
 
-								{/* ✅ FIXED: Apartment Attributes */}
-								{property.property_type === 'apartment' && (
-									<div className='bg-blue-50 rounded-xl p-6'>
-										<h3 className='text-lg font-semibold mb-4 text-gray-900'>
-											Բնակարանի հատկանիշներ
-										</h3>
-										<div className='grid grid-cols-2 md:grid-cols-3 gap-4'>
-											{getAttributeValue('bedrooms') && (
-												<div className='flex items-center space-x-2 bg-white p-3 rounded-lg'>
-													<Bed className='w-5 h-5 text-blue-600' />
-													<div>
-														<div className='font-semibold'>
-															{getAttributeValue('bedrooms')}
-														</div>
-														<div className='text-xs text-gray-600'>
-															Ննջասենյակ
-														</div>
-													</div>
-												</div>
-											)}
-											{getAttributeValue('bathrooms') && (
-												<div className='flex items-center space-x-2 bg-white p-3 rounded-lg'>
-													<Bath className='w-5 h-5 text-blue-600' />
-													<div>
-														<div className='font-semibold'>
-															{getAttributeValue('bathrooms')}
-														</div>
-														<div className='text-xs text-gray-600'>Լոգարան</div>
-													</div>
-												</div>
-											)}
-											{getAttributeValue('area_sqft') && (
-												<div className='flex items-center space-x-2 bg-white p-3 rounded-lg'>
-													<Maximize className='w-5 h-5 text-blue-600' />
-													<div>
-														<div className='font-semibold'>
-															{getAttributeValue('area_sqft')}
-														</div>
-														<div className='text-xs text-gray-600'>քառ. մ</div>
-													</div>
-												</div>
-											)}
-											{getAttributeValue('floor') && (
-												<div className='flex items-center space-x-2 bg-white p-3 rounded-lg'>
-													<Building className='w-5 h-5 text-blue-600' />
-													<div>
-														<div className='font-semibold'>
-															{getAttributeValue('floor')}
-														</div>
-														<div className='text-xs text-gray-600'>Հարկ</div>
-													</div>
-												</div>
-											)}
-											{getAttributeValue('total_floors') && (
-												<div className='flex items-center space-x-2 bg-white p-3 rounded-lg'>
-													<Building className='w-5 h-5 text-blue-600' />
-													<div>
-														<div className='font-semibold'>
-															{getAttributeValue('total_floors')}
-														</div>
-														<div className='text-xs text-gray-600'>
-															Ընդհանուր հարկ
-														</div>
-													</div>
-												</div>
-											)}
-											{getAttributeValue('ceiling_height') && (
-												<div className='flex items-center space-x-2 bg-white p-3 rounded-lg'>
-													<ArrowUp className='w-5 h-5 text-indigo-600' />
-													<div>
-														<div className='font-semibold'>
-															{getAttributeValue('ceiling_height')}մ
-														</div>
-														<div className='text-xs text-gray-600'>
-															Առաստաղի բարձր.
-														</div>
-													</div>
-												</div>
-											)}
-										</div>
-									</div>
-								)}
-
-								{/* ✅ FIXED: Commercial Attributes */}
+								{/* ✅ MOBILE-RESPONSIVE Commercial Attributes */}
 								{property.property_type === 'commercial' && (
-									<div className='bg-purple-50 rounded-xl p-6'>
-										<h3 className='text-lg font-semibold mb-4 text-gray-900'>
+									<div className='bg-purple-50 rounded-lg sm:rounded-xl p-3 sm:p-6'>
+										<h3 className='text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-gray-900'>
 											Կոմերցիոն հատկանիշներ
 										</h3>
-										<div className='grid grid-cols-2 md:grid-cols-3 gap-4'>
+										<div className='grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-4'>
 											{getAttributeValue('business_type') && (
-												<div className='flex items-center space-x-2 bg-white p-3 rounded-lg'>
-													<Building className='w-5 h-5 text-purple-600' />
-													<div>
-														<div className='font-semibold'>
+												<div className='flex items-center space-x-2 bg-white p-2 sm:p-3 rounded-lg'>
+													<Building className='w-4 h-4 sm:w-5 sm:h-5 text-purple-600 flex-shrink-0' />
+													<div className='min-w-0'>
+														<div className='font-semibold text-sm sm:text-base'>
 															{getAttributeValue('business_type')}
 														</div>
 														<div className='text-xs text-gray-600'>
@@ -626,10 +618,10 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 												</div>
 											)}
 											{getAttributeValue('area_sqft') && (
-												<div className='flex items-center space-x-2 bg-white p-3 rounded-lg'>
-													<Maximize className='w-5 h-5 text-purple-600' />
-													<div>
-														<div className='font-semibold'>
+												<div className='flex items-center space-x-2 bg-white p-2 sm:p-3 rounded-lg'>
+													<Maximize className='w-4 h-4 sm:w-5 sm:h-5 text-purple-600 flex-shrink-0' />
+													<div className='min-w-0'>
+														<div className='font-semibold text-sm sm:text-base'>
 															{getAttributeValue('area_sqft')}
 														</div>
 														<div className='text-xs text-gray-600'>քառ. մ</div>
@@ -637,10 +629,10 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 												</div>
 											)}
 											{getAttributeValue('floors') && (
-												<div className='flex items-center space-x-2 bg-white p-3 rounded-lg'>
-													<Building className='w-5 h-5 text-purple-600' />
-													<div>
-														<div className='font-semibold'>
+												<div className='flex items-center space-x-2 bg-white p-2 sm:p-3 rounded-lg'>
+													<Building className='w-4 h-4 sm:w-5 sm:h-5 text-purple-600 flex-shrink-0' />
+													<div className='min-w-0'>
+														<div className='font-semibold text-sm sm:text-base'>
 															{getAttributeValue('floors')}
 														</div>
 														<div className='text-xs text-gray-600'>Հարկ</div>
@@ -648,10 +640,10 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 												</div>
 											)}
 											{getAttributeValue('ceiling_height') && (
-												<div className='flex items-center space-x-2 bg-white p-3 rounded-lg'>
-													<ArrowUp className='w-5 h-5 text-indigo-600' />
-													<div>
-														<div className='font-semibold'>
+												<div className='flex items-center space-x-2 bg-white p-2 sm:p-3 rounded-lg'>
+													<ArrowUp className='w-4 h-4 sm:w-5 sm:h-5 text-indigo-600 flex-shrink-0' />
+													<div className='min-w-0'>
+														<div className='font-semibold text-sm sm:text-base'>
 															{getAttributeValue('ceiling_height')}մ
 														</div>
 														<div className='text-xs text-gray-600'>
@@ -664,20 +656,20 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 									</div>
 								)}
 
-								{/* ✅ FIXED: Land Attributes */}
+								{/* ✅ MOBILE-RESPONSIVE Land Attributes */}
 								{property.property_type === 'land' &&
 									getAttributeValue('area_acres') && (
-										<div className='bg-yellow-50 rounded-xl p-6'>
-											<h3 className='text-lg font-semibold mb-4 text-gray-900'>
+										<div className='bg-yellow-50 rounded-lg sm:rounded-xl p-3 sm:p-6'>
+											<h3 className='text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-gray-900'>
 												Հողակտորի մակերես
 											</h3>
-											<div className='flex items-center space-x-2 bg-white p-4 rounded-lg inline-flex'>
-												<Maximize className='w-6 h-6 text-yellow-600' />
+											<div className='flex items-center space-x-2 bg-white p-3 sm:p-4 rounded-lg inline-flex'>
+												<Maximize className='w-5 h-5 sm:w-6 sm:h-6 text-yellow-600' />
 												<div>
-													<div className='text-xl font-semibold'>
+													<div className='text-lg sm:text-xl font-semibold'>
 														{getAttributeValue('area_acres')}
 													</div>
-													<div className='text-sm text-gray-600'>
+													<div className='text-xs sm:text-sm text-gray-600'>
 														քառակուսի մետր
 													</div>
 												</div>
@@ -685,22 +677,24 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 										</div>
 									)}
 
-								{/* ✅ FIXED: Features Section */}
+								{/* ✅ MOBILE-RESPONSIVE Features Section */}
 								{propertyFeatures.length > 0 && (
-									<div className='bg-teal-50 rounded-xl p-6'>
-										<h3 className='text-lg font-semibold mb-4 text-gray-900'>
+									<div className='bg-teal-50 rounded-lg sm:rounded-xl p-3 sm:p-6'>
+										<h3 className='text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-gray-900'>
 											Հատկանիշներ և հարմարություններ
 										</h3>
-										<div className='grid grid-cols-2 md:grid-cols-3 gap-2'>
+										<div className='grid grid-cols-2 sm:grid-cols-3 gap-1 sm:gap-2'>
 											{propertyFeatures.map((feature: any, index: number) => (
 												<div
 													key={feature.id || index}
 													className='flex items-center space-x-2 bg-white p-2 rounded-lg'
 												>
 													{feature.icon && (
-														<span className='text-lg'>{feature.icon}</span>
+														<span className='text-base sm:text-lg flex-shrink-0'>
+															{feature.icon}
+														</span>
 													)}
-													<span className='text-sm font-medium text-gray-700'>
+													<span className='text-xs sm:text-sm font-medium text-gray-700 truncate'>
 														{feature.name}
 													</span>
 												</div>
@@ -709,51 +703,57 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 									</div>
 								)}
 
-								{/* Description */}
+								{/* ✅ MOBILE-RESPONSIVE Description */}
 								{property.description && (
-									<div className='bg-gray-50 rounded-xl p-6'>
-										<h3 className='text-lg font-semibold mb-4 text-gray-900'>
+									<div className='bg-gray-50 rounded-lg sm:rounded-xl p-3 sm:p-6'>
+										<h3 className='text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-gray-900'>
 											Նկարագրություն
 										</h3>
-										<p className='text-gray-700 leading-relaxed whitespace-pre-line'>
+										<p className='text-sm sm:text-base text-gray-700 leading-relaxed whitespace-pre-line'>
 											{property.description}
 										</p>
 									</div>
 								)}
 
-								{/* ✅ FIXED: Location Details with better address handling */}
-								<div className='bg-indigo-50 rounded-xl p-6'>
-									<h3 className='text-lg font-semibold mb-4 text-gray-900 flex items-center'>
-										<Navigation className='w-5 h-5 mr-2' />
+								{/* ✅ MOBILE-RESPONSIVE Location Details */}
+								<div className='bg-indigo-50 rounded-lg sm:rounded-xl p-3 sm:p-6'>
+									<h3 className='text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-gray-900 flex items-center'>
+										<Navigation className='w-4 h-4 sm:w-5 sm:h-5 mr-2' />
 										Գտնվելու վայրի մանրամասներ
 									</h3>
-									<div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+									<div className='grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4'>
 										{property.address && (
-											<div className='bg-white p-4 rounded-lg'>
-												<div className='text-sm text-gray-700'>
+											<div className='bg-white p-3 sm:p-4 rounded-lg'>
+												<div className='text-xs sm:text-sm text-gray-700'>
 													Ամբողջական հասցե
 												</div>
-												<div className='font-medium text-gray-600'>
+												<div className='font-medium text-gray-600 text-sm sm:text-base break-words'>
 													{property.address}
 												</div>
 											</div>
 										)}
-										<div className='bg-white p-4 rounded-lg'>
-											<div className='text-sm text-gray-700'>Մարզ/Նահանգ</div>
-											<div className='font-medium text-gray-600'>
+										<div className='bg-white p-3 sm:p-4 rounded-lg'>
+											<div className='text-xs sm:text-sm text-gray-700'>
+												Մարզ/Նահանգ
+											</div>
+											<div className='font-medium text-gray-600 text-sm sm:text-base'>
 												{property.state_name || 'Նշված չէ'}
 											</div>
 										</div>
-										<div className='bg-white p-4 rounded-lg'>
-											<div className='text-sm text-gray-700'>Քաղաք</div>
-											<div className='font-medium text-gray-600'>
+										<div className='bg-white p-3 sm:p-4 rounded-lg'>
+											<div className='text-xs sm:text-sm text-gray-700'>
+												Քաղաք
+											</div>
+											<div className='font-medium text-gray-600 text-sm sm:text-base'>
 												{property.city_name || 'Նշված չէ'}
 											</div>
 										</div>
 										{property.district_name && (
-											<div className='bg-white p-4 rounded-lg'>
-												<div className='text-sm text-gray-700'>Թաղամաս</div>
-												<div className='font-medium text-gray-600'>
+											<div className='bg-white p-3 sm:p-4 rounded-lg'>
+												<div className='text-xs sm:text-sm text-gray-700'>
+													Թաղամաս
+												</div>
+												<div className='font-medium text-gray-600 text-sm sm:text-base'>
 													{property.district_name}
 												</div>
 											</div>
@@ -762,30 +762,34 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 								</div>
 							</div>
 
-							{/* Right Column - Owner & Additional Info */}
-							<div className='space-y-6'>
-								{/* Owner Information */}
+							{/* ✅ MOBILE-RESPONSIVE Right Column - Owner & Additional Info */}
+							<div className='space-y-4 sm:space-y-6'>
+								{/* ✅ MOBILE-RESPONSIVE Owner Information */}
 								{(property.owner_name || property.owner_phone) && (
-									<div className='bg-gradient-to-br from-red-50 to-pink-50 rounded-xl p-6 border border-red-200'>
-										<h3 className='text-lg font-semibold mb-4 text-gray-900 flex items-center'>
-											<User className='w-5 h-5 mr-2 text-red-600' />
+									<div className='bg-gradient-to-br from-red-50 to-pink-50 rounded-lg sm:rounded-xl p-3 sm:p-6 border border-red-200'>
+										<h3 className='text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-gray-900 flex items-center'>
+											<User className='w-4 h-4 sm:w-5 sm:h-5 mr-2 text-red-600' />
 											Սեփականատիրոջ տվյալներ
 										</h3>
-										<div className='space-y-4'>
+										<div className='space-y-3 sm:space-y-4'>
 											<div className='flex items-center space-x-3 bg-white p-3 rounded-lg'>
-												<User className='w-5 h-5 text-gray-700' />
-												<div>
-													<div className='text-sm text-gray-700'>Անուն</div>
-													<div className='font-medium text-gray-600'>
+												<User className='w-4 h-4 sm:w-5 sm:h-5 text-gray-700 flex-shrink-0' />
+												<div className='min-w-0 flex-1'>
+													<div className='text-xs sm:text-sm text-gray-700'>
+														Անուն
+													</div>
+													<div className='font-medium text-gray-600 text-sm sm:text-base truncate'>
 														{property.owner_name || 'Տեղեկություն չկա'}
 													</div>
 												</div>
 											</div>
 											<div className='flex items-center space-x-3 bg-white p-3 rounded-lg'>
-												<Phone className='w-5 h-5 text-gray-700' />
-												<div>
-													<div className='text-sm text-gray-700'>Հեռախոս</div>
-													<div className='font-medium text-gray-600'>
+												<Phone className='w-4 h-4 sm:w-5 sm:h-5 text-gray-700 flex-shrink-0' />
+												<div className='min-w-0 flex-1'>
+													<div className='text-xs sm:text-sm text-gray-700'>
+														Հեռախոս
+													</div>
+													<div className='font-medium text-gray-600 text-sm sm:text-base'>
 														{property.owner_phone || 'Տեղեկություն չկա'}
 													</div>
 												</div>
@@ -794,54 +798,54 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 									</div>
 								)}
 
-								{/* ✅ FIXED: Social Media Communication Methods */}
+								{/* ✅ MOBILE-RESPONSIVE Social Media Communication Methods */}
 								{hasSocialMedia && (
-									<div className='bg-gradient-to-br from-green-50 to-blue-50 rounded-xl p-6 border border-green-200'>
-										<h3 className='text-lg font-semibold mb-4 text-gray-900 flex items-center'>
-											<Phone className='w-5 h-5 mr-2 text-green-600' />
+									<div className='bg-gradient-to-br from-green-50 to-blue-50 rounded-lg sm:rounded-xl p-3 sm:p-6 border border-green-200'>
+										<h3 className='text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-gray-900 flex items-center'>
+											<MessageCircle className='w-4 h-4 sm:w-5 sm:h-5 mr-2 text-green-600' />
 											Հասանելի կապի եղանակներ
 										</h3>
-										<div className='flex flex-wrap gap-3'>
+										<div className='flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:gap-3'>
 											{property.has_viber && (
-												<div className='flex items-center space-x-2 bg-white p-3 rounded-lg border border-purple-200'>
-													<div className='w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center text-white font-bold text-sm'>
+												<div className='flex items-center space-x-2 bg-white p-2 sm:p-3 rounded-lg border border-purple-200'>
+													<div className='w-6 h-6 sm:w-8 sm:h-8 bg-purple-500 rounded-full flex items-center justify-center text-white font-bold text-xs sm:text-sm'>
 														V
 													</div>
 													<div>
-														<div className='font-medium text-gray-900'>
+														<div className='font-medium text-gray-900 text-sm sm:text-base'>
 															Viber
 														</div>
-														<div className='text-sm text-gray-600'>
+														<div className='text-xs text-gray-600'>
 															Հասանելի է
 														</div>
 													</div>
 												</div>
 											)}
 											{property.has_whatsapp && (
-												<div className='flex items-center space-x-2 bg-white p-3 rounded-lg border border-green-200'>
-													<div className='w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white font-bold text-sm'>
+												<div className='flex items-center space-x-2 bg-white p-2 sm:p-3 rounded-lg border border-green-200'>
+													<div className='w-6 h-6 sm:w-8 sm:h-8 bg-green-500 rounded-full flex items-center justify-center text-white font-bold text-xs sm:text-sm'>
 														W
 													</div>
 													<div>
-														<div className='font-medium text-gray-900'>
+														<div className='font-medium text-gray-900 text-sm sm:text-base'>
 															WhatsApp
 														</div>
-														<div className='text-sm text-gray-600'>
+														<div className='text-xs text-gray-600'>
 															Հասանելի է
 														</div>
 													</div>
 												</div>
 											)}
 											{property.has_telegram && (
-												<div className='flex items-center space-x-2 bg-white p-3 rounded-lg border border-blue-200'>
-													<div className='w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm'>
+												<div className='flex items-center space-x-2 bg-white p-2 sm:p-3 rounded-lg border border-blue-200'>
+													<div className='w-6 h-6 sm:w-8 sm:h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold text-xs sm:text-sm'>
 														T
 													</div>
 													<div>
-														<div className='font-medium text-gray-900'>
+														<div className='font-medium text-gray-900 text-sm sm:text-base'>
 															Telegram
 														</div>
-														<div className='text-sm text-gray-600'>
+														<div className='text-xs text-gray-600'>
 															Հասանելի է
 														</div>
 													</div>
@@ -849,7 +853,7 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 											)}
 										</div>
 										<div className='mt-3 p-2 bg-blue-50 rounded-lg'>
-											<p className='text-sm text-blue-800'>
+											<p className='text-xs sm:text-sm text-blue-800'>
 												💬 Կապվեք սեփականատիրոջ հետ նշված հեռախոսահամարով՝
 												օգտագործելով այս հավելվածները
 											</p>
@@ -857,37 +861,39 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 									</div>
 								)}
 
-								{/* Property Meta Info */}
-								<div className='bg-gray-50 rounded-xl p-6'>
-									<h3 className='text-lg font-semibold mb-4 text-gray-900'>
+								{/* ✅ MOBILE-RESPONSIVE Property Meta Info */}
+								<div className='bg-gray-50 rounded-lg sm:rounded-xl p-3 sm:p-6'>
+									<h3 className='text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-gray-900'>
 										Լրացուցիչ տեղեկություններ
 									</h3>
-									<div className='space-y-3'>
+									<div className='space-y-2 sm:space-y-3'>
 										<div className='bg-white p-3 rounded-lg'>
-											<div className='text-sm text-gray-700'>
+											<div className='text-xs sm:text-sm text-gray-700'>
 												Ստեղծման ամսաթիվ
 											</div>
-											<div className='font-medium flex items-center text-gray-600'>
-												<Calendar className='w-4 h-4 mr-1' />
+											<div className='font-medium flex items-center text-gray-600 text-sm sm:text-base'>
+												<Calendar className='w-3 h-3 sm:w-4 sm:h-4 mr-1' />
 												{formatDate(property.created_at)}
 											</div>
 										</div>
 										{property.updated_at &&
 											property.updated_at !== property.created_at && (
 												<div className='bg-white p-3 rounded-lg'>
-													<div className='text-sm text-gray-700'>
+													<div className='text-xs sm:text-sm text-gray-700'>
 														Վերջին փոփոխություն
 													</div>
-													<div className='font-medium flex items-center text-gray-600'>
-														<Calendar className='w-4 h-4 mr-1' />
+													<div className='font-medium flex items-center text-gray-600 text-sm sm:text-base'>
+														<Calendar className='w-3 h-3 sm:w-4 sm:h-4 mr-1' />
 														{formatDate(property.updated_at)}
 													</div>
 												</div>
 											)}
 										{property.user_email && (
 											<div className='bg-white p-3 rounded-lg'>
-												<div className='text-sm text-gray-700'>Ստեղծող</div>
-												<div className='font-medium text-gray-600'>
+												<div className='text-xs sm:text-sm text-gray-700'>
+													Ստեղծող
+												</div>
+												<div className='font-medium text-gray-600 text-sm sm:text-base break-all'>
 													{property.user_email}
 												</div>
 											</div>
@@ -895,22 +901,22 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 									</div>
 								</div>
 
-								{/* Featured Badge */}
+								{/* ✅ MOBILE-RESPONSIVE Featured Badge */}
 								{property.featured && (
-									<div className='bg-gradient-to-r from-yellow-400 to-orange-400 rounded-xl p-4 text-white text-center'>
-										<Star className='w-6 h-6 mx-auto mb-2' />
-										<div className='font-semibold'>
+									<div className='bg-gradient-to-r from-yellow-400 to-orange-400 rounded-lg sm:rounded-xl p-3 sm:p-4 text-white text-center'>
+										<Star className='w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-2' />
+										<div className='font-semibold text-sm sm:text-base'>
 											Առաջարկվող հայտարարություն
 										</div>
 									</div>
 								)}
 
-								{/* Quick Actions */}
-								<div className='bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-6'>
-									<h3 className='text-lg font-semibold mb-4 text-gray-900'>
+								{/* ✅ MOBILE-RESPONSIVE Quick Actions */}
+								<div className='bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg sm:rounded-xl p-3 sm:p-6'>
+									<h3 className='text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-gray-900'>
 										Արագ գործողություններ
 									</h3>
-									<div className='space-y-3'>
+									<div className='space-y-2 sm:space-y-3'>
 										<button
 											onClick={() =>
 												window.open(
@@ -918,21 +924,21 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 													'_blank'
 												)
 											}
-											className='w-full bg-blue-600 cursor-pointer text-white px-4 py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center'
+											className='w-full bg-blue-600 text-white px-3 sm:px-4 py-2 sm:py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center text-sm sm:text-base'
 										>
 											<Globe className='w-4 h-4 mr-2' />
 											Բացել կայքում
 										</button>
 										<button
-											onClick={() => {
-												const url = `${window.location.origin}/properties/${property.custom_id}`
-												navigator.clipboard.writeText(url)
-												alert('Հղումը պատճենվել է!')
-											}}
-											className='w-full bg-gray-600 text-white px-4 py-3 rounded-lg cursor-pointer hover:bg-gray-700 transition-colors flex items-center justify-center'
+											onClick={handleCopyLink}
+											className={`w-full px-3 sm:px-4 py-2 sm:py-3 rounded-lg transition-colors flex items-center justify-center text-sm sm:text-base ${
+												copySuccess
+													? 'bg-green-600 text-white'
+													: 'bg-gray-600 text-white hover:bg-gray-700'
+											}`}
 										>
 											<Copy className='w-4 h-4 mr-2' />
-											Պատճենել հղումը
+											{copySuccess ? 'Պատճենվել է!' : 'Պատճենել հղումը'}
 										</button>
 									</div>
 								</div>
@@ -944,5 +950,3 @@ const PropertyViewPopup: React.FC<PropertyViewPopupProps> = ({
 		</div>
 	)
 }
-
-export default PropertyViewPopup
