@@ -84,9 +84,7 @@ export async function getAuthenticationParameters() {
 	}
 }
 
-// Enhanced upload function with better error handling
-// Replace the uploadToImageKit function
-// src/lib/imagekit.ts - Add debug logging and better error handling
+
 export async function uploadToImageKit(
 	file: Buffer,
 	fileName: string,

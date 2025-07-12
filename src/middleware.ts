@@ -12,7 +12,7 @@ export async function middleware(request: NextRequest) {
 		// Define allowed origins
 		const allowedOrigins = [
 			'http://localhost:3001',
-			'https://realty-app-liard.vercel.app',
+			'https://chance-realty-frontend.vercel.app',
 		]
 		const allowOrigin = allowedOrigins.includes(origin) ? origin : '*'
 

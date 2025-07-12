@@ -12,7 +12,7 @@ export function corsMiddleware(request: NextRequest) {
 	// Define allowed origins (you can make this more restrictive)
 	const allowedOrigins = [
 		'http://localhost:3001',
-		'https://realty-app-liard.vercel.app',
+		'https://chance-realty-frontend.vercel.app',
 	]
 
 	// Check if the origin is allowed (or use '*' to allow all)
