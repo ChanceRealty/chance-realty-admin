@@ -129,6 +129,14 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 			resolvedParams.id
 		)
 
+		const propertyId = parseInt(resolvedParams.id)
+		if (isNaN(propertyId)) {
+			console.error('❌ Invalid property ID:', resolvedParams.id)
+			setError('Invalid property ID provided')
+			setLoading(false)
+			return
+		}
+
 		// Fetch all required data
 		Promise.all([
 			fetch('/api/properties/states').then(res => {
@@ -211,9 +219,8 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 					setStatuses(fallbackStatuses)
 				}
 
-				if (propertyData.error) {
-					setError(propertyData.error)
-					return
+				if (!propertyData || propertyData.error) {
+					throw new Error(propertyData?.error || 'Property data is invalid')
 				}
 
 				// Populate form data with existing property data
@@ -234,7 +241,7 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 					owner_name: propertyData.owner_name || '',
 					owner_phone: propertyData.owner_phone || '',
 					// ✅ Handle status properly - it might be a number (ID) or string (name)
-					status: propertyData.status || 'available',
+					status: propertyData.status_name || 'available',
 					has_viber: propertyData.has_viber || false,
 					has_whatsapp: propertyData.has_whatsapp || false,
 					has_telegram: propertyData.has_telegram || false,
@@ -265,7 +272,7 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 
 				// Fetch existing media
 				console.log('🖼️ Fetching existing media...')
-				fetch(`/api/media/property/${resolvedParams.id}`)
+				fetch(`/api/media/property/${propertyId}`)
 					.then(res => res.json())
 					.then(mediaData => {
 						console.log(
@@ -282,6 +289,18 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 				setError(
 					'Failed to load property data. Please check the console for details.'
 				)
+
+				if (error.message.includes('Property not found')) {
+					setError(
+						`Property with ID ${propertyId} was not found. It may have been deleted or you may not have permission to view it.`
+					)
+				} else if (error.message.includes('Failed to fetch property: 404')) {
+					setError(
+						`Property with ID ${propertyId} does not exist or has been removed.`
+					)
+				} else {
+					setError(`Failed to load property data: ${error.message}`)
+				}
 				// Set safe defaults
 				setStates([])
 				setFeatures([])
