@@ -17,6 +17,9 @@ type PropertyFilter = {
 	limit?: number
 	page?: number
 	language?: string // Added language parameter
+	show_hidden?: boolean // Whether to show hidden properties
+	is_hidden?: boolean // Filter by hidden status
+	is_exclusive?: boolean // Filter by exclusive status
 }
 
 export async function getProperties(filter: PropertyFilter = {}) {
@@ -39,7 +42,6 @@ export async function getProperties(filter: PropertyFilter = {}) {
 					WHEN $1 = 'en' THEN COALESCE(p.description_en, p.description)
 					ELSE p.description
 				END as description,
-				-- Original fields for admin/reference
 				p.title as title_original,
 				p.description as description_original,
 				p.title_ru,
@@ -48,6 +50,8 @@ export async function getProperties(filter: PropertyFilter = {}) {
 				p.description_en,
 				p.property_type,
 				p.listing_type,
+				p.is_hidden,
+				p.is_exclusive,
 				p.price,
 				p.currency,
 				ps.name as status,
@@ -232,6 +236,25 @@ export async function getProperties(filter: PropertyFilter = {}) {
 			paramIndex++
 		}
 
+		if (filter.show_hidden !== true) {
+			query += ` AND p.is_hidden = false`
+		}
+
+		// Filter by hidden status if specified
+		if (filter.is_hidden !== undefined) {
+			query += ` AND p.is_hidden = ${paramIndex}`
+			params.push(String(filter.is_hidden))
+			paramIndex++
+		}
+
+		// Filter by exclusive status if specified
+		if (filter.is_exclusive !== undefined) {
+			query += ` AND p.is_exclusive = ${paramIndex}`
+			params.push(String(filter.is_exclusive))
+			paramIndex++
+		}
+
+
 		// Sorting
 		const sortBy = filter.sort_by || 'created_at'
 		const sortOrder = filter.sort_order || 'desc'
@@ -243,7 +266,8 @@ export async function getProperties(filter: PropertyFilter = {}) {
 			: 'created_at'
 		const safeSortOrder = sortOrder === 'asc' ? 'asc' : 'desc'
 
-		query += ` ORDER BY p.${safeSortBy} ${safeSortOrder}`
+		query += ` ORDER BY p.is_exclusive DESC, p.${safeSortBy} ${safeSortOrder}`
+
 
 		// Pagination
 		const limit = Math.min(filter.limit || 20, 100) // Max 100 items
@@ -310,7 +334,11 @@ export async function getDistrictsByState(stateId: number) {
 	}
 }
 
-export async function getPropertyByCustomId(customId: string, language = 'hy') {
+export async function getPropertyByCustomId(
+	customId: string,
+	language = 'hy',
+	includeHidden = false
+) {
 	try {
 		const query = `
 			SELECT 
@@ -399,6 +427,7 @@ export async function getPropertyByCustomId(customId: string, language = 'hy') {
 			LEFT JOIN commercial_attributes ca ON p.id = ca.property_id AND p.property_type = 'commercial'
 			LEFT JOIN land_attributes la ON p.id = la.property_id AND p.property_type = 'land'
 			WHERE p.custom_id = $1 AND (ps.is_active = true OR ps.id IS NULL)
+			${!includeHidden ? 'AND p.is_hidden = false' : ''}
 		`
 
 		const result = await sql.query(query, [customId, language])
@@ -408,6 +437,10 @@ export async function getPropertyByCustomId(customId: string, language = 'hy') {
 		}
 
 		const property = result.rows[0]
+
+		if (property.is_hidden && !includeHidden) {
+			return null
+		}
 
 		// Get images separately
 		const imagesResult = await sql.query(
@@ -616,5 +649,69 @@ export async function getTranslationStats() {
 	} catch (error) {
 		console.error('Error fetching translation stats:', error)
 		throw new Error('Failed to fetch translation stats')
+	}
+}
+
+
+export async function togglePropertyVisibility(
+	propertyId: number,
+	isHidden: boolean
+) {
+	try {
+		const result = await sql.query(
+			`UPDATE properties SET is_hidden = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING id, is_hidden`,
+			[isHidden, propertyId]
+		)
+
+		if (result.rows.length === 0) {
+			throw new Error('Property not found')
+		}
+
+		return result.rows[0]
+	} catch (error) {
+		console.error('Error toggling property visibility:', error)
+		throw new Error('Failed to update property visibility')
+	}
+}
+
+export async function togglePropertyExclusive(
+	propertyId: number,
+	isExclusive: boolean
+) {
+	try {
+		const result = await sql.query(
+			`UPDATE properties SET is_exclusive = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING id, is_exclusive`,
+			[isExclusive, propertyId]
+		)
+
+		if (result.rows.length === 0) {
+			throw new Error('Property not found')
+		}
+
+		return result.rows[0]
+	} catch (error) {
+		console.error('Error toggling property exclusive status:', error)
+		throw new Error('Failed to update property exclusive status')
+	}
+}
+
+// ✅ Get visibility statistics for admin dashboard
+export async function getVisibilityStats() {
+	try {
+		const result = await sql.query(`
+			SELECT 
+				COUNT(*) as total_properties,
+				COUNT(CASE WHEN is_hidden = true THEN 1 END) as hidden_properties,
+				COUNT(CASE WHEN is_hidden = false THEN 1 END) as public_properties,
+				COUNT(CASE WHEN is_exclusive = true THEN 1 END) as exclusive_properties,
+				COUNT(CASE WHEN is_exclusive = false THEN 1 END) as regular_properties,
+				COUNT(CASE WHEN is_hidden = false AND is_exclusive = true THEN 1 END) as public_exclusive_properties
+			FROM properties
+		`)
+
+		return result.rows[0]
+	} catch (error) {
+		console.error('Error fetching visibility stats:', error)
+		throw new Error('Failed to fetch visibility statistics')
 	}
 }

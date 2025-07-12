@@ -26,6 +26,10 @@ import {
 	Navigation,
 	Copy,
 	MessageCircle,
+	EyeOff,
+	Crown,
+	ToggleLeft,
+	ToggleRight,
 } from 'lucide-react'
 
 interface PropertyViewPopupProps {
@@ -41,7 +45,8 @@ export default function PropertyViewPopup({
 }: PropertyViewPopupProps) {
 	const [currentMediaIndex, setCurrentMediaIndex] = useState(0)
 	const [copySuccess, setCopySuccess] = useState(false)
-
+	const [isTogglingHidden, setIsTogglingHidden] = useState(false)
+	const [isTogglingExclusive, setIsTogglingExclusive] = useState(false)
 	// ✅ FIX: Reset media index when property changes
 	useEffect(() => {
 		setCurrentMediaIndex(0)
@@ -275,6 +280,58 @@ export default function PropertyViewPopup({
 				return 'bg-gray-100 text-gray-800'
 		}
 	}
+
+	const toggleHidden = async () => {
+		if (!property?.id) return
+
+		setIsTogglingHidden(true)
+		try {
+			const response = await fetch(
+				`/api/admin/properties/${property.id}/toggle`,
+				{
+					method: 'PUT',
+					headers: {
+						'Content-Type': 'application/json',
+					},
+					body: JSON.stringify({
+						action: 'toggle_hidden',
+						value: !property.is_hidden,
+					}),
+				}
+			)
+
+		} catch (error) {
+			console.error('Error toggling hidden status:', error)
+		} finally {
+			setIsTogglingHidden(false)
+		}
+	}
+
+	const toggleExclusive = async () => {
+		if (!property?.id) return
+
+		setIsTogglingExclusive(true)
+		try {
+			const response = await fetch(
+				`/api/admin/properties/${property.id}/toggle`,
+				{
+					method: 'PUT',
+					headers: {
+						'Content-Type': 'application/json',
+					},
+					body: JSON.stringify({
+						action: 'toggle_exclusive',
+						value: !property.is_exclusive,
+					}),
+				}
+			)
+		} catch (error) {
+			console.error('Error toggling exclusive status:', error)
+		} finally {
+			setIsTogglingExclusive(false)
+		}
+	}
+	
 
 	const formatPrice = (price: number, currency: string = 'USD') => {
 		return new Intl.NumberFormat('en-US', {
@@ -512,6 +569,114 @@ export default function PropertyViewPopup({
 											</div>
 										</div>
 									</div>
+								</div>
+								{/* ✅ MOBILE-RESPONSIVE Visibility Status & Controls */}
+								<div className='bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg sm:rounded-xl p-3 sm:p-6 border border-indigo-200'>
+									<h3 className='text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-gray-900 flex items-center'>
+										<Eye className='w-4 h-4 sm:w-5 sm:h-5 mr-2 text-indigo-600' />
+										Տեսանելիության կարգավիճակ
+									</h3>
+
+									<div className='grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4'>
+										{/* Hidden Status */}
+										<div className='bg-white p-3 sm:p-4 rounded-lg border'>
+											<div className='flex items-center justify-between mb-2'>
+												<div className='flex items-center'>
+													{property.is_hidden ? (
+														<EyeOff className='w-4 h-4 sm:w-5 sm:h-5 text-red-500 mr-2' />
+													) : (
+														<Eye className='w-4 h-4 sm:w-5 sm:h-5 text-green-500 mr-2' />
+													)}
+													<span className='text-sm sm:text-base font-medium text-gray-900'>
+														{property.is_hidden ? 'Թաքնված' : 'Հանրային'}
+													</span>
+												</div>
+												<button
+													onClick={toggleHidden}
+													disabled={isTogglingHidden}
+													className={`p-1 rounded transition-colors ${
+														property.is_hidden
+															? 'text-red-600 hover:bg-red-50'
+															: 'text-green-600 hover:bg-green-50'
+													} disabled:opacity-50`}
+													title={
+														property.is_hidden ? 'Դարձնել հանրային' : 'Թաքցնել'
+													}
+												>
+													{isTogglingHidden ? (
+														<div className='animate-spin rounded-full h-4 w-4 border-b-2 border-current'></div>
+													) : property.is_hidden ? (
+														<ToggleLeft className='w-5 h-5' />
+													) : (
+														<ToggleRight className='w-5 h-5' />
+													)}
+												</button>
+											</div>
+											<p className='text-xs sm:text-sm text-gray-600'>
+												{property.is_hidden
+													? 'Այս հայտարարությունը թաքնված է հանրային ցուցակից'
+													: 'Այս հայտարարությունը տեսանելի է հանրային ցուցակում'}
+											</p>
+										</div>
+
+										{/* Exclusive Status */}
+										<div className='bg-white p-3 sm:p-4 rounded-lg border'>
+											<div className='flex items-center justify-between mb-2'>
+												<div className='flex items-center'>
+													<Crown
+														className={`w-4 h-4 sm:w-5 sm:h-5 mr-2 ${
+															property.is_exclusive
+																? 'text-purple-500'
+																: 'text-gray-400'
+														}`}
+													/>
+													<span className='text-sm sm:text-base font-medium text-gray-900'>
+														{property.is_exclusive
+															? 'Էքսկլյուզիվ'
+															: 'Սովորական'}
+													</span>
+												</div>
+												<button
+													onClick={toggleExclusive}
+													disabled={isTogglingExclusive}
+													className={`p-1 rounded transition-colors ${
+														property.is_exclusive
+															? 'text-purple-600 hover:bg-purple-50'
+															: 'text-gray-600 hover:bg-gray-50'
+													} disabled:opacity-50`}
+													title={
+														property.is_exclusive
+															? 'Հեռացնել էքսկլյուզիվ նշանը'
+															: 'Նշել որպես էքսկլյուզիվ'
+													}
+												>
+													{isTogglingExclusive ? (
+														<div className='animate-spin rounded-full h-4 w-4 border-b-2 border-current'></div>
+													) : property.is_exclusive ? (
+														<ToggleRight className='w-5 h-5' />
+													) : (
+														<ToggleLeft className='w-5 h-5' />
+													)}
+												</button>
+											</div>
+											<p className='text-xs sm:text-sm text-gray-600'>
+												{property.is_exclusive
+													? 'Այս հայտարարությունը նշված է որպես էքսկլյուզիվ'
+													: 'Սա սովորական հայտարարություն է'}
+											</p>
+										</div>
+									</div>
+
+									{/* Status Combination Warning */}
+									{property.is_hidden && property.is_exclusive && (
+										<div className='mt-3 p-2 sm:p-3 bg-yellow-50 border border-yellow-200 rounded-lg'>
+											<p className='text-xs sm:text-sm text-yellow-800'>
+												⚠️ Այս հայտարարությունը թաքնված է, բայց նշված է որպես
+												էքսկլյուզիվ։ Էքսկլյուզիվ նշանն ակտիվ կլինի միայն այն
+												ժամանակ, երբ հայտարարությունը հանրային կլինի։
+											</p>
+										</div>
+									)}
 								</div>
 
 								{/* ✅ MOBILE-RESPONSIVE House Attributes */}

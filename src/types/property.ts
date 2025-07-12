@@ -65,6 +65,9 @@ export interface BaseProperty {
 	created_at: Date
 	updated_at: Date
 
+	is_hidden: boolean 
+	is_exclusive: boolean
+
 	// Owner details (admin only - not exposed to public)
 	owner_name?: string
 	owner_phone?: string
@@ -155,6 +158,9 @@ export interface PropertyFilter {
 	sort_order?: 'asc' | 'desc'
 	page?: number
 	limit?: number
+	is_hidden?: boolean // Filter by hidden status
+	is_exclusive?: boolean // Filter by exclusive status
+	show_hidden?: boolean
 }
 
 // Extended property types with attributes (both admin and public versions)

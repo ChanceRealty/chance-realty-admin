@@ -44,6 +44,8 @@ export async function POST(request: Request) {
 			ownerName: propertyData.owner_name,
 			ownerPhone: propertyData.owner_phone,
 			status: propertyData.status,
+			isHidden: propertyData.is_hidden,
+			isExclusive: propertyData.is_exclusive,
 			mediaCount: mediaFiles.length,
 		})
 
@@ -132,9 +134,10 @@ export async function POST(request: Request) {
 				  user_id, custom_id, title, description, property_type, listing_type,
 				  price, currency, state_id, city_id, district_id, address, latitude, longitude, status, owner_name, owner_phone,
 				  has_viber, has_whatsapp, has_telegram,
+				  is_hidden, is_exclusive,
 				  title_ru, title_en, description_ru, description_en, 
 				  translation_status, last_translated_at
-				) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)
+				) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28)
 				RETURNING id, custom_id`,
 				[
 					user.id,
@@ -156,7 +159,9 @@ export async function POST(request: Request) {
 					propertyData.owner_phone.trim(),
 					propertyData.has_viber || false,
 					propertyData.has_whatsapp || false,
-					propertyData.has_telegram || false,	
+					propertyData.has_telegram || false,
+					propertyData.is_hidden || false, 
+					propertyData.is_exclusive || false,
 					translations.title_ru || null,
 					translations.title_en || null,
 					translations.description_ru || null,
@@ -456,6 +461,8 @@ export async function GET() {
 				p.updated_at,
 				p.owner_name,
 				p.owner_phone,
+				p.is_hidden,
+				p.is_exclusive,
 				ps.name as status_name,
 				ps.color as status_color,
 				ps.id as status_id,

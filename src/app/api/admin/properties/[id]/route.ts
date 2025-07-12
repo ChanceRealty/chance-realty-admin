@@ -141,10 +141,6 @@ export async function GET(
 	}
 }
 
-// PUT - Update property (updated to handle owner fields)
-// src/app/api/admin/properties/[id]/route.ts - FIXED PUT function
-// Replace the existing PUT function with this corrected version:
-
 export async function PUT(
 	request: Request,
 	{ params }: { params: Promise<{ id: string }> }
@@ -194,7 +190,9 @@ export async function PUT(
 			title: propertyData.title,
 			ownerName: propertyData.owner_name,
 			ownerPhone: propertyData.owner_phone,
-			statusFromForm: propertyData.status, // This is the status name like "sold"
+			statusFromForm: propertyData.status,
+			isHidden: propertyData.is_hidden,
+			isExclusive: propertyData.is_exclusive,
 			newMediaCount: mediaFiles.length,
 		})
 
@@ -280,8 +278,10 @@ export async function PUT(
 					has_viber = $17,
 					has_whatsapp = $18,
 					has_telegram = $19,
+					is_hidden = $20,
+					is_exclusive = $21,
 					updated_at = CURRENT_TIMESTAMP
-				WHERE id = $20`,
+				WHERE id = $22`,
 				[
 					propertyData.custom_id.trim(),
 					propertyData.title.trim(),
@@ -302,6 +302,8 @@ export async function PUT(
 					propertyData.has_viber || false,
 					propertyData.has_whatsapp || false,
 					propertyData.has_telegram || false,
+					propertyData.is_hidden || false, 
+					propertyData.is_exclusive || false,
 					id,
 				]
 			)

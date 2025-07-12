@@ -24,6 +24,9 @@ import {
 	Image as ImageIcon,
 	User,
 	Phone,
+	Eye,
+	EyeOff,
+	Crown,
 } from 'lucide-react'
 import LocationSelector from '@/components/LocationSelector'
 import FallbackAddressInput from '@/components/FallbackAddressInput'
@@ -63,6 +66,8 @@ export default function AddPropertyPage() {
 		has_viber: false,
 		has_whatsapp: false,
 		has_telegram: false,
+		is_hidden: false, 
+		is_exclusive: false,
 	})
 
 	// Property type specific attributes
@@ -640,6 +645,71 @@ export default function AddPropertyPage() {
 										})()}
 									</div>
 								)}
+								{/* Property Visibility Settings */}
+								<div className='bg-white shadow rounded-lg p-6 border-l-4 border-indigo-500'>
+									<h2 className='text-lg font-semibold mb-6 flex items-center text-gray-700'>
+										<Eye className='w-5 h-5 mr-2' />
+										Տեսանելիության կարգավորումներ
+									</h2>
+
+									<div className='space-y-4'>
+										<div className='flex items-center'>
+											<input
+												type='checkbox'
+												id='is_hidden'
+												name='is_hidden'
+												checked={formData.is_hidden}
+												onChange={handleInputChange}
+												className='w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500'
+											/>
+											<label
+												htmlFor='is_hidden'
+												className='ml-3 text-sm font-medium text-gray-700'
+											>
+												<span className='flex items-center'>
+													<EyeOff className='w-4 h-4 mr-2 text-red-500' />
+													Թաքցնել հանրային ցուցակից
+												</span>
+											</label>
+										</div>
+										{formData.is_hidden && (
+											<div className='ml-7 p-3 bg-red-50 border border-red-200 rounded-lg'>
+												<p className='text-sm text-red-800'>
+													⚠️ Այս հայտարարությունը չի ցուցադրվի հանրային կայքում։
+													Միայն ադմինիստրատորները կարող են այն տեսնել։
+												</p>
+											</div>
+										)}
+
+										<div className='flex items-center'>
+											<input
+												type='checkbox'
+												id='is_exclusive'
+												name='is_exclusive'
+												checked={formData.is_exclusive}
+												onChange={handleInputChange}
+												className='w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500'
+											/>
+											<label
+												htmlFor='is_exclusive'
+												className='ml-3 text-sm font-medium text-gray-700'
+											>
+												<span className='flex items-center'>
+													<Crown className='w-4 h-4 mr-2 text-purple-500' />
+													Նշել որպես էքսկլյուզիվ
+												</span>
+											</label>
+										</div>
+										{formData.is_exclusive && (
+											<div className='ml-7 p-3 bg-purple-50 border border-purple-200 rounded-lg'>
+												<p className='text-sm text-purple-800'>
+													✨ Այս հայտարարությունը կնշվի որպես էքսկլյուզիվ և
+													կունենա հատուկ նշան։
+												</p>
+											</div>
+										)}
+									</div>
+								</div>
 							</div>
 						</div>
 					</div>

@@ -101,6 +101,8 @@ export async function GET(request: Request) {
 				p.description_en,
 				p.property_type,
 				p.listing_type,
+				p.is_hidden,
+				p.is_exclusive,
 				p.price,
 				p.currency,
 				ps.name as status,
@@ -209,6 +211,7 @@ export async function GET(request: Request) {
 			LEFT JOIN commercial_attributes ca ON p.id = ca.property_id AND p.property_type = 'commercial'
 			LEFT JOIN land_attributes la ON p.id = la.property_id AND p.property_type = 'land'
 			WHERE (ps.is_active = true OR ps.id IS NULL)
+			AND p.is_hidden = false
 		`
 
 		const params = [language] // First parameter is always the language
@@ -256,6 +259,12 @@ export async function GET(request: Request) {
 			params.push(String(filter.max_price))
 			paramIndex++
 		}
+
+		const showExclusiveOnly = searchParams.get('exclusive') === 'true'
+		if (showExclusiveOnly) {
+			query += ` AND p.is_exclusive = true`
+		}
+
 
 		if (
 			filter.bedrooms &&

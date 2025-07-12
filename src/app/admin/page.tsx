@@ -25,6 +25,8 @@ import {
 	MoreVertical,
 	X,
 	ChevronDown,
+	Crown,
+	EyeOff,
 } from 'lucide-react'
 
 import { useRouter } from 'next/navigation'
@@ -72,6 +74,8 @@ interface PropertyListItem {
 	has_viber: boolean
 	has_whatsapp: boolean
 	has_telegram: boolean
+	is_hidden: boolean 
+	is_exclusive: boolean
 }
 
 export default function AdminDashboard() {
@@ -99,7 +103,21 @@ export default function AdminDashboard() {
 		property_type: '',
 		listing_type: '',
 		status: '',
+		is_hidden: '', 
+		is_exclusive: '',
 	})
+
+	const visibilityOptions = [
+		{ value: '', label: 'Բոլորը' },
+		{ value: 'false', label: 'Հանրային' },
+		{ value: 'true', label: 'Թաքնված' },
+	]
+
+	const exclusiveOptions = [
+		{ value: '', label: 'Բոլորը' },
+		{ value: 'false', label: 'Սովորական' },
+		{ value: 'true', label: 'Էքսկլյուզիվ' },
+	]
 
 	// Armenian translations for listing types
 	const listingTypeDisplay: Record<string, string> = {
@@ -265,6 +283,7 @@ export default function AdminDashboard() {
 			) {
 				return false
 			}
+			
 		}
 
 		const matchesPropertyType =
@@ -277,6 +296,22 @@ export default function AdminDashboard() {
 
 		const matchesStatus =
 			filters.status === '' || property.status_name === filters.status
+
+			const matchesVisibility =
+				filters.is_hidden === '' ||
+				String(property.is_hidden) === filters.is_hidden
+
+			const matchesExclusive =
+				filters.is_exclusive === '' ||
+				String(property.is_exclusive) === filters.is_exclusive
+
+			return (
+				matchesPropertyType &&
+				matchesListingType &&
+				matchesStatus &&
+				matchesVisibility &&
+				matchesExclusive
+			)
 
 		return matchesPropertyType && matchesListingType && matchesStatus
 	})
@@ -570,6 +605,42 @@ export default function AdminDashboard() {
 											))}
 										</select>
 									</div>
+									<div>
+										<label className='block text-sm font-medium text-gray-700 mb-1'>
+											Տեսանելիություն
+										</label>
+										<select
+											value={filters.is_hidden}
+											onChange={e =>
+												setFilters({ ...filters, is_hidden: e.target.value })
+											}
+											className='w-full border text-black border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm'
+										>
+											{visibilityOptions.map(option => (
+												<option key={option.value} value={option.value}>
+													{option.label}
+												</option>
+											))}
+										</select>
+									</div>
+									<div>
+										<label className='block text-sm font-medium text-gray-700 mb-1'>
+											Էքսկլյուզիվություն
+										</label>
+										<select
+											value={filters.is_exclusive}
+											onChange={e =>
+												setFilters({ ...filters, is_exclusive: e.target.value })
+											}
+											className='w-full border text-black border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm'
+										>
+											{exclusiveOptions.map(option => (
+												<option key={option.value} value={option.value}>
+													{option.label}
+												</option>
+											))}
+										</select>
+									</div>
 								</div>
 								<div className='mt-4'>
 									<button
@@ -578,6 +649,8 @@ export default function AdminDashboard() {
 												property_type: '',
 												listing_type: '',
 												status: '',
+												is_hidden: '',
+												is_exclusive: '',
 											})
 										}}
 										className='text-blue-600 hover:text-blue-800 text-sm font-medium'
@@ -819,6 +892,9 @@ export default function AdminDashboard() {
 										Կապի եղանակներ
 									</th>
 									<th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+										Տեսանելիություն
+									</th>
+									<th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
 										վայրը
 									</th>
 									<th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
@@ -954,6 +1030,28 @@ export default function AdminDashboard() {
 																	Չի նշված
 																</span>
 															)}
+													</div>
+												</td>
+												<td className='px-6 py-4 whitespace-nowrap'>
+													<div className='flex flex-col space-y-1'>
+														{property.is_hidden && (
+															<span className='inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800'>
+																<EyeOff className='w-3 h-3 mr-1' />
+																Թաքնված
+															</span>
+														)}
+														{property.is_exclusive && (
+															<span className='inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800'>
+																<Crown className='w-3 h-3 mr-1' />
+																Էքսկլյուզիվ
+															</span>
+														)}
+														{!property.is_hidden && !property.is_exclusive && (
+															<span className='inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800'>
+																<Eye className='w-3 h-3 mr-1' />
+																Հանրային
+															</span>
+														)}
 													</div>
 												</td>
 												<td className='px-6 py-4 whitespace-nowrap'>
