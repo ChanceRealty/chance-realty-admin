@@ -142,21 +142,6 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 											</div>
 										</div>
 									)}
-									<Link
-										href='/admin/profile'
-										className='block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100'
-										onClick={() => setIsProfileMenuOpen(false)}
-									>
-										Պրոֆիլ
-									</Link>
-									<Link
-										href='/admin/settings'
-										className='block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100'
-										onClick={() => setIsProfileMenuOpen(false)}
-									>
-										Կարգավորումներ
-									</Link>
-									<hr className='my-1' />
 									<button
 										onClick={handleLogout}
 										className='block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100'

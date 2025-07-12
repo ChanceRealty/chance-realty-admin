@@ -1107,18 +1107,15 @@ export default function AdminDashboard() {
 														>
 															<EyeIcon className='h-5 w-5' />
 														</button>
-														<button
-															onClick={() =>
-																router.push(
-																	`/admin/properties/edit/${property.id}`
-																)
-															}
-															disabled={isDeleting}
+														<Link
+															href={`/admin/properties/edit/${property.id}`}
+															target='_blank'
+															rel='noopener noreferrer'
 															className='text-indigo-600 hover:text-indigo-900 disabled:opacity-50'
 															title='Edit property'
 														>
 															<Edit className='h-5 w-5' />
-														</button>
+														</Link>
 														<button
 															onClick={() =>
 																handleDeleteProperty(

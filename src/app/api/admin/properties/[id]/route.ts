@@ -6,9 +6,6 @@ import { sql } from '@vercel/postgres'
 import { PropertyType } from '@/types/property'
 import { uploadToImageKit } from '@/lib/imagekit'
 
-// GET - Fetch single property for editing (updated to include owner details)
-// src/app/api/admin/properties/[id]/route.ts - FIXED GET function
-// Replace the existing GET function with this corrected version:
 
 export async function GET(
 	request: Request,
@@ -43,7 +40,7 @@ export async function GET(
 
 		console.log('🏠 Fetching property for edit, ID:', id)
 
-		// ✅ FIXED: Fetch property with proper status name join
+		// ✅ FIXED: More robust query with better error handling
 		const propertyResult = await sql`
 			SELECT 
 				p.*,
@@ -54,22 +51,40 @@ export async function GET(
 				d.name_en as district_name_en,
 				d.name_ru as district_name_ru,
 				u.email as user_email,
-				ps.name as status_name,
-				ps.color as status_color,
+				COALESCE(ps.name, 'available') as status_name,
+				COALESCE(ps.color, '#gray') as status_color,
 				p.has_viber,
 				p.has_whatsapp,
-				p.has_telegram
+				p.has_telegram,
+				p.is_hidden,
+				p.is_exclusive
 			FROM properties p
-			JOIN states s ON p.state_id = s.id
-			JOIN cities c ON p.city_id = c.id
-			LEFT JOIN districts d ON p.district_id = d.id
 			JOIN users u ON p.user_id = u.id
+			JOIN states s ON p.state_id = s.id
+			LEFT JOIN cities c ON p.city_id = c.id
+			LEFT JOIN districts d ON p.district_id = d.id
 			LEFT JOIN property_statuses ps ON p.status = ps.id
 			WHERE p.id = ${id}
 		`
 
 		if (propertyResult.rows.length === 0) {
-			return NextResponse.json({ error: 'Property not found' }, { status: 404 })
+			console.log('❌ Property not found with ID:', id)
+			
+			// Let's check if property exists at all
+			const checkProperty = await sql`
+				SELECT id, custom_id FROM properties WHERE id = ${id}
+			`
+			
+			if (checkProperty.rows.length === 0) {
+				return NextResponse.json({ error: 'Property not found' }, { status: 404 })
+			}
+			
+			// If property exists but query failed, there might be a data integrity issue
+			console.error('⚠️ Property exists but query failed, possible data issue')
+			return NextResponse.json({ 
+				error: 'Property data incomplete', 
+				details: 'Property exists but has missing required relations' 
+			}, { status: 500 })
 		}
 
 		const property = propertyResult.rows[0]
@@ -80,62 +95,90 @@ export async function GET(
 			statusColor: property.status_color
 		})
 
-		// Fetch property-specific attributes
+		// Fetch property-specific attributes with error handling
 		let attributes = {}
-		switch (property.property_type) {
-			case 'house':
-				const houseResult = await sql`
-					SELECT * FROM house_attributes WHERE property_id = ${id}
-				`
-				attributes = houseResult.rows[0] || {}
-				break
+		try {
+			switch (property.property_type) {
+				case 'house':
+					const houseResult = await sql`
+						SELECT * FROM house_attributes WHERE property_id = ${id}
+					`
+					attributes = houseResult.rows[0] || {}
+					break
 
-			case 'apartment':
-				const apartmentResult = await sql`
-					SELECT * FROM apartment_attributes WHERE property_id = ${id}
-				`
-				attributes = apartmentResult.rows[0] || {}
-				break
+				case 'apartment':
+					const apartmentResult = await sql`
+						SELECT * FROM apartment_attributes WHERE property_id = ${id}
+					`
+					attributes = apartmentResult.rows[0] || {}
+					break
 
-			case 'commercial':
-				const commercialResult = await sql`
-					SELECT * FROM commercial_attributes WHERE property_id = ${id}
-				`
-				attributes = commercialResult.rows[0] || {}
-				break
+				case 'commercial':
+					const commercialResult = await sql`
+						SELECT * FROM commercial_attributes WHERE property_id = ${id}
+					`
+					attributes = commercialResult.rows[0] || {}
+					break
 
-			case 'land':
-				const landResult = await sql`
-					SELECT * FROM land_attributes WHERE property_id = ${id}
-				`
-				attributes = landResult.rows[0] || {}
-				break
+				case 'land':
+					const landResult = await sql`
+						SELECT * FROM land_attributes WHERE property_id = ${id}
+					`
+					attributes = landResult.rows[0] || {}
+					break
+			}
+		} catch (attributeError) {
+			console.warn('⚠️ Error fetching attributes:', attributeError)
+			// Continue without attributes rather than failing
 		}
 
-		// Fetch property features
-		const featuresResult = await sql`
-			SELECT pf.id, pf.name, pf.icon
-			FROM property_features pf
-			JOIN property_to_features ptf ON pf.id = ptf.feature_id
-			WHERE ptf.property_id = ${id}
-		`
+		// Fetch property features with error handling
+		let features: Array<{ id: number; name: string; icon: string }> = []
+		try {
+			const featuresResult = await sql`
+				SELECT pf.id, pf.name, pf.icon
+				FROM property_features pf
+				JOIN property_to_features ptf ON pf.id = ptf.feature_id
+				WHERE ptf.property_id = ${id}
+			`
+			features = featuresResult.rows.map(row => ({
+				id: Number(row.id),
+				name: String(row.name),
+				icon: String(row.icon),
+			}))
+		} catch (featureError) {
+			console.warn('⚠️ Error fetching features:', featureError)
+			// Continue without features rather than failing
+		}
 
-		// ✅ FIXED: Return the property with status name instead of status ID
+		// ✅ FIXED: Return the property with safer status handling
 		const responseData = {
 			...property,
 			status: property.status_name || 'available', // ✅ Use status name for frontend
 			status_id: property.status, // Keep the original ID for reference
 			attributes,
-			features: featuresResult.rows,
+			features,
 		}
 
 		console.log('✅ Returning property data with status:', responseData.status)
 
 		return NextResponse.json(responseData)
 	} catch (error) {
-		console.error('Error fetching property for edit:', error)
+		console.error('❌ Error fetching property for edit:', error)
+		
+		// Provide more specific error information
+		if (error instanceof Error) {
+			console.error('Error details:', {
+				message: error.message,
+				stack: error.stack
+			})
+		}
+		
 		return NextResponse.json(
-			{ error: 'Failed to fetch property' },
+			{ 
+				error: 'Failed to fetch property',
+				details: error instanceof Error ? error.message : 'Unknown error'
+			},
 			{ status: 500 }
 		)
 	}
