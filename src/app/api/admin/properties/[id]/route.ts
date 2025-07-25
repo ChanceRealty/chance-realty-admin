@@ -40,7 +40,7 @@ export async function GET(
 
 		console.log('🏠 Fetching property for edit, ID:', id)
 
-		// ✅ FIXED: More robust query with better error handling
+		// ✅ CRITICAL: Make sure to select ALL required fields including social media
 		const propertyResult = await sql`
 			SELECT 
 				p.*,
@@ -52,12 +52,7 @@ export async function GET(
 				d.name_ru as district_name_ru,
 				u.email as user_email,
 				COALESCE(ps.name, 'available') as status_name,
-				COALESCE(ps.color, '#gray') as status_color,
-				p.has_viber,
-				p.has_whatsapp,
-				p.has_telegram,
-				p.is_hidden,
-				p.is_exclusive
+				COALESCE(ps.color, '#gray') as status_color
 			FROM properties p
 			JOIN users u ON p.user_id = u.id
 			JOIN states s ON p.state_id = s.id
@@ -68,112 +63,236 @@ export async function GET(
 		`
 
 		if (propertyResult.rows.length === 0) {
-			console.log('❌ Property not found with ID:', id)
-			
-			// Let's check if property exists at all
-			const checkProperty = await sql`
-				SELECT id, custom_id FROM properties WHERE id = ${id}
-			`
-			
-			if (checkProperty.rows.length === 0) {
-				return NextResponse.json({ error: 'Property not found' }, { status: 404 })
-			}
-			
-			// If property exists but query failed, there might be a data integrity issue
-			console.error('⚠️ Property exists but query failed, possible data issue')
-			return NextResponse.json({ 
-				error: 'Property data incomplete', 
-				details: 'Property exists but has missing required relations' 
-			}, { status: 500 })
+			return NextResponse.json({ error: 'Property not found' }, { status: 404 })
 		}
 
 		const property = propertyResult.rows[0]
 
-		console.log('📊 Property status info:', {
-			statusId: property.status,
-			statusName: property.status_name,
-			statusColor: property.status_color
+		console.log('🔍 Property social media fields from DB:', {
+			has_viber: property.has_viber,
+			has_whatsapp: property.has_whatsapp,
+			has_telegram: property.has_telegram,
+			owner_name: property.owner_name,
+			owner_phone: property.owner_phone
 		})
 
-		// Fetch property-specific attributes with error handling
+		// ✅ Fetch attributes with better error handling
 		let attributes = {}
+		console.log(`📊 Fetching ${property.property_type} attributes for property ${id}`)
+		
 		try {
 			switch (property.property_type) {
 				case 'house':
 					const houseResult = await sql`
-						SELECT * FROM house_attributes WHERE property_id = ${id}
+						SELECT bedrooms, bathrooms, area_sqft, lot_size_sqft, floors, ceiling_height
+						FROM house_attributes WHERE property_id = ${id}
 					`
-					attributes = houseResult.rows[0] || {}
+					if (houseResult.rows.length > 0) {
+						attributes = houseResult.rows[0]
+						console.log('✅ House attributes found:', attributes)
+					} else {
+						console.log('❌ No house attributes found')
+					}
 					break
 
 				case 'apartment':
 					const apartmentResult = await sql`
-						SELECT * FROM apartment_attributes WHERE property_id = ${id}
+						SELECT bedrooms, bathrooms, area_sqft, floor, total_floors, ceiling_height
+						FROM apartment_attributes WHERE property_id = ${id}
 					`
-					attributes = apartmentResult.rows[0] || {}
+					if (apartmentResult.rows.length > 0) {
+						attributes = apartmentResult.rows[0]
+						console.log('✅ Apartment attributes found:', attributes)
+					} else {
+						console.log('❌ No apartment attributes found')
+					}
 					break
 
 				case 'commercial':
 					const commercialResult = await sql`
-						SELECT * FROM commercial_attributes WHERE property_id = ${id}
+						SELECT business_type, area_sqft, floors, ceiling_height
+						FROM commercial_attributes WHERE property_id = ${id}
 					`
-					attributes = commercialResult.rows[0] || {}
+					if (commercialResult.rows.length > 0) {
+						attributes = commercialResult.rows[0]
+						console.log('✅ Commercial attributes found:', attributes)
+					} else {
+						console.log('❌ No commercial attributes found')
+					}
 					break
 
 				case 'land':
 					const landResult = await sql`
-						SELECT * FROM land_attributes WHERE property_id = ${id}
+						SELECT area_acres
+						FROM land_attributes WHERE property_id = ${id}
 					`
-					attributes = landResult.rows[0] || {}
+					if (landResult.rows.length > 0) {
+						attributes = landResult.rows[0]
+						console.log('✅ Land attributes found:', attributes)
+					} else {
+						console.log('❌ No land attributes found')
+						// Let's check if the record exists at all
+						const checkLand = await sql`
+							SELECT COUNT(*) as count FROM land_attributes WHERE property_id = ${id}
+						`
+						console.log('🔍 Land attributes count:', checkLand.rows[0]?.count || 0)
+					}
 					break
+
+				default:
+					console.log('❌ Unknown property type:', property.property_type)
 			}
 		} catch (attributeError) {
-			console.warn('⚠️ Error fetching attributes:', attributeError)
-			// Continue without attributes rather than failing
+			console.error('❌ Error fetching attributes:', attributeError)
 		}
 
-		// Fetch property features with error handling
-		let features: Array<{ id: number; name: string; icon: string }> = []
+		// ✅ Fetch features with better error handling
+		let features: { id: number; name: string; icon: string }[] = []
+		console.log(`🏷️ Fetching features for property ${id}`)
+		
 		try {
 			const featuresResult = await sql`
 				SELECT pf.id, pf.name, pf.icon
 				FROM property_features pf
 				JOIN property_to_features ptf ON pf.id = ptf.feature_id
 				WHERE ptf.property_id = ${id}
+				ORDER BY pf.name
 			`
 			features = featuresResult.rows.map(row => ({
 				id: Number(row.id),
 				name: String(row.name),
-				icon: String(row.icon),
+				icon: String(row.icon)
 			}))
+			console.log(`✅ Found ${features.length} features:`, features)
 		} catch (featureError) {
-			console.warn('⚠️ Error fetching features:', featureError)
-			// Continue without features rather than failing
+			console.error('❌ Error fetching features:', featureError)
 		}
 
-		// ✅ FIXED: Return the property with safer status handling
+		// ✅ Fetch media
+		let media: {
+			id: number;
+			file_id: string;
+			url: string;
+			thumbnail_url: string;
+			type: string;
+			is_primary: boolean;
+			display_order: number;
+			created_at?: string;
+		}[] = []
+		try {
+			const mediaResult = await sql`
+				SELECT id, file_id, url, thumbnail_url, type, is_primary, display_order
+				FROM property_media 
+				WHERE property_id = ${id}
+				ORDER BY is_primary DESC, display_order, created_at
+			`
+			media = mediaResult.rows.map(row => ({
+				id: Number(row.id),
+				file_id: String(row.file_id),
+				url: String(row.url),
+				thumbnail_url: String(row.thumbnail_url),
+				type: String(row.type),
+				is_primary: Boolean(row.is_primary),
+				display_order: Number(row.display_order),
+				created_at: row.created_at ? String(row.created_at) : undefined
+			}))
+			console.log(`✅ Found ${media.length} media items`)
+		} catch (mediaError) {
+			console.error('❌ Error fetching media:', mediaError)
+		}
+
+		// ✅ CRITICAL: Build response with explicit field mapping
 		const responseData = {
-			...property,
-			status: property.status_name || 'available', // ✅ Use status name for frontend
-			status_id: property.status, // Keep the original ID for reference
-			attributes,
-			features,
+			// Basic property info
+			id: property.id,
+			custom_id: property.custom_id,
+			title: property.title,
+			description: property.description,
+			property_type: property.property_type,
+			listing_type: property.listing_type,
+			price: property.price,
+			currency: property.currency,
+			
+			// Location info
+			state_id: property.state_id,
+			city_id: property.city_id,
+			district_id: property.district_id,
+			address: property.address,
+			latitude: property.latitude,
+			longitude: property.longitude,
+			
+			// Location display names
+			state_name: property.state_name,
+			city_name: property.city_name,
+			district_name: property.district_name,
+			
+			// Status info
+			status: property.status_name || 'available',
+			status_name: property.status_name,
+			status_color: property.status_color,
+			status_id: property.status,
+			
+			// Visibility
+			is_hidden: property.is_hidden || false,
+			is_exclusive: property.is_exclusive || false,
+			
+			// Owner info (these are working)
+			owner_name: property.owner_name,
+			owner_phone: property.owner_phone,
+			
+			// ✅ CRITICAL: Explicitly set social media fields
+			has_viber: Boolean(property.has_viber),
+			has_whatsapp: Boolean(property.has_whatsapp),
+			has_telegram: Boolean(property.has_telegram),
+			
+			// Meta info
+			views: property.views || 0,
+			created_at: property.created_at,
+			updated_at: property.updated_at,
+			user_email: property.user_email,
+			
+			// ✅ CRITICAL: Structured data
+			attributes: attributes,
+			features: features,
+			images: media.filter(m => m.type === 'image'),
+			videos: media.filter(m => m.type === 'video'),
+			media: media,
 		}
 
-		console.log('✅ Returning property data with status:', responseData.status)
+		// Final debug log
+		console.log('📤 Final API Response Structure:', {
+			id: responseData.id,
+			custom_id: responseData.custom_id,
+			property_type: responseData.property_type,
+			
+			// Data completeness check
+			hasAttributes: Object.keys(responseData.attributes).length > 0,
+			attributesKeys: Object.keys(responseData.attributes),
+			
+			hasFeatures: responseData.features.length > 0,
+			featuresCount: responseData.features.length,
+			
+			hasSocialMedia: responseData.has_viber || responseData.has_whatsapp || responseData.has_telegram,
+			socialMedia: {
+				viber: responseData.has_viber,
+				whatsapp: responseData.has_whatsapp,
+				telegram: responseData.has_telegram
+			},
+			
+			hasOwnerInfo: !!(responseData.owner_name && responseData.owner_phone),
+			ownerInfo: {
+				name: responseData.owner_name,
+				phone: responseData.owner_phone
+			},
+			
+			mediaCount: responseData.media.length,
+			imagesCount: responseData.images.length
+		})
 
 		return NextResponse.json(responseData)
+
 	} catch (error) {
 		console.error('❌ Error fetching property for edit:', error)
-		
-		// Provide more specific error information
-		if (error instanceof Error) {
-			console.error('Error details:', {
-				message: error.message,
-				stack: error.stack
-			})
-		}
-		
 		return NextResponse.json(
 			{ 
 				error: 'Failed to fetch property',
@@ -183,7 +302,6 @@ export async function GET(
 		)
 	}
 }
-
 export async function PUT(
 	request: Request,
 	{ params }: { params: Promise<{ id: string }> }

@@ -735,7 +735,7 @@ export default function AdminDashboard() {
 													}
 													className='p-2 hover:bg-gray-100 rounded-lg'
 												>
-													<MoreVertical className='w-4 h-4' />
+													<MoreVertical className='w-4 h-4 text-gray-900' />
 												</button>
 												{showMobileActions === property.id && (
 													<div className='absolute right-0 top-10 w-48 bg-white rounded-lg shadow-lg border z-10'>

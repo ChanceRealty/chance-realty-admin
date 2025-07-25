@@ -32,6 +32,10 @@ import {
 	ToggleRight,
 } from 'lucide-react'
 
+import { FaWhatsapp } from 'react-icons/fa'
+import { FaViber } from 'react-icons/fa'
+import { FaTelegram } from 'react-icons/fa'
+
 interface PropertyViewPopupProps {
 	property: any
 	isOpen: boolean
@@ -139,20 +143,25 @@ export default function PropertyViewPopup({
 
 	// ✅ FIX 2: Properly handle features
 	const propertyFeatures = React.useMemo(() => {
-		if(!property) return []
-		console.log('🏷️ Processing features:', property.features)
+		if (!property) return []
+
+		console.log('🏷️ Features processing:', {
+			features_field: property.features,
+			features_type: typeof property.features,
+			features_is_array: Array.isArray(property.features),
+		})
 
 		// Check if features is directly an array
 		if (Array.isArray(property.features)) {
 			return property.features
 		}
 
-		// Check if features might be nested in a different structure
-		if (property.feature_list && Array.isArray(property.feature_list)) {
-			return property.feature_list
+		// Check for empty array or null
+		if (property.features === null || property.features === undefined) {
+			return []
 		}
 
-		// Handle case where features might be a JSON string
+		// Check if it's a JSON string
 		if (typeof property.features === 'string') {
 			try {
 				const parsed = JSON.parse(property.features)
@@ -163,72 +172,56 @@ export default function PropertyViewPopup({
 			}
 		}
 
-		// Check for features in property.property_features
-		if (
-			property.property_features &&
-			Array.isArray(property.property_features)
-		) {
-			return property.property_features
-		}
-
 		return []
-	}, [property?.features, property?.feature_list, property?.property_features])
+	}, [property?.features])
+
 
 	// ✅ FIX 3: Properly handle attributes based on property type
 	const getAttributeValue = (key: string) => {
-		console.log(`🔍 Looking for attribute: ${key}`)
-		console.log('Available attributes object:', property.attributes)
-		console.log('Property type:', property.property_type)
+		console.log(`🔍 getAttributeValue("${key}")`)
 
-		// Check in property.attributes first (main location)
-		if (property.attributes && typeof property.attributes === 'object') {
-			if (
-				property.attributes[key] !== undefined &&
-				property.attributes[key] !== null
-			) {
-				console.log(`✅ Found ${key} in attributes:`, property.attributes[key])
-				return property.attributes[key]
+		// First check: property.attributes object
+		if (property?.attributes && typeof property.attributes === 'object') {
+			const value = property.attributes[key]
+			if (value !== undefined && value !== null) {
+				console.log(`  ✅ Found ${key} in attributes:`, value)
+				return value
 			}
 		}
 
-		// Check in property root level as fallback
-		if (property[key] !== undefined && property[key] !== null) {
-			console.log(`✅ Found ${key} in root property:`, property[key])
-			return property[key]
+		// Second check: direct property field
+		const directValue = property?.[key]
+		if (directValue !== undefined && directValue !== null) {
+			console.log(`  ✅ Found ${key} in property root:`, directValue)
+			return directValue
 		}
 
-		// Check in type-specific attributes (house_attributes, apartment_attributes, etc.)
-		const typeSpecificKey = `${property.property_type}_attributes`
-		if (
-			property[typeSpecificKey] &&
-			property[typeSpecificKey][key] !== undefined
-		) {
-			console.log(
-				`✅ Found ${key} in ${typeSpecificKey}:`,
-				property[typeSpecificKey][key]
-			)
-			return property[typeSpecificKey][key]
-		}
-
-		console.log(`❌ Could not find attribute: ${key}`)
+		console.log(`  ❌ Could not find attribute: ${key}`)
 		return null
 	}
 
 	// ✅ FIX 4: Check social media availability with better debugging
 	const hasSocialMedia = React.useMemo(() => {
 		if (!property) return false
-		console.log('📱 Checking social media status:')
-		console.log('  - has_viber:', property.has_viber)
-		console.log('  - has_whatsapp:', property.has_whatsapp)
-		console.log('  - has_telegram:', property.has_telegram)
 
-		const result =
-			property.has_viber || property.has_whatsapp || property.has_telegram
-		console.log('  - hasSocialMedia result:', result)
-		return result
+		const viber = Boolean(property.has_viber)
+		const whatsapp = Boolean(property.has_whatsapp)
+		const telegram = Boolean(property.has_telegram)
+
+		console.log('📱 Social media check:', {
+			viber_raw: property.has_viber,
+			viber_bool: viber,
+			whatsapp_raw: property.has_whatsapp,
+			whatsapp_bool: whatsapp,
+			telegram_raw: property.has_telegram,
+			telegram_bool: telegram,
+			result: viber || whatsapp || telegram,
+		})
+
+		return viber || whatsapp || telegram
 	}, [property?.has_viber, property?.has_whatsapp, property?.has_telegram])
 
-	if(!isOpen || !property) return null
+	if (!isOpen || !property) return null
 
 	// Property type icons and translations
 	const propertyTypeIcons = {
@@ -299,7 +292,6 @@ export default function PropertyViewPopup({
 					}),
 				}
 			)
-
 		} catch (error) {
 			console.error('Error toggling hidden status:', error)
 		} finally {
@@ -331,7 +323,6 @@ export default function PropertyViewPopup({
 			setIsTogglingExclusive(false)
 		}
 	}
-	
 
 	const formatPrice = (price: number, currency: string = 'USD') => {
 		return new Intl.NumberFormat('en-US', {
@@ -383,7 +374,7 @@ export default function PropertyViewPopup({
 	}
 
 	const handleCopyLink = () => {
-		const url = `${window.location.origin}/properties/${property.custom_id}`
+		const url = `https://chance-realty-frontend.vercel.app/properties/${property.custom_id}`
 		navigator.clipboard.writeText(url)
 		setCopySuccess(true)
 		setTimeout(() => setCopySuccess(false), 2000)
@@ -398,6 +389,7 @@ export default function PropertyViewPopup({
 						<div className='p-2 sm:p-3 bg-blue-100 rounded-full flex-shrink-0'>
 							<Icon className='w-5 h-5 sm:w-8 sm:h-8 text-blue-600' />
 						</div>
+
 						<div className='min-w-0 flex-1'>
 							<h2 className='text-lg sm:text-2xl font-bold text-gray-900 truncate'>
 								{property.title}
@@ -520,7 +512,7 @@ export default function PropertyViewPopup({
 								)}
 
 								{/* ✅ MOBILE-RESPONSIVE Price & Key Info */}
-								<div className='bg-gradient-to-r from-green-50 to-blue-50 rounded-lg sm:rounded-xl p-3 sm:p-6'>
+								{/* <div className='bg-gradient-to-r from-green-50 to-blue-50 rounded-lg sm:rounded-xl p-3 sm:p-6'>
 									<div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4'>
 										<div className='col-span-2 sm:col-span-1 text-center p-2 sm:p-4 bg-white rounded-lg shadow-sm'>
 											<div className='text-lg sm:text-2xl font-bold text-green-600 flex items-center justify-center'>
@@ -569,7 +561,66 @@ export default function PropertyViewPopup({
 											</div>
 										</div>
 									</div>
-								</div>
+								</div> */}
+								{(property.owner_name || property.owner_phone) && (
+									<div className='bg-gradient-to-br from-red-50 to-pink-50 rounded-lg sm:rounded-xl p-3 sm:p-6 border border-red-200'>
+										<h3 className='text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-gray-900 flex items-center'>
+											<User className='w-4 h-4 sm:w-5 sm:h-5 mr-2 text-red-600' />
+											Սեփականատիրոջ տվյալներ
+										</h3>
+										<div className='space-y-3 sm:space-y-4'>
+											<div className='flex items-center space-x-3 bg-white p-3 rounded-lg'>
+												<User className='w-4 h-4 sm:w-5 sm:h-5 text-gray-700 flex-shrink-0' />
+												<div className='min-w-0 flex-1'>
+													<div className='text-xs sm:text-sm text-gray-700'>
+														Անուն
+													</div>
+													<div className='font-medium text-gray-600 text-sm sm:text-base truncate'>
+														{property.owner_name || 'Տեղեկություն չկա'}
+													</div>
+												</div>
+											</div>
+											<div className='flex items-center space-x-3 bg-white p-3 rounded-lg'>
+												<Phone className='w-4 h-4 sm:w-5 sm:h-5 text-gray-700 flex-shrink-0' />
+												<div className='min-w-0 flex-1'>
+													<div className='text-xs sm:text-sm text-gray-700'>
+														Հեռախոս
+													</div>
+													<div className='font-medium text-gray-600 text-sm sm:text-base'>
+														{property.owner_phone || 'Տեղեկություն չկա'}
+													</div>
+												</div>
+											</div>
+										</div>
+									</div>
+								)}
+
+								{/* ✅ MOBILE-RESPONSIVE Social Media Communication Methods */}
+								{hasSocialMedia && (
+									<div className='bg-gradient-to-br from-green-50 to-blue-50 rounded-lg sm:rounded-xl p-3 sm:p-6 border border-green-200'>
+										<h3 className='text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-gray-900 flex items-center'>
+											<MessageCircle className='w-4 h-4 sm:w-5 sm:h-5 mr-2 text-green-600' />
+											Հասանելի կապի եղանակներ
+										</h3>
+										<div className='flex flex-row flex-wrap gap-2 sm:gap-3'>
+											{property.has_viber && (
+												<div className='flex items-center space-x-2 bg-white p-2 sm:p-3 rounded-lg border border-purple-200'>
+													<FaViber color='purple' size={25} />
+												</div>
+											)}
+											{property.has_whatsapp && (
+												<div className='flex items-center space-x-2 bg-white p-2 sm:p-3 rounded-lg border border-green-200'>
+													<FaWhatsapp color='green' size={25} />
+												</div>
+											)}
+											{property.has_telegram && (
+												<div className='flex items-center space-x-2 bg-white p-2 sm:p-3 rounded-lg border border-blue-200'>
+													<FaTelegram color='blue' size={25} />
+												</div>
+											)}
+										</div>
+									</div>
+								)}
 								{/* ✅ MOBILE-RESPONSIVE Visibility Status & Controls */}
 								<div className='bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg sm:rounded-xl p-3 sm:p-6 border border-indigo-200'>
 									<h3 className='text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-gray-900 flex items-center'>
@@ -591,26 +642,6 @@ export default function PropertyViewPopup({
 														{property.is_hidden ? 'Թաքնված' : 'Հանրային'}
 													</span>
 												</div>
-												<button
-													onClick={toggleHidden}
-													disabled={isTogglingHidden}
-													className={`p-1 rounded transition-colors ${
-														property.is_hidden
-															? 'text-red-600 hover:bg-red-50'
-															: 'text-green-600 hover:bg-green-50'
-													} disabled:opacity-50`}
-													title={
-														property.is_hidden ? 'Դարձնել հանրային' : 'Թաքցնել'
-													}
-												>
-													{isTogglingHidden ? (
-														<div className='animate-spin rounded-full h-4 w-4 border-b-2 border-current'></div>
-													) : property.is_hidden ? (
-														<ToggleLeft className='w-5 h-5' />
-													) : (
-														<ToggleRight className='w-5 h-5' />
-													)}
-												</button>
 											</div>
 											<p className='text-xs sm:text-sm text-gray-600'>
 												{property.is_hidden
@@ -636,28 +667,6 @@ export default function PropertyViewPopup({
 															: 'Սովորական'}
 													</span>
 												</div>
-												<button
-													onClick={toggleExclusive}
-													disabled={isTogglingExclusive}
-													className={`p-1 rounded transition-colors ${
-														property.is_exclusive
-															? 'text-purple-600 hover:bg-purple-50'
-															: 'text-gray-600 hover:bg-gray-50'
-													} disabled:opacity-50`}
-													title={
-														property.is_exclusive
-															? 'Հեռացնել էքսկլյուզիվ նշանը'
-															: 'Նշել որպես էքսկլյուզիվ'
-													}
-												>
-													{isTogglingExclusive ? (
-														<div className='animate-spin rounded-full h-4 w-4 border-b-2 border-current'></div>
-													) : property.is_exclusive ? (
-														<ToggleRight className='w-5 h-5' />
-													) : (
-														<ToggleLeft className='w-5 h-5' />
-													)}
-												</button>
 											</div>
 											<p className='text-xs sm:text-sm text-gray-600'>
 												{property.is_exclusive
@@ -666,17 +675,6 @@ export default function PropertyViewPopup({
 											</p>
 										</div>
 									</div>
-
-									{/* Status Combination Warning */}
-									{property.is_hidden && property.is_exclusive && (
-										<div className='mt-3 p-2 sm:p-3 bg-yellow-50 border border-yellow-200 rounded-lg'>
-											<p className='text-xs sm:text-sm text-yellow-800'>
-												⚠️ Այս հայտարարությունը թաքնված է, բայց նշված է որպես
-												էքսկլյուզիվ։ Էքսկլյուզիվ նշանն ակտիվ կլինի միայն այն
-												ժամանակ, երբ հայտարարությունը հանրային կլինի։
-											</p>
-										</div>
-									)}
 								</div>
 
 								{/* ✅ MOBILE-RESPONSIVE House Attributes */}
@@ -690,7 +688,7 @@ export default function PropertyViewPopup({
 												<div className='flex items-center space-x-2 bg-white p-2 sm:p-3 rounded-lg'>
 													<Bed className='w-4 h-4 sm:w-5 sm:h-5 text-green-600 flex-shrink-0' />
 													<div className='min-w-0'>
-														<div className='font-semibold text-sm sm:text-base'>
+														<div className='font-semibold text-sm sm:text-base text-gray-600'>
 															{getAttributeValue('bedrooms')}
 														</div>
 														<div className='text-xs text-gray-600 truncate'>
@@ -703,7 +701,7 @@ export default function PropertyViewPopup({
 												<div className='flex items-center space-x-2 bg-white p-2 sm:p-3 rounded-lg'>
 													<Bath className='w-4 h-4 sm:w-5 sm:h-5 text-blue-600 flex-shrink-0' />
 													<div className='min-w-0'>
-														<div className='font-semibold text-sm sm:text-base'>
+														<div className='font-semibold text-sm sm:text-base text-gray-600'>
 															{getAttributeValue('bathrooms')}
 														</div>
 														<div className='text-xs text-gray-600'>Լոգարան</div>
@@ -714,7 +712,7 @@ export default function PropertyViewPopup({
 												<div className='flex items-center space-x-2 bg-white p-2 sm:p-3 rounded-lg'>
 													<Maximize className='w-4 h-4 sm:w-5 sm:h-5 text-purple-600 flex-shrink-0' />
 													<div className='min-w-0'>
-														<div className='font-semibold text-sm sm:text-base'>
+														<div className='font-semibold text-sm sm:text-base text-gray-600'>
 															{getAttributeValue('area_sqft')}
 														</div>
 														<div className='text-xs text-gray-600'>քառ. մ</div>
@@ -725,7 +723,7 @@ export default function PropertyViewPopup({
 												<div className='flex items-center space-x-2 bg-white p-2 sm:p-3 rounded-lg'>
 													<Building className='w-4 h-4 sm:w-5 sm:h-5 text-orange-600 flex-shrink-0' />
 													<div className='min-w-0'>
-														<div className='font-semibold text-sm sm:text-base'>
+														<div className='font-semibold text-sm sm:text-base text-gray-600'>
 															{getAttributeValue('floors')}
 														</div>
 														<div className='text-xs text-gray-600'>Հարկ</div>
@@ -736,7 +734,7 @@ export default function PropertyViewPopup({
 												<div className='flex items-center space-x-2 bg-white p-2 sm:p-3 rounded-lg'>
 													<Maximize className='w-4 h-4 sm:w-5 sm:h-5 text-indigo-600 flex-shrink-0' />
 													<div className='min-w-0'>
-														<div className='font-semibold text-sm sm:text-base'>
+														<div className='font-semibold text-sm sm:text-base text-gray-600'>
 															{getAttributeValue('lot_size_sqft')}
 														</div>
 														<div className='text-xs text-gray-600'>
@@ -749,7 +747,7 @@ export default function PropertyViewPopup({
 												<div className='flex items-center space-x-2 bg-white p-2 sm:p-3 rounded-lg'>
 													<ArrowUp className='w-4 h-4 sm:w-5 sm:h-5 text-pink-600 flex-shrink-0' />
 													<div className='min-w-0'>
-														<div className='font-semibold text-sm sm:text-base'>
+														<div className='font-semibold text-sm sm:text-base text-gray-600'>
 															{getAttributeValue('ceiling_height')}մ
 														</div>
 														<div className='text-xs text-gray-600'>
@@ -773,7 +771,7 @@ export default function PropertyViewPopup({
 												<div className='flex items-center space-x-2 bg-white p-2 sm:p-3 rounded-lg'>
 													<Building className='w-4 h-4 sm:w-5 sm:h-5 text-purple-600 flex-shrink-0' />
 													<div className='min-w-0'>
-														<div className='font-semibold text-sm sm:text-base'>
+														<div className='font-semibold text-sm sm:text-base text-gray-600'>
 															{getAttributeValue('business_type')}
 														</div>
 														<div className='text-xs text-gray-600'>
@@ -786,7 +784,7 @@ export default function PropertyViewPopup({
 												<div className='flex items-center space-x-2 bg-white p-2 sm:p-3 rounded-lg'>
 													<Maximize className='w-4 h-4 sm:w-5 sm:h-5 text-purple-600 flex-shrink-0' />
 													<div className='min-w-0'>
-														<div className='font-semibold text-sm sm:text-base'>
+														<div className='font-semibold text-sm sm:text-base text-gray-600'>
 															{getAttributeValue('area_sqft')}
 														</div>
 														<div className='text-xs text-gray-600'>քառ. մ</div>
@@ -797,7 +795,7 @@ export default function PropertyViewPopup({
 												<div className='flex items-center space-x-2 bg-white p-2 sm:p-3 rounded-lg'>
 													<Building className='w-4 h-4 sm:w-5 sm:h-5 text-purple-600 flex-shrink-0' />
 													<div className='min-w-0'>
-														<div className='font-semibold text-sm sm:text-base'>
+														<div className='font-semibold text-sm sm:text-base text-gray-600'>
 															{getAttributeValue('floors')}
 														</div>
 														<div className='text-xs text-gray-600'>Հարկ</div>
@@ -808,7 +806,7 @@ export default function PropertyViewPopup({
 												<div className='flex items-center space-x-2 bg-white p-2 sm:p-3 rounded-lg'>
 													<ArrowUp className='w-4 h-4 sm:w-5 sm:h-5 text-indigo-600 flex-shrink-0' />
 													<div className='min-w-0'>
-														<div className='font-semibold text-sm sm:text-base'>
+														<div className='font-semibold text-sm sm:text-base text-gray-600'>
 															{getAttributeValue('ceiling_height')}մ
 														</div>
 														<div className='text-xs text-gray-600'>
@@ -831,7 +829,7 @@ export default function PropertyViewPopup({
 											<div className='flex items-center space-x-2 bg-white p-3 sm:p-4 rounded-lg inline-flex'>
 												<Maximize className='w-5 h-5 sm:w-6 sm:h-6 text-yellow-600' />
 												<div>
-													<div className='text-lg sm:text-xl font-semibold'>
+													<div className='text-lg sm:text-xl font-semibold text-gray-600'>
 														{getAttributeValue('area_acres')}
 													</div>
 													<div className='text-xs sm:text-sm text-gray-600'>
@@ -930,101 +928,59 @@ export default function PropertyViewPopup({
 							{/* ✅ MOBILE-RESPONSIVE Right Column - Owner & Additional Info */}
 							<div className='space-y-4 sm:space-y-6'>
 								{/* ✅ MOBILE-RESPONSIVE Owner Information */}
-								{(property.owner_name || property.owner_phone) && (
-									<div className='bg-gradient-to-br from-red-50 to-pink-50 rounded-lg sm:rounded-xl p-3 sm:p-6 border border-red-200'>
-										<h3 className='text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-gray-900 flex items-center'>
-											<User className='w-4 h-4 sm:w-5 sm:h-5 mr-2 text-red-600' />
-											Սեփականատիրոջ տվյալներ
-										</h3>
-										<div className='space-y-3 sm:space-y-4'>
-											<div className='flex items-center space-x-3 bg-white p-3 rounded-lg'>
-												<User className='w-4 h-4 sm:w-5 sm:h-5 text-gray-700 flex-shrink-0' />
-												<div className='min-w-0 flex-1'>
-													<div className='text-xs sm:text-sm text-gray-700'>
-														Անուն
-													</div>
-													<div className='font-medium text-gray-600 text-sm sm:text-base truncate'>
-														{property.owner_name || 'Տեղեկություն չկա'}
-													</div>
-												</div>
+								<div className='bg-gradient-to-b from-green-50 to-blue-50 rounded-lg sm:rounded-xl p-3 sm:p-6'>
+									<div className='flex flex-col gap-3 sm:gap-4'>
+										<div className='text-center p-3 sm:p-4 bg-white rounded-lg shadow-sm'>
+											<div className='text-lg sm:text-2xl font-bold text-green-600 flex items-center justify-center'>
+												<span className='truncate'>
+													{formatPrice(property.price, property.currency)}
+												</span>
 											</div>
-											<div className='flex items-center space-x-3 bg-white p-3 rounded-lg'>
-												<Phone className='w-4 h-4 sm:w-5 sm:h-5 text-gray-700 flex-shrink-0' />
-												<div className='min-w-0 flex-1'>
-													<div className='text-xs sm:text-sm text-gray-700'>
-														Հեռախոս
-													</div>
-													<div className='font-medium text-gray-600 text-sm sm:text-base'>
-														{property.owner_phone || 'Տեղեկություն չկա'}
-													</div>
-												</div>
+											<div className='text-xs sm:text-sm text-gray-500 mt-1'>
+												Գինը
 											</div>
 										</div>
-									</div>
-								)}
 
-								{/* ✅ MOBILE-RESPONSIVE Social Media Communication Methods */}
-								{hasSocialMedia && (
-									<div className='bg-gradient-to-br from-green-50 to-blue-50 rounded-lg sm:rounded-xl p-3 sm:p-6 border border-green-200'>
-										<h3 className='text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-gray-900 flex items-center'>
-											<MessageCircle className='w-4 h-4 sm:w-5 sm:h-5 mr-2 text-green-600' />
-											Հասանելի կապի եղանակներ
-										</h3>
-										<div className='flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:gap-3'>
-											{property.has_viber && (
-												<div className='flex items-center space-x-2 bg-white p-2 sm:p-3 rounded-lg border border-purple-200'>
-													<div className='w-6 h-6 sm:w-8 sm:h-8 bg-purple-500 rounded-full flex items-center justify-center text-white font-bold text-xs sm:text-sm'>
-														V
-													</div>
-													<div>
-														<div className='font-medium text-gray-900 text-sm sm:text-base'>
-															Viber
-														</div>
-														<div className='text-xs text-gray-600'>
-															Հասանելի է
-														</div>
-													</div>
-												</div>
-											)}
-											{property.has_whatsapp && (
-												<div className='flex items-center space-x-2 bg-white p-2 sm:p-3 rounded-lg border border-green-200'>
-													<div className='w-6 h-6 sm:w-8 sm:h-8 bg-green-500 rounded-full flex items-center justify-center text-white font-bold text-xs sm:text-sm'>
-														W
-													</div>
-													<div>
-														<div className='font-medium text-gray-900 text-sm sm:text-base'>
-															WhatsApp
-														</div>
-														<div className='text-xs text-gray-600'>
-															Հասանելի է
-														</div>
-													</div>
-												</div>
-											)}
-											{property.has_telegram && (
-												<div className='flex items-center space-x-2 bg-white p-2 sm:p-3 rounded-lg border border-blue-200'>
-													<div className='w-6 h-6 sm:w-8 sm:h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold text-xs sm:text-sm'>
-														T
-													</div>
-													<div>
-														<div className='font-medium text-gray-900 text-sm sm:text-base'>
-															Telegram
-														</div>
-														<div className='text-xs text-gray-600'>
-															Հասանելի է
-														</div>
-													</div>
-												</div>
-											)}
+										<div className='text-center p-3 sm:p-4 bg-white rounded-lg shadow-sm'>
+											<div className='text-lg sm:text-2xl font-bold text-blue-600 flex items-center justify-center'>
+												<Eye className='w-4 h-4 sm:w-5 sm:h-5 mr-1' />
+												{property.views || 0}
+											</div>
+											<div className='text-xs sm:text-sm text-gray-500 mt-1'>
+												Դիտումներ
+											</div>
 										</div>
-										<div className='mt-3 p-2 bg-blue-50 rounded-lg'>
-											<p className='text-xs sm:text-sm text-blue-800'>
-												💬 Կապվեք սեփականատիրոջ հետ նշված հեռախոսահամարով՝
-												օգտագործելով այս հավելվածները
-											</p>
+
+										<div className='text-center p-3 sm:p-4 bg-white rounded-lg shadow-sm'>
+											<div className='text-xs sm:text-md font-bold text-purple-600 truncate'>
+												{propertyTypeDisplay[property.property_type]}
+											</div>
+											<div className='text-xs sm:text-sm text-gray-500 mt-1'>
+												Տեսակ
+											</div>
+										</div>
+
+										<div className='text-center p-3 sm:p-4 bg-white rounded-lg shadow-sm'>
+											<div className='text-xs sm:text-md font-bold text-purple-600 truncate'>
+												{listingTypeDisplay[property.listing_type] || 'Անհայտ'}
+											</div>
+											<div className='text-xs sm:text-sm text-gray-500 mt-1'>
+												Հայտարարության տեսակ
+											</div>
+										</div>
+
+										<div className='text-center p-3 sm:p-4 bg-white rounded-lg shadow-sm'>
+											<div className='text-xs sm:text-md font-bold text-purple-600 truncate'>
+												{statusNameDisplay[
+													property.status_name || property.status
+												] || 'Անհայտ'}
+											</div>
+											<div className='text-xs sm:text-sm text-gray-500 mt-1'>
+												Վիճակ
+											</div>
 										</div>
 									</div>
-								)}
+								</div>
 
 								{/* ✅ MOBILE-RESPONSIVE Property Meta Info */}
 								<div className='bg-gray-50 rounded-lg sm:rounded-xl p-3 sm:p-6'>
@@ -1085,7 +1041,7 @@ export default function PropertyViewPopup({
 										<button
 											onClick={() =>
 												window.open(
-													`/properties/${property.custom_id}`,
+													`https://chance-realty-frontend.vercel.app/properties/${property.custom_id}`,
 													'_blank'
 												)
 											}

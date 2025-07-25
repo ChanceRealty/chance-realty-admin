@@ -752,8 +752,6 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 										className='border border-r-0 text-gray-700 border-gray-300 rounded-l-lg px-3 py-2 bg-gray-50'
 									>
 										<option value='USD'>USD</option>
-										<option value='EUR'>EUR</option>
-										<option value='GBP'>GBP</option>
 									</select>
 									<input
 										type='number'
@@ -873,8 +871,6 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 							</div>
 						</div>
 					</div>
-					{/* Continue with rest of the form sections... */}
-					{/* Note: I'll include the key sections but abbreviate for space */}
 					{/* Owner Information */}
 					<div className='bg-white shadow rounded-lg p-6 border-l-4 border-red-500'>
 						<h2 className='text-lg font-semibold mb-6 flex items-center text-gray-700'>
@@ -1302,7 +1298,6 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 							</div>
 						)}
 					</div>
-					// Add after property attributes section /* Features */
 					<div className='bg-white shadow rounded-lg p-6'>
 						<h2 className='text-lg font-semibold mb-6 text-gray-700'>
 							Հատկանիշներ և հարմարություններ
@@ -1323,8 +1318,6 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 							))}
 						</div>
 					</div>
-					// Add existing media display and new media upload /* Existing Media
-					*/
 					{existingMedia.length > 0 && (
 						<div className='bg-white shadow rounded-lg p-6'>
 							<h2 className='text-lg font-semibold mb-6 text-gray-700'>
@@ -1382,7 +1375,6 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 							</div>
 						</div>
 					)}
-					/* New Media Upload */
 					<div className='bg-white shadow rounded-lg p-6'>
 						<h2 className='text-lg text-gray-700 font-semibold mb-6 flex items-center'>
 							<ImageIcon className='w-5 h-5 mr-2' />

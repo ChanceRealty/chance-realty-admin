@@ -441,62 +441,141 @@ export async function GET() {
 		}
 
 		const result = await sql`
-			SELECT 
-				p.id,
-				p.custom_id,
-				p.title,
-				p.title_ru,
-				p.title_en,
-				p.description,
-				p.description_ru,
-				p.description_en,
-				p.property_type,
-				p.listing_type,
-				p.price,
-				p.currency,
-				p.translation_status,
-				p.last_translated_at,
-				p.views,
-				p.created_at,
-				p.updated_at,
-				p.owner_name,
-				p.owner_phone,
-				p.is_hidden,
-				p.is_exclusive,
-				ps.name as status_name,
-				ps.color as status_color,
-				ps.id as status_id,
-				u.email as user_email,
-				s.name as state_name,
-				s.uses_districts,
-				CASE 
-					WHEN c.id IS NOT NULL THEN c.name
-					WHEN d.id IS NOT NULL THEN 'Երևան'  -- Default city name for districts
-					ELSE 'Անհայտ քաղաք'
-				END as city_name,
-				d.name_hy as district_name,
-				d.name_en as district_name_en,
-				d.name_ru as district_name_ru,
-				CASE 
-					WHEN d.name_hy IS NOT NULL THEN d.name_hy || ', Երևան, ' || s.name
-					WHEN c.name IS NOT NULL THEN c.name || ', ' || s.name
-					ELSE s.name
-				END as location_display,
-				(
-					SELECT url 
-					FROM property_media 
-					WHERE property_id = p.id AND is_primary = true AND type = 'image'
-					LIMIT 1
-				) as primary_image
-			FROM properties p
-			JOIN users u ON p.user_id = u.id
-			JOIN states s ON p.state_id = s.id
-			LEFT JOIN cities c ON p.city_id = c.id
-			LEFT JOIN districts d ON p.district_id = d.id
-			LEFT JOIN property_statuses ps ON p.status = ps.id
-			WHERE (ps.is_active = true OR ps.id IS NULL)
-			ORDER BY p.created_at DESC
-		`
+  SELECT 
+    p.id,
+    p.custom_id,
+    p.title,
+    p.title_ru,
+    p.title_en,
+    p.description,
+    p.description_ru,
+    p.description_en,
+    p.property_type,
+    p.listing_type,
+    p.price,
+    p.currency,
+    p.translation_status,
+    p.last_translated_at,
+    p.views,
+    p.created_at,
+    p.updated_at,
+    p.owner_name,
+    p.owner_phone,
+    p.is_hidden,
+    p.is_exclusive,
+    -- ✅ ADD THESE MISSING FIELDS:
+    p.has_viber,
+    p.has_whatsapp,
+    p.has_telegram,
+    p.state_id,
+    p.city_id,
+    p.district_id,
+    p.address,
+    p.latitude,
+    p.longitude,
+    -- Status and location info
+    ps.name as status_name,
+    ps.color as status_color,
+    ps.id as status_id,
+    u.email as user_email,
+    s.name as state_name,
+    s.uses_districts,
+    CASE 
+      WHEN c.id IS NOT NULL THEN c.name
+      WHEN d.id IS NOT NULL THEN 'Երևան'
+      ELSE 'Անհայտ քաղաք'
+    END as city_name,
+    d.name_hy as district_name,
+    d.name_en as district_name_en,
+    d.name_ru as district_name_ru,
+    CASE 
+      WHEN d.name_hy IS NOT NULL THEN d.name_hy || ', Երևան, ' || s.name
+      WHEN c.name IS NOT NULL THEN c.name || ', ' || s.name
+      ELSE s.name
+    END as location_display,
+    (
+      SELECT url 
+      FROM property_media 
+      WHERE property_id = p.id AND is_primary = true AND type = 'image'
+      LIMIT 1
+    ) as primary_image,
+    -- ✅ GET ATTRIBUTES BASED ON PROPERTY TYPE
+    CASE 
+      WHEN p.property_type = 'house' THEN (
+        SELECT json_build_object(
+          'bedrooms', ha.bedrooms,
+          'bathrooms', ha.bathrooms,
+          'area_sqft', ha.area_sqft,
+          'lot_size_sqft', ha.lot_size_sqft,
+          'floors', ha.floors,
+          'ceiling_height', ha.ceiling_height
+        )
+        FROM house_attributes ha
+        WHERE ha.property_id = p.id
+      )
+      WHEN p.property_type = 'apartment' THEN (
+        SELECT json_build_object(
+          'bedrooms', aa.bedrooms,
+          'bathrooms', aa.bathrooms,
+          'area_sqft', aa.area_sqft,
+          'floor', aa.floor,
+          'total_floors', aa.total_floors,
+          'ceiling_height', aa.ceiling_height
+        )
+        FROM apartment_attributes aa
+        WHERE aa.property_id = p.id
+      )
+      WHEN p.property_type = 'commercial' THEN (
+        SELECT json_build_object(
+          'business_type', ca.business_type,
+          'area_sqft', ca.area_sqft,
+          'floors', ca.floors,
+          'ceiling_height', ca.ceiling_height
+        )
+        FROM commercial_attributes ca
+        WHERE ca.property_id = p.id
+      )
+      WHEN p.property_type = 'land' THEN (
+        SELECT json_build_object(
+          'area_acres', la.area_acres
+        )
+        FROM land_attributes la
+        WHERE la.property_id = p.id
+      )
+    END as attributes,
+    -- ✅ GET FEATURES
+    (
+      SELECT json_agg(json_build_object(
+        'id', pf.id,
+        'name', pf.name,
+        'icon', pf.icon
+      ))
+      FROM property_features pf
+      JOIN property_to_features ptf ON pf.id = ptf.feature_id
+      WHERE ptf.property_id = p.id
+    ) as features,
+    -- ✅ GET ALL MEDIA
+    (
+      SELECT json_agg(json_build_object(
+        'id', pm.id,
+        'url', pm.url,
+        'thumbnail_url', pm.thumbnail_url,
+        'type', pm.type,
+        'is_primary', pm.is_primary,
+        'display_order', pm.display_order
+      ) ORDER BY pm.is_primary DESC, pm.display_order, pm.created_at)
+      FROM property_media pm
+      WHERE pm.property_id = p.id
+    ) as media
+  FROM properties p
+  JOIN users u ON p.user_id = u.id
+  JOIN states s ON p.state_id = s.id
+  LEFT JOIN cities c ON p.city_id = c.id
+  LEFT JOIN districts d ON p.district_id = d.id
+  LEFT JOIN property_statuses ps ON p.status = ps.id
+  WHERE (ps.is_active = true OR ps.id IS NULL)
+  ORDER BY p.created_at DESC
+`
 
 		console.log(`✅ Admin API: Found ${result.rows.length} properties`)
 
