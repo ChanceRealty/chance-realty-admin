@@ -13,6 +13,7 @@ export async function middleware(request: NextRequest) {
 		const allowedOrigins = [
 			'http://localhost:3001',
 			'https://chance-realty-frontend.vercel.app',
+			'https://chancerealty.am',
 		]
 		const allowOrigin = allowedOrigins.includes(origin) ? origin : '*'
 

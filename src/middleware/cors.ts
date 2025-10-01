@@ -13,6 +13,7 @@ export function corsMiddleware(request: NextRequest) {
 	const allowedOrigins = [
 		'http://localhost:3001',
 		'https://chance-realty-frontend.vercel.app',
+		'https://chancerealty.am',
 	]
 
 	// Check if the origin is allowed (or use '*' to allow all)

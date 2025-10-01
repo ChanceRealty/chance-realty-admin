@@ -940,9 +940,10 @@ export default function AdminDashboard() {
 										return (
 											<tr
 												key={property.id}
-												className={`hover:bg-gray-50 ${
+												className={`hover:bg-gray-50 cursor-pointer ${
 													isDeleting ? 'opacity-50' : ''
 												}`}
+												onClick={() => handleViewProperty(property)}
 											>
 												<td className='px-6 py-4 whitespace-nowrap'>
 													<div className='flex items-center'>
@@ -1099,14 +1100,6 @@ export default function AdminDashboard() {
 												</td>
 												<td className='px-6 py-4 whitespace-nowrap text-sm font-medium'>
 													<div className='flex space-x-2'>
-														<button
-															onClick={() => handleViewProperty(property)}
-															disabled={isDeleting}
-															className='text-indigo-600 hover:text-indigo-900 disabled:opacity-50'
-															title='View property'
-														>
-															<EyeIcon className='h-5 w-5' />
-														</button>
 														<Link
 															href={`/admin/properties/edit/${property.id}`}
 															target='_blank'
