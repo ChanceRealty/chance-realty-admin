@@ -4,7 +4,7 @@
 import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
 import AdminLayout from '@/components/AdminLayout'
-import MediaUploadIntegrated from '@/components/MediaUpload'
+import MediaEditManager from '@/components/MediaEditManager'
 import {
 	PropertyType,
 	ListingType,
@@ -548,7 +548,17 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 			// Add media types and primary index
 			formDataToSend.append('mediaTypes', JSON.stringify(mediaTypes))
 			formDataToSend.append('primaryMediaIndex', primaryMediaIndex.toString())
-
+			// Add this to formDataToSend
+			formDataToSend.append(
+				'existingMediaOrder',
+				JSON.stringify(
+					existingMedia.map((media, index) => ({
+						id: media.id,
+						display_order: index,
+						is_primary: media.is_primary,
+					}))
+				)
+			)
 			const response = await fetch(
 				`/api/admin/properties/${resolvedParams.id}`,
 				{
@@ -1334,69 +1344,20 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 							))}
 						</div>
 					</div>
-					{existingMedia.length > 0 && (
-						<div className='bg-white shadow rounded-lg p-6'>
-							<h2 className='text-lg font-semibold mb-6 text-gray-700'>
-								Առկա մեդիա ֆայլեր
-							</h2>
-							<div className='grid grid-cols-2 md:grid-cols-4 gap-4 mb-6'>
-								{existingMedia.map(media => (
-									<div
-										key={media.id}
-										className='relative group rounded-lg overflow-hidden'
-									>
-										{media.type === 'image' ? (
-											<div className='aspect-square relative'>
-												<Image
-													src={media.url}
-													alt={`Media ${media.id}`}
-													fill
-													className='object-cover'
-												/>
-											</div>
-										) : (
-											<div className='aspect-square relative bg-gray-100 flex items-center justify-center'>
-												<Video className='w-10 h-10 text-gray-500' />
-											</div>
-										)}
 
-										{media.is_primary && (
-											<div className='absolute top-2 left-2 bg-blue-600 text-white text-xs px-2 py-1 rounded-full'>
-												Primary
-											</div>
-										)}
-
-										<div className='absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2'>
-											{media.type === 'image' && !media.is_primary && (
-												<button
-													type='button'
-													onClick={() => handleSetPrimaryImage(media.id)}
-													className='p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700'
-													title='Set as primary'
-												>
-													<Star className='w-4 h-4' />
-												</button>
-											)}
-											<button
-												type='button'
-												onClick={() => handleDeleteExistingMedia(media.id)}
-												className='p-2 bg-red-600 text-white rounded-full hover:bg-red-700'
-												title='Delete media'
-											>
-												<Trash2 className='w-4 h-4' />
-											</button>
-										</div>
-									</div>
-								))}
-							</div>
-						</div>
-					)}
 					<div className='bg-white shadow rounded-lg p-6'>
 						<h2 className='text-lg text-gray-700 font-semibold mb-6 flex items-center'>
 							<ImageIcon className='w-5 h-5 mr-2' />
-							Ավելացնել նոր մեդիա ֆայլեր
+							Մեդիա ֆայլերի կառավարում
 						</h2>
-						<MediaUploadIntegrated onMediaChange={handleMediaChange} />
+
+						<MediaEditManager
+							existingMedia={existingMedia}
+							onExistingMediaChange={setExistingMedia}
+							onNewMediaChange={handleMediaChange}
+							onDeleteExisting={handleDeleteExistingMedia}
+							onSetPrimaryExisting={handleSetPrimaryImage}
+						/>
 					</div>
 					{/* Submit Button */}
 					<div className='flex justify-end space-x-4'>

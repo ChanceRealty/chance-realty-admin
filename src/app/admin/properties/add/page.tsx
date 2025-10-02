@@ -372,6 +372,8 @@ export default function AddPropertyPage() {
 			formDataToSend.append('property', JSON.stringify(propertyData))
 			formDataToSend.append('attributes', JSON.stringify(cleanedAttributes))
 
+			
+
 			// Add media files
 			mediaFiles.forEach(file => {
 				formDataToSend.append('media', file)
@@ -380,6 +382,7 @@ export default function AddPropertyPage() {
 			// Add media types and primary index
 			formDataToSend.append('mediaTypes', JSON.stringify(mediaTypes))
 			formDataToSend.append('primaryMediaIndex', primaryMediaIndex.toString())
+			
 
 			const response = await fetch('/api/admin/properties', {
 				method: 'POST',

@@ -348,6 +348,23 @@ export async function PUT(
 			(formData.get('primaryMediaIndex') as string) || '0'
 		)
 
+		// Inside your PUT handler, after parsing formData, add:
+
+		const existingMediaOrderStr = formData.get('existingMediaOrder') as string
+		if (existingMediaOrderStr) {
+			const existingMediaOrder = JSON.parse(existingMediaOrderStr)
+
+			// Update display_order for each existing media item
+			for (const mediaItem of existingMediaOrder) {
+				await sql`
+      UPDATE property_media 
+      SET display_order = ${mediaItem.display_order},
+          is_primary = ${mediaItem.is_primary}
+	  WHERE id = ${mediaItem.id} AND property_id = ${id}
+	`
+			}
+		}
+
 		console.log('Updating property:', {
 			id,
 			title: propertyData.title,
@@ -403,7 +420,7 @@ export async function PUT(
 			let statusId = 1 // Default to available
 			if (propertyData.status) {
 				console.log('🔍 Looking up status ID for name:', propertyData.status)
-				
+
 				const statusResult = await sql.query(
 					'SELECT id FROM property_statuses WHERE name = $1 AND is_active = true LIMIT 1',
 					[propertyData.status.trim()]
@@ -411,9 +428,16 @@ export async function PUT(
 
 				if (statusResult.rows.length > 0) {
 					statusId = statusResult.rows[0].id
-					console.log('✅ Found status ID:', statusId, 'for name:', propertyData.status)
+					console.log(
+						'✅ Found status ID:',
+						statusId,
+						'for name:',
+						propertyData.status
+					)
 				} else {
-					console.warn('⚠️ Status name not found, using default available (ID: 1)')
+					console.warn(
+						'⚠️ Status name not found, using default available (ID: 1)'
+					)
 				}
 			}
 
@@ -466,7 +490,7 @@ export async function PUT(
 					propertyData.has_viber || false,
 					propertyData.has_whatsapp || false,
 					propertyData.has_telegram || false,
-					propertyData.is_hidden || false, 
+					propertyData.is_hidden || false,
 					propertyData.is_exclusive || false,
 					propertyData.address_admin?.trim() || null,
 					id,

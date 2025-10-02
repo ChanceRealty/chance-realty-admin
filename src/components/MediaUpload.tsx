@@ -9,6 +9,7 @@ import {
 	Trash2,
 	Star,
 	AlertCircle,
+	GripVertical,
 } from 'lucide-react'
 
 interface MediaUploadIntegratedProps {
@@ -24,6 +25,8 @@ export default function MediaUploadIntegrated({
 	const [primaryIndex, setPrimaryIndex] = useState(0)
 	const [error, setError] = useState('')
 	const [dragActive, setDragActive] = useState(false)
+	const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
+	const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
 	const fileInputRef = useRef<HTMLInputElement>(null)
 
 	// Cleanup function to revoke all blob URLs
@@ -180,6 +183,80 @@ export default function MediaUploadIntegrated({
 		onMediaChange([], [], 0)
 	}
 
+	// Handle drag start for reordering
+	const handleDragStart = (e: React.DragEvent, index: number) => {
+		setDraggedIndex(index)
+		e.dataTransfer.effectAllowed = 'move'
+		e.dataTransfer.setData('text/html', e.currentTarget.innerHTML)
+	}
+
+	// Handle drag over for reordering
+	const handleDragOver = (e: React.DragEvent, index: number) => {
+		e.preventDefault()
+		e.dataTransfer.dropEffect = 'move'
+
+		if (draggedIndex === null || draggedIndex === index) return
+
+		setDragOverIndex(index)
+	}
+
+	// Handle drag leave
+	const handleDragLeave = () => {
+		setDragOverIndex(null)
+	}
+
+	// Handle drop for reordering
+	const handleDropReorder = (e: React.DragEvent, dropIndex: number) => {
+		e.preventDefault()
+		e.stopPropagation()
+
+		if (draggedIndex === null || draggedIndex === dropIndex) {
+			setDraggedIndex(null)
+			setDragOverIndex(null)
+			return
+		}
+
+		// Create new arrays with reordered items
+		const newFiles = [...files]
+		const newTypes = [...fileTypes]
+		const newPreviews = [...previews]
+
+		// Remove dragged item
+		const [draggedFile] = newFiles.splice(draggedIndex, 1)
+		const [draggedType] = newTypes.splice(draggedIndex, 1)
+		const [draggedPreview] = newPreviews.splice(draggedIndex, 1)
+
+		// Insert at new position
+		newFiles.splice(dropIndex, 0, draggedFile)
+		newTypes.splice(dropIndex, 0, draggedType)
+		newPreviews.splice(dropIndex, 0, draggedPreview)
+
+		// Update primary index if needed
+		let newPrimaryIndex = primaryIndex
+		if (primaryIndex === draggedIndex) {
+			newPrimaryIndex = dropIndex
+		} else if (draggedIndex < primaryIndex && dropIndex >= primaryIndex) {
+			newPrimaryIndex = primaryIndex - 1
+		} else if (draggedIndex > primaryIndex && dropIndex <= primaryIndex) {
+			newPrimaryIndex = primaryIndex + 1
+		}
+
+		setFiles(newFiles)
+		setFileTypes(newTypes)
+		setPreviews(newPreviews)
+		setPrimaryIndex(newPrimaryIndex)
+		setDraggedIndex(null)
+		setDragOverIndex(null)
+
+		onMediaChange(newFiles, newTypes, newPrimaryIndex)
+	}
+
+	// Handle drag end
+	const handleDragEnd = () => {
+		setDraggedIndex(null)
+		setDragOverIndex(null)
+	}
+
 	return (
 		<div className='space-y-4'>
 			<div
@@ -244,62 +321,89 @@ export default function MediaUploadIntegrated({
 			)}
 
 			{previews.length > 0 && (
-				<div className='grid grid-cols-2 md:grid-cols-4 gap-4'>
-					{previews.map((preview, index) => (
-						<div
-							key={`${index}-${files[index]?.name}`}
-							className='relative group rounded-lg overflow-hidden'
-						>
-							{fileTypes[index] === 'image' ? (
-								<div className='aspect-square relative'>
-									<Image
-										src={preview}
-										alt={`Media preview ${index + 1}`}
-										fill
-										className='object-cover'
-										unoptimized // Important for blob URLs
-									/>
+				<div>
+					<p className='text-sm text-gray-600 mb-2'>
+						💡 Քաշեք նկարները՝ վերադասավորելու համար
+					</p>
+					<div className='grid grid-cols-2 md:grid-cols-4 gap-4'>
+						{previews.map((preview, index) => (
+							<div
+								key={`${index}-${files[index]?.name}`}
+								className={`relative group rounded-lg overflow-hidden cursor-move transition-all ${
+									draggedIndex === index ? 'opacity-50 scale-95' : ''
+								} ${
+									dragOverIndex === index
+										? 'ring-2 ring-blue-500 scale-105'
+										: ''
+								}`}
+								draggable
+								onDragStart={e => handleDragStart(e, index)}
+								onDragOver={e => handleDragOver(e, index)}
+								onDragLeave={handleDragLeave}
+								onDrop={e => handleDropReorder(e, index)}
+								onDragEnd={handleDragEnd}
+							>
+								{/* Drag handle indicator */}
+								<div className='absolute top-2 right-2 z-10 bg-gray-800 bg-opacity-70 rounded p-1'>
+									<GripVertical className='w-4 h-4 text-white' />
 								</div>
-							) : (
-								<div className='aspect-square relative bg-gray-100 flex items-center justify-center'>
-									<Video className='w-10 h-10 text-gray-500' />
-									<div className='absolute bottom-0 left-0 right-0 bg-gray-800 bg-opacity-70 text-white p-1 text-xs text-center'>
-										Video: {files[index]?.name}
+
+								{/* Order number badge */}
+								<div className='absolute top-2 left-2 z-10 bg-gray-800 bg-opacity-70 text-white text-xs px-2 py-1 rounded-full font-semibold'>
+									#{index + 1}
+								</div>
+
+								{fileTypes[index] === 'image' ? (
+									<div className='aspect-square relative'>
+										<Image
+											src={preview}
+											alt={`Media preview ${index + 1}`}
+											fill
+											className='object-cover'
+											unoptimized
+										/>
 									</div>
-								</div>
-							)}
+								) : (
+									<div className='aspect-square relative bg-gray-100 flex items-center justify-center'>
+										<Video className='w-10 h-10 text-gray-500' />
+										<div className='absolute bottom-0 left-0 right-0 bg-gray-800 bg-opacity-70 text-white p-1 text-xs text-center'>
+											Video: {files[index]?.name}
+										</div>
+									</div>
+								)}
 
-							{/* Primary badge */}
-							{primaryIndex === index && fileTypes[index] === 'image' && (
-								<div className='absolute top-2 left-2 bg-blue-600 text-white text-xs px-2 py-1 rounded-full flex items-center'>
-									<Check className='w-3 h-3 mr-1' />
-									Primary
-								</div>
-							)}
+								{/* Primary badge */}
+								{primaryIndex === index && fileTypes[index] === 'image' && (
+									<div className='absolute bottom-2 left-2 bg-blue-600 text-white text-xs px-2 py-1 rounded-full flex items-center'>
+										<Check className='w-3 h-3 mr-1' />
+										Primary
+									</div>
+								)}
 
-							{/* Action buttons */}
-							<div className='absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2'>
-								{fileTypes[index] === 'image' && primaryIndex !== index && (
+								{/* Action buttons */}
+								<div className='absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2'>
+									{fileTypes[index] === 'image' && primaryIndex !== index && (
+										<button
+											type='button'
+											onClick={() => handleSetPrimary(index)}
+											className='p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700'
+											title='Set as primary image'
+										>
+											<Star className='w-4 h-4' />
+										</button>
+									)}
 									<button
 										type='button'
-										onClick={() => handleSetPrimary(index)}
-										className='p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700'
-										title='Set as primary image'
+										onClick={() => handleRemove(index)}
+										className='p-2 bg-red-600 text-white rounded-full hover:bg-red-700'
+										title='Remove media'
 									>
-										<Star className='w-4 h-4' />
+										<Trash2 className='w-4 h-4' />
 									</button>
-								)}
-								<button
-									type='button'
-									onClick={() => handleRemove(index)}
-									className='p-2 bg-red-600 text-white rounded-full hover:bg-red-700'
-									title='Remove media'
-								>
-									<Trash2 className='w-4 h-4' />
-								</button>
+								</div>
 							</div>
-						</div>
-					))}
+						))}
+					</div>
 				</div>
 			)}
 		</div>
