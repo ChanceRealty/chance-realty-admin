@@ -62,6 +62,7 @@ export default function AddPropertyPage() {
 		// Owner details (admin only)
 		owner_name: '',
 		owner_phone: '',
+		address_admin: '',
 		status: 'available', // Default status
 		has_viber: false,
 		has_whatsapp: false,
@@ -317,6 +318,7 @@ export default function AddPropertyPage() {
 				district_id: finalDistrictId, // ✅ NULL for non-Yerevan
 				owner_name: formData.owner_name.trim(),
 				owner_phone: formData.owner_phone.trim(),
+				address_admin: formData.address_admin.trim(),
 			}
 
 			// Clean attributes based on property type
@@ -824,6 +826,19 @@ export default function AddPropertyPage() {
 									Telegram
 								</label>
 							</div>
+						</div>
+						<div className='mt-6'>
+							<label className='block text-sm font-medium text-gray-700 mb-2'>
+								Ադմինիստրատորի հասցե
+							</label>
+							<input
+								type='text'
+								name='address_admin'
+								value={formData.address_admin}
+								onChange={handleInputChange}
+								className='block w-full border border-gray-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-red-500 focus:border-transparent'
+								placeholder='Մուտքագրեք հասցեն (միայն ադմինիստրատորի համար)'
+							/>
 						</div>
 					</div>
 

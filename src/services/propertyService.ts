@@ -20,6 +20,7 @@ type PropertyFilter = {
 	show_hidden?: boolean // Whether to show hidden properties
 	is_hidden?: boolean // Filter by hidden status
 	is_exclusive?: boolean // Filter by exclusive status
+	address_admin?: string // Admin address filter
 }
 
 export async function getProperties(filter: PropertyFilter = {}) {

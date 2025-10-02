@@ -239,6 +239,7 @@ export async function GET(
 			// Owner info (these are working)
 			owner_name: property.owner_name,
 			owner_phone: property.owner_phone,
+			address_admin: property.address_admin || '',
 			
 			// ✅ CRITICAL: Explicitly set social media fields
 			has_viber: Boolean(property.has_viber),
@@ -282,7 +283,8 @@ export async function GET(
 			hasOwnerInfo: !!(responseData.owner_name && responseData.owner_phone),
 			ownerInfo: {
 				name: responseData.owner_name,
-				phone: responseData.owner_phone
+				phone: responseData.owner_phone,
+				address: responseData.address_admin || ''
 			},
 			
 			mediaCount: responseData.media.length,
@@ -441,8 +443,9 @@ export async function PUT(
 					has_telegram = $19,
 					is_hidden = $20,
 					is_exclusive = $21,
+					address_admin = $22,
 					updated_at = CURRENT_TIMESTAMP
-				WHERE id = $22`,
+				WHERE id = $23`,
 				[
 					propertyData.custom_id.trim(),
 					propertyData.title.trim(),
@@ -465,6 +468,7 @@ export async function PUT(
 					propertyData.has_telegram || false,
 					propertyData.is_hidden || false, 
 					propertyData.is_exclusive || false,
+					propertyData.address_admin?.trim() || null,
 					id,
 				]
 			)

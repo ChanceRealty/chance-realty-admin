@@ -65,6 +65,8 @@ export interface BaseProperty {
 	created_at: Date
 	updated_at: Date
 
+	address_admin?: string
+
 	is_hidden: boolean 
 	is_exclusive: boolean
 
