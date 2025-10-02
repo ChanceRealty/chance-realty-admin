@@ -20,7 +20,6 @@ import {
 	ChevronLeft,
 	ChevronRight,
 	Play,
-	DollarSign,
 	Hash,
 	Globe,
 	Navigation,
@@ -28,8 +27,6 @@ import {
 	MessageCircle,
 	EyeOff,
 	Crown,
-	ToggleLeft,
-	ToggleRight,
 } from 'lucide-react'
 
 import { FaWhatsapp } from 'react-icons/fa'
@@ -49,25 +46,17 @@ export default function PropertyViewPopup({
 }: PropertyViewPopupProps) {
 	const [currentMediaIndex, setCurrentMediaIndex] = useState(0)
 	const [copySuccess, setCopySuccess] = useState(false)
-	const [isTogglingHidden, setIsTogglingHidden] = useState(false)
-	const [isTogglingExclusive, setIsTogglingExclusive] = useState(false)
-	// ✅ FIX: Reset media index when property changes
+
 	useEffect(() => {
 		setCurrentMediaIndex(0)
 		setCopySuccess(false)
 	}, [property?.id])
 
-	// Early return after all hooks
-
-	console.log('🔍 PropertyViewPopup - Full property data:', property)
-
-	// ✅ FIX 1: Properly collect ALL media (images + videos)
 	const allMedia = React.useMemo(() => {
-		if (!property) return [] // Add this safety check here instead
+		if (!property) return [] 
 
 		const media: any[] = []
 
-		// Check for images array directly
 		if (property.images && Array.isArray(property.images)) {
 			console.log('📸 Found images array:', property.images.length)
 			property.images.forEach((img: any, index: number) => {
@@ -82,7 +71,6 @@ export default function PropertyViewPopup({
 			})
 		}
 
-		// Check for videos if they exist in separate array
 		if (property.videos && Array.isArray(property.videos)) {
 			console.log('🎥 Found videos array:', property.videos.length)
 			property.videos.forEach((video: any, index: number) => {
@@ -97,7 +85,6 @@ export default function PropertyViewPopup({
 			})
 		}
 
-		// Check for mixed media in a general media array
 		if (property.media && Array.isArray(property.media)) {
 			console.log('🎬 Found general media array:', property.media.length)
 			property.media.forEach((item: any, index: number) => {
@@ -112,7 +99,6 @@ export default function PropertyViewPopup({
 			})
 		}
 
-		// Fallback to primary_image if no media arrays exist
 		if (media.length === 0 && property.primary_image) {
 			console.log('📷 Using fallback primary_image')
 			media.push({
@@ -125,7 +111,6 @@ export default function PropertyViewPopup({
 			})
 		}
 
-		// Sort media: primary first, then by display_order
 		media.sort((a, b) => {
 			if (a.is_primary && !b.is_primary) return -1
 			if (!a.is_primary && b.is_primary) return 1
@@ -141,7 +126,6 @@ export default function PropertyViewPopup({
 		property?.primary_image,
 	])
 
-	// ✅ FIX 2: Properly handle features
 	const propertyFeatures = React.useMemo(() => {
 		if (!property) return []
 
@@ -151,17 +135,14 @@ export default function PropertyViewPopup({
 			features_is_array: Array.isArray(property.features),
 		})
 
-		// Check if features is directly an array
 		if (Array.isArray(property.features)) {
 			return property.features
 		}
 
-		// Check for empty array or null
 		if (property.features === null || property.features === undefined) {
 			return []
 		}
 
-		// Check if it's a JSON string
 		if (typeof property.features === 'string') {
 			try {
 				const parsed = JSON.parse(property.features)
@@ -176,11 +157,9 @@ export default function PropertyViewPopup({
 	}, [property?.features])
 
 
-	// ✅ FIX 3: Properly handle attributes based on property type
 	const getAttributeValue = (key: string) => {
 		console.log(`🔍 getAttributeValue("${key}")`)
 
-		// First check: property.attributes object
 		if (property?.attributes && typeof property.attributes === 'object') {
 			const value = property.attributes[key]
 			if (value !== undefined && value !== null) {
@@ -189,7 +168,6 @@ export default function PropertyViewPopup({
 			}
 		}
 
-		// Second check: direct property field
 		const directValue = property?.[key]
 		if (directValue !== undefined && directValue !== null) {
 			console.log(`  ✅ Found ${key} in property root:`, directValue)
@@ -200,7 +178,6 @@ export default function PropertyViewPopup({
 		return null
 	}
 
-	// ✅ FIX 4: Check social media availability with better debugging
 	const hasSocialMedia = React.useMemo(() => {
 		if (!property) return false
 
@@ -208,22 +185,11 @@ export default function PropertyViewPopup({
 		const whatsapp = Boolean(property.has_whatsapp)
 		const telegram = Boolean(property.has_telegram)
 
-		console.log('📱 Social media check:', {
-			viber_raw: property.has_viber,
-			viber_bool: viber,
-			whatsapp_raw: property.has_whatsapp,
-			whatsapp_bool: whatsapp,
-			telegram_raw: property.has_telegram,
-			telegram_bool: telegram,
-			result: viber || whatsapp || telegram,
-		})
-
 		return viber || whatsapp || telegram
 	}, [property?.has_viber, property?.has_whatsapp, property?.has_telegram])
 
 	if (!isOpen || !property) return null
 
-	// Property type icons and translations
 	const propertyTypeIcons = {
 		house: Home,
 		apartment: Building2,
@@ -271,56 +237,6 @@ export default function PropertyViewPopup({
 				return 'bg-indigo-100 text-indigo-800'
 			default:
 				return 'bg-gray-100 text-gray-800'
-		}
-	}
-
-	const toggleHidden = async () => {
-		if (!property?.id) return
-
-		setIsTogglingHidden(true)
-		try {
-			const response = await fetch(
-				`/api/admin/properties/${property.id}/toggle`,
-				{
-					method: 'PUT',
-					headers: {
-						'Content-Type': 'application/json',
-					},
-					body: JSON.stringify({
-						action: 'toggle_hidden',
-						value: !property.is_hidden,
-					}),
-				}
-			)
-		} catch (error) {
-			console.error('Error toggling hidden status:', error)
-		} finally {
-			setIsTogglingHidden(false)
-		}
-	}
-
-	const toggleExclusive = async () => {
-		if (!property?.id) return
-
-		setIsTogglingExclusive(true)
-		try {
-			const response = await fetch(
-				`/api/admin/properties/${property.id}/toggle`,
-				{
-					method: 'PUT',
-					headers: {
-						'Content-Type': 'application/json',
-					},
-					body: JSON.stringify({
-						action: 'toggle_exclusive',
-						value: !property.is_exclusive,
-					}),
-				}
-			)
-		} catch (error) {
-			console.error('Error toggling exclusive status:', error)
-		} finally {
-			setIsTogglingExclusive(false)
 		}
 	}
 
@@ -374,14 +290,22 @@ export default function PropertyViewPopup({
 	}
 
 	const handleCopyLink = () => {
-		const url = `https://chance-realty-frontend.vercel.app/properties/${property.custom_id}`
+		const url = `https://chancerealty.am/properties/${property.custom_id}`
 		navigator.clipboard.writeText(url)
 		setCopySuccess(true)
 		setTimeout(() => setCopySuccess(false), 2000)
 	}
 
+
 	return (
-		<div className='fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 z-50'>
+		<div
+			className='fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 z-50'
+			onClick={e => {
+				if (e.target === e.currentTarget) {
+					onClose()
+				}
+			}}
+		>
 			<div className='bg-white rounded-lg sm:rounded-2xl w-full max-w-7xl max-h-[98vh] sm:max-h-[95vh] overflow-hidden shadow-2xl'>
 				{/* ✅ MOBILE-RESPONSIVE Header */}
 				<div className='flex items-center justify-between p-3 sm:p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50'>
@@ -562,7 +486,9 @@ export default function PropertyViewPopup({
 										</div>
 									</div>
 								</div> */}
-								{(property.owner_name || property.owner_phone) && (
+								{(property.owner_name ||
+									property.owner_phone ||
+									property.address_admin) && (
 									<div className='bg-gradient-to-br from-red-50 to-pink-50 rounded-lg sm:rounded-xl p-3 sm:p-6 border border-red-200'>
 										<h3 className='text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-gray-900 flex items-center'>
 											<User className='w-4 h-4 sm:w-5 sm:h-5 mr-2 text-red-600' />
@@ -591,10 +517,20 @@ export default function PropertyViewPopup({
 													</div>
 												</div>
 											</div>
+											<div className='flex items-center space-x-3 bg-white p-3 rounded-lg'>
+												<MapPin className='w-4 h-4 sm:w-5 sm:h-5 text-gray-700 flex-shrink-0' />
+												<div className='min-w-0 flex-1'>
+													<div className='text-xs sm:text-sm text-gray-700'>
+														Հասցե (Ադմինիսատրատորի համար)
+													</div>
+													<div className='font-medium text-gray-600 text-sm sm:text-base'>
+														{property.address_admin || 'Տեղեկություն չկա'}
+													</div>
+												</div>
+											</div>
 										</div>
 									</div>
 								)}
-
 								{/* ✅ MOBILE-RESPONSIVE Social Media Communication Methods */}
 								{hasSocialMedia && (
 									<div className='bg-gradient-to-br from-green-50 to-blue-50 rounded-lg sm:rounded-xl p-3 sm:p-6 border border-green-200'>
@@ -1041,7 +977,7 @@ export default function PropertyViewPopup({
 										<button
 											onClick={() =>
 												window.open(
-													`https://chance-realty-frontend.vercel.app/properties/${property.custom_id}`,
+													`https://chancerealty.am/properties/${property.custom_id}`,
 													'_blank'
 												)
 											}
