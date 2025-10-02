@@ -121,13 +121,9 @@ export default function MediaUploadIntegrated({
 			setFileTypes(updatedTypes)
 			setPreviews(updatedPreviews)
 
-			let newPrimaryIndex = primaryIndex
-			if (files.length === 0 && validTypes[0] === 'image') {
-				newPrimaryIndex = 0
-				setPrimaryIndex(0)
-			}
+			let newPrimaryIndex = 0 // всегда первый загруженный становится primary
 
-			// ✅ FIX: Notify parent component with correct primary index
+			setPrimaryIndex(newPrimaryIndex)
 			onMediaChange(updatedFiles, updatedTypes, newPrimaryIndex)
 		}
 	}
@@ -232,14 +228,7 @@ export default function MediaUploadIntegrated({
 		newPreviews.splice(dropIndex, 0, draggedPreview)
 
 		// Update primary index if needed
-		let newPrimaryIndex = primaryIndex
-		if (primaryIndex === draggedIndex) {
-			newPrimaryIndex = dropIndex
-		} else if (draggedIndex < primaryIndex && dropIndex >= primaryIndex) {
-			newPrimaryIndex = primaryIndex - 1
-		} else if (draggedIndex > primaryIndex && dropIndex <= primaryIndex) {
-			newPrimaryIndex = primaryIndex + 1
-		}
+		let newPrimaryIndex = 0 // всегда первый элемент становится primary
 
 		setFiles(newFiles)
 		setFileTypes(newTypes)
@@ -300,7 +289,7 @@ export default function MediaUploadIntegrated({
 								onClick={handleClearAll}
 								className='px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700'
 							>
-								Clear All
+								Մաքրել Բոլորը
 							</button>
 						)}
 					</div>
@@ -322,9 +311,6 @@ export default function MediaUploadIntegrated({
 
 			{previews.length > 0 && (
 				<div>
-					<p className='text-sm text-gray-600 mb-2'>
-						💡 Քաշեք նկարները՝ վերադասավորելու համար
-					</p>
 					<div className='grid grid-cols-2 md:grid-cols-4 gap-4'>
 						{previews.map((preview, index) => (
 							<div
@@ -343,10 +329,6 @@ export default function MediaUploadIntegrated({
 								onDrop={e => handleDropReorder(e, index)}
 								onDragEnd={handleDragEnd}
 							>
-								{/* Drag handle indicator */}
-								<div className='absolute top-2 right-2 z-10 bg-gray-800 bg-opacity-70 rounded p-1'>
-									<GripVertical className='w-4 h-4 text-white' />
-								</div>
 
 								{/* Order number badge */}
 								<div className='absolute top-2 left-2 z-10 bg-gray-800 bg-opacity-70 text-white text-xs px-2 py-1 rounded-full font-semibold'>
@@ -376,7 +358,7 @@ export default function MediaUploadIntegrated({
 								{primaryIndex === index && fileTypes[index] === 'image' && (
 									<div className='absolute bottom-2 left-2 bg-blue-600 text-white text-xs px-2 py-1 rounded-full flex items-center'>
 										<Check className='w-3 h-3 mr-1' />
-										Primary
+										Գլխավոր
 									</div>
 								)}
 

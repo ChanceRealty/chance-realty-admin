@@ -64,21 +64,43 @@ export default function MediaEditManager({
 	>([])
 	const fileInputRef = useRef<HTMLInputElement>(null)
 
-	// Собираем combinedMediaState
 	useEffect(() => {
-		const combined: CombinedMediaItem[] = [
-			...existingMedia.map(m => ({ ...m, isNew: false })),
-			...newFiles.map((file, idx) => ({
-				url: newPreviews[idx],
-				type: newFileTypes[idx] as 'image' | 'video',
-				is_primary: false,
-				display_order: existingMedia.length + idx,
-				isNew: true,
-				file: file,
-			})),
-		]
-		setCombinedMediaState(combined)
-	}, [existingMedia, newFiles, newFileTypes, newPreviews])
+		// Только если пришло новое existingMedia (например после загрузки страницы)
+		if (
+			combinedMediaState.length === 0 &&
+			(existingMedia.length > 0 || newFiles.length > 0)
+		) {
+			const hasExistingPrimary = existingMedia.some(m => m.is_primary)
+
+			const combined: CombinedMediaItem[] = [
+				...existingMedia.map(m => ({
+					...m,
+					isNew: false,
+				})),
+				...newFiles.map((file, idx) => ({
+					url: newPreviews[idx],
+					type: newFileTypes[idx] as 'image' | 'video',
+					is_primary: !hasExistingPrimary && idx === 0,
+					display_order: existingMedia.length + idx,
+					isNew: true,
+					file: file,
+				})),
+			]
+
+			setCombinedMediaState(normalizePrimary(combined))
+		}
+	}, [existingMedia]) // ✅ не зависит от newFiles, иначе будет ресет при каждом добавлении
+
+	// Универсальная функция — гарантирует что индекс 0 = primary
+	const normalizePrimary = (
+		items: CombinedMediaItem[]
+	): CombinedMediaItem[] => {
+		return items.map((item, idx) => ({
+			...item,
+			is_primary: idx === 0,
+			display_order: idx,
+		}))
+	}
 
 	const cleanupPreviews = (urlsToCleanup: string[]) => {
 		urlsToCleanup.forEach(url => {
@@ -147,20 +169,17 @@ export default function MediaEditManager({
 		}
 
 		if (validFiles.length > 0) {
-			const updatedFiles = [...newFiles, ...validFiles]
-			const updatedTypes = [...newFileTypes, ...validTypes]
-			const updatedPreviews = [...newPreviews, ...previews]
-			setNewFiles(updatedFiles)
-			setNewFileTypes(updatedTypes)
-			setNewPreviews(updatedPreviews)
+			const newItems: CombinedMediaItem[] = validFiles.map((file, idx) => ({
+				url: previews[idx],
+				type: validTypes[idx] as 'image' | 'video',
+				is_primary: false, // primary теперь решается логикой позже
+				display_order: combinedMediaState.length + idx,
+				isNew: true,
+				file,
+			}))
 
-			let primaryIndex = newPrimaryIndex
-			if (newFiles.length === 0) {
-				primaryIndex = 0
-				setNewPrimaryIndex(0)
-			}
-
-			onNewMediaChange(updatedFiles, updatedTypes, primaryIndex)
+			// просто добавляем в combinedMediaState
+			setCombinedMediaState(prev => normalizePrimary([...prev, ...newItems])) // ✅
 		}
 	}
 
@@ -177,23 +196,17 @@ export default function MediaEditManager({
 		setNewPreviews(updatedPreviews)
 
 		let primaryIndex = newPrimaryIndex
-		if (newPrimaryIndex === index) {
-			const firstImageIndex = updatedTypes.findIndex(t => t === 'image')
-			primaryIndex = firstImageIndex >= 0 ? firstImageIndex : 0
-		} else if (newPrimaryIndex > index) primaryIndex = newPrimaryIndex - 1
+		primaryIndex = 0 
 
 		setNewPrimaryIndex(primaryIndex)
 		onNewMediaChange(updatedFiles, updatedTypes, primaryIndex)
 	}
 
 	const handleSetNewPrimary = (index: number) => {
-		if (newFileTypes[index] === 'image') {
-			setNewPrimaryIndex(index)
-			onNewMediaChange(newFiles, newFileTypes, index)
-		}
+		setNewPrimaryIndex(index)
+		onNewMediaChange(newFiles, newFileTypes, index)
 	}
 
-	// Перетаскивание combinedMedia
 	const handleDragStart = (e: React.DragEvent, index: number) => {
 		setDraggedIndex(index)
 		e.dataTransfer.effectAllowed = 'move'
@@ -213,7 +226,7 @@ export default function MediaEditManager({
 		const reordered = [...combinedMediaState]
 		const [draggedItem] = reordered.splice(draggedIndex, 1)
 		reordered.splice(index, 0, draggedItem)
-		setCombinedMediaState(reordered)
+		setCombinedMediaState(normalizePrimary(reordered))
 
 		// Разделяем обратно на existing и new
 		const updatedExisting: ExistingMedia[] = []
@@ -242,12 +255,7 @@ export default function MediaEditManager({
 		setNewFileTypes(updatedNewTypes)
 		setNewPreviews(updatedNewPreviews)
 		onExistingMediaChange(updatedExisting)
-		const firstImageIndex = updatedNewTypes.findIndex(t => t === 'image')
-		onNewMediaChange(
-			updatedNewFiles,
-			updatedNewTypes,
-			firstImageIndex >= 0 ? firstImageIndex : 0
-		)
+		onNewMediaChange(updatedNewFiles, updatedNewTypes, 0)
 
 		setDraggedIndex(null)
 		setDragOverIndex(null)
@@ -277,11 +285,6 @@ export default function MediaEditManager({
 							onDrop={e => handleDropMedia(e, index)}
 							onDragEnd={handleDragEnd}
 						>
-							{/* Drag handle */}
-							<div className='absolute top-2 right-2 z-10 bg-gray-800 bg-opacity-70 rounded p-1'>
-								<GripVertical className='w-4 h-4 text-white' />
-							</div>
-
 							{/* Order badge */}
 							<div className='absolute top-2 left-2 z-10 bg-gray-800 bg-opacity-70 text-white text-xs px-2 py-1 rounded-full font-semibold'>
 								#{index + 1}
@@ -306,7 +309,7 @@ export default function MediaEditManager({
 
 							{media.is_primary && (
 								<div className='absolute bottom-2 left-2 bg-blue-600 text-white text-xs px-2 py-1 rounded-full flex items-center'>
-									<Check className='w-3 h-3 mr-1' /> Primary
+									<Check className='w-3 h-3 mr-1' /> Գլխավոր
 								</div>
 							)}
 
