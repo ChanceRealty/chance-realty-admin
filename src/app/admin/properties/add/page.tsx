@@ -389,18 +389,19 @@ export default function AddPropertyPage() {
 				body: formDataToSend,
 			})
 
+			const responseText = await response.text()
 			let data
 			try {
-				data = await response.json()
+				data = JSON.parse(responseText)
 			} catch (err) {
-				const text = await response.text()
-				console.error('Server returned invalid JSON:', text)
-				throw new Error(text || 'Failed to create property')
+				console.error('❌ Server returned invalid JSON:', responseText)
+				throw new Error(responseText || 'Failed to create property')
 			}
 
 			if (!response.ok) {
 				throw new Error(data?.error || 'Failed to create property')
 			}
+
 
 			router.push('/admin')
 		} catch (error) {
