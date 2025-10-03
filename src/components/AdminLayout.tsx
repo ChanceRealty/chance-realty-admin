@@ -138,7 +138,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 												{userInfo.email}
 											</div>
 											<div className='text-xs text-gray-500 capitalize'>
-												{userInfo.role} ադմինիստրատոր
+												ադմինիստրատոր
 											</div>
 										</div>
 									)}

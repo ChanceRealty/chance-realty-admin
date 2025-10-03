@@ -134,7 +134,7 @@ export async function POST(request: Request) {
 				  user_id, custom_id, title, description, property_type, listing_type,
 				  price, currency, state_id, city_id, district_id, address, latitude, longitude, status, owner_name, owner_phone,
 				  has_viber, has_whatsapp, has_telegram,
-				  is_hidden, is_exclusive,address_admin,
+				  is_hidden, is_exclusive, address_admin,
 				  title_ru, title_en, description_ru, description_en, 
 				  translation_status, last_translated_at
 				) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29)
@@ -157,12 +157,12 @@ export async function POST(request: Request) {
 					statusId,
 					propertyData.owner_name.trim(),
 					propertyData.owner_phone.trim(),
-					propertyData.address_admin?.trim() || null,
 					propertyData.has_viber || false,
 					propertyData.has_whatsapp || false,
 					propertyData.has_telegram || false,
 					propertyData.is_hidden || false, 
 					propertyData.is_exclusive || false,
+					propertyData.address_admin?.trim() || null,
 					translations.title_ru || null,
 					translations.title_en || null,
 					translations.description_ru || null,

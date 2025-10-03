@@ -635,9 +635,6 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 					<h1 className='text-2xl font-bold text-gray-900'>
 						Փոփոխել անշարժ գույքը
 					</h1>
-					<p className='text-gray-500'>
-						Թարմացրեք անշարժ գույքի տեղեկությունները
-					</p>
 				</div>
 
 				{error && (

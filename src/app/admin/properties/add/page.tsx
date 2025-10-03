@@ -477,9 +477,6 @@ export default function AddPropertyPage() {
 					<h1 className='text-2xl font-bold text-gray-900'>
 						Ավելացնել նոր անշարժ գույք
 					</h1>
-					<p className='text-gray-500'>
-						Լրացրեք տվյալները՝ նոր անշարժ գույքի Հայտարարություն ստեղծելու համար
-					</p>
 				</div>
 
 				{error && (

@@ -434,9 +434,6 @@ export default function AdminDashboard() {
 						<h1 className='text-2xl sm:text-3xl font-bold text-gray-900'>
 							Գլխավոր
 						</h1>
-						<p className='text-gray-500 text-sm sm:text-base'>
-							Ձեր հայտարարությունների կառավարման ամփոփում
-						</p>
 					</div>
 					<Link
 						href='/admin/properties/add'
