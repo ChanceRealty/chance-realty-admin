@@ -363,17 +363,7 @@ export default function MediaUploadIntegrated({
 								)}
 
 								{/* Action buttons */}
-								<div className='absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2'>
-									{fileTypes[index] === 'image' && primaryIndex !== index && (
-										<button
-											type='button'
-											onClick={() => handleSetPrimary(index)}
-											className='p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700'
-											title='Set as primary image'
-										>
-											<Star className='w-4 h-4' />
-										</button>
-									)}
+								<div className='absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-80 transition-opacity flex items-center justify-center gap-2'>
 									<button
 										type='button'
 										onClick={() => handleRemove(index)}

@@ -1,3 +1,7 @@
+// src/components/MediaEditManager.tsx - FIXED deletion logic
+
+// Replace the entire component with this corrected version:
+
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
@@ -54,50 +58,49 @@ export default function MediaEditManager({
 	const [newFiles, setNewFiles] = useState<File[]>([])
 	const [newFileTypes, setNewFileTypes] = useState<string[]>([])
 	const [newPreviews, setNewPreviews] = useState<string[]>([])
-	const [newPrimaryIndex, setNewPrimaryIndex] = useState(0)
 	const [error, setError] = useState('')
 	const [dragActive, setDragActive] = useState(false)
 	const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
 	const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
-	const [combinedMediaState, setCombinedMediaState] = useState<
-		CombinedMediaItem[]
-	>([])
+	const [combinedMediaState, setCombinedMediaState] = useState<CombinedMediaItem[]>([])
 	const fileInputRef = useRef<HTMLInputElement>(null)
 
+	// Initialize combined media state
 	useEffect(() => {
-		// Только если пришло новое existingMedia (например после загрузки страницы)
-		if (
-			combinedMediaState.length === 0 &&
-			(existingMedia.length > 0 || newFiles.length > 0)
-		) {
-			const hasExistingPrimary = existingMedia.some(m => m.is_primary)
+		const hasExistingPrimary = existingMedia.some(m => m.is_primary)
 
-			const combined: CombinedMediaItem[] = [
-				...existingMedia.map(m => ({
-					...m,
-					isNew: false,
-				})),
-				...newFiles.map((file, idx) => ({
-					url: newPreviews[idx],
-					type: newFileTypes[idx] as 'image' | 'video',
-					is_primary: !hasExistingPrimary && idx === 0,
-					display_order: existingMedia.length + idx,
-					isNew: true,
-					file: file,
-				})),
-			]
+		const combined: CombinedMediaItem[] = [
+			...existingMedia.map(m => ({
+				...m,
+				isNew: false,
+			})),
+			...newFiles.map((file, idx) => ({
+				url: newPreviews[idx],
+				type: newFileTypes[idx] as 'image' | 'video',
+				is_primary: !hasExistingPrimary && idx === 0 && newFileTypes[idx] === 'image',
+				display_order: existingMedia.length + idx,
+				isNew: true,
+				file: file,
+			})),
+		]
 
-			setCombinedMediaState(normalizePrimary(combined))
+		setCombinedMediaState(normalizePrimary(combined))
+	}, [existingMedia, newFiles, newPreviews, newFileTypes])
+
+	const normalizePrimary = (items: CombinedMediaItem[]): CombinedMediaItem[] => {
+		const imageItems = items.filter(item => item.type === 'image')
+		
+		if (imageItems.length === 0) {
+			return items.map((item, idx) => ({
+				...item,
+				is_primary: false,
+				display_order: idx,
+			}))
 		}
-	}, [existingMedia]) // ✅ не зависит от newFiles, иначе будет ресет при каждом добавлении
 
-	// Универсальная функция — гарантирует что индекс 0 = primary
-	const normalizePrimary = (
-		items: CombinedMediaItem[]
-	): CombinedMediaItem[] => {
 		return items.map((item, idx) => ({
 			...item,
-			is_primary: idx === 0,
+			is_primary: idx === 0 && item.type === 'image',
 			display_order: idx,
 		}))
 	}
@@ -112,7 +115,6 @@ export default function MediaEditManager({
 		return () => cleanupPreviews(newPreviews)
 	}, [])
 
-	// Drag & drop для загрузки файлов
 	const handleDrag = (e: React.DragEvent) => {
 		e.preventDefault()
 		e.stopPropagation()
@@ -169,42 +171,48 @@ export default function MediaEditManager({
 		}
 
 		if (validFiles.length > 0) {
-			const newItems: CombinedMediaItem[] = validFiles.map((file, idx) => ({
-				url: previews[idx],
-				type: validTypes[idx] as 'image' | 'video',
-				is_primary: false, // primary теперь решается логикой позже
-				display_order: combinedMediaState.length + idx,
-				isNew: true,
-				file,
-			}))
-
-			// просто добавляем в combinedMediaState
-			setCombinedMediaState(prev => normalizePrimary([...prev, ...newItems])) // ✅
+			setNewFiles(prev => [...prev, ...validFiles])
+			setNewFileTypes(prev => [...prev, ...validTypes])
+			setNewPreviews(prev => [...prev, ...previews])
+			
+			// Notify parent of new media
+			const allFiles = [...newFiles, ...validFiles]
+			const allTypes = [...newFileTypes, ...validTypes]
+			onNewMediaChange(allFiles, allTypes, 0)
 		}
 	}
 
-	// Удаление нового файла
-	const handleRemoveNew = (index: number) => {
-		const url = newPreviews[index]
-		if (url?.startsWith('blob:')) URL.revokeObjectURL(url)
-
-		const updatedFiles = newFiles.filter((_, i) => i !== index)
-		const updatedTypes = newFileTypes.filter((_, i) => i !== index)
-		const updatedPreviews = newPreviews.filter((_, i) => i !== index)
-		setNewFiles(updatedFiles)
-		setNewFileTypes(updatedTypes)
-		setNewPreviews(updatedPreviews)
-
-		let primaryIndex = newPrimaryIndex
-		primaryIndex = 0 
-
-		setNewPrimaryIndex(primaryIndex)
-		onNewMediaChange(updatedFiles, updatedTypes, primaryIndex)
-	}
-
-	const handleSetNewPrimary = (index: number) => {
-		setNewPrimaryIndex(index)
-		onNewMediaChange(newFiles, newFileTypes, index)
+	// ✅ FIXED: Delete handler that works for both new and existing media
+	const handleDeleteMedia = (index: number) => {
+		const mediaItem = combinedMediaState[index]
+		
+		if (mediaItem.isNew) {
+			// ✅ Delete new file
+			const newFileIndex = combinedMediaState
+				.slice(0, index)
+				.filter(item => item.isNew).length
+			
+			// Cleanup blob URL
+			const url = newPreviews[newFileIndex]
+			if (url?.startsWith('blob:')) URL.revokeObjectURL(url)
+			
+			// Remove from arrays
+			const updatedFiles = newFiles.filter((_, i) => i !== newFileIndex)
+			const updatedTypes = newFileTypes.filter((_, i) => i !== newFileIndex)
+			const updatedPreviews = newPreviews.filter((_, i) => i !== newFileIndex)
+			
+			setNewFiles(updatedFiles)
+			setNewFileTypes(updatedTypes)
+			setNewPreviews(updatedPreviews)
+			
+			// Notify parent
+			onNewMediaChange(updatedFiles, updatedTypes, 0)
+		} else {
+			// ✅ Delete existing media
+			if (mediaItem.id) {
+				onDeleteExisting(mediaItem.id)
+			}
+		}
 	}
 
 	const handleDragStart = (e: React.DragEvent, index: number) => {
@@ -226,22 +234,24 @@ export default function MediaEditManager({
 		const reordered = [...combinedMediaState]
 		const [draggedItem] = reordered.splice(draggedIndex, 1)
 		reordered.splice(index, 0, draggedItem)
-		setCombinedMediaState(normalizePrimary(reordered))
+		
+		const normalized = normalizePrimary(reordered)
+		setCombinedMediaState(normalized)
 
-		// Разделяем обратно на existing и new
+		// Split back into existing and new
 		const updatedExisting: ExistingMedia[] = []
 		const updatedNewFiles: File[] = []
 		const updatedNewTypes: string[] = []
 		const updatedNewPreviews: string[] = []
 
-		reordered.forEach((item, idx) => {
+		normalized.forEach((item, idx) => {
 			if (item.isNew && item.file) {
 				updatedNewFiles.push(item.file)
 				updatedNewTypes.push(item.type)
 				updatedNewPreviews.push(item.url)
 			} else if (!item.isNew && item.id) {
 				updatedExisting.push({
-					id: item.id as number,
+					id: item.id,
 					url: item.url,
 					thumbnail_url: item.thumbnail_url,
 					type: item.type,
@@ -266,9 +276,24 @@ export default function MediaEditManager({
 		setDragOverIndex(null)
 	}
 
+	const handleSetPrimary = (index: number) => {
+		const mediaItem = combinedMediaState[index]
+		
+		if (mediaItem.type !== 'image') return
+		
+		if (mediaItem.isNew) {
+			const newFileIndex = combinedMediaState
+				.slice(0, index)
+				.filter(item => item.isNew).length
+			onNewMediaChange(newFiles, newFileTypes, newFileIndex)
+		} else if (mediaItem.id) {
+			onSetPrimaryExisting(mediaItem.id)
+		}
+	}
+
 	return (
 		<div className='space-y-6'>
-			{/* Медиа-сетка */}
+			{/* Media Grid */}
 			{combinedMediaState.length > 0 && (
 				<div className='grid grid-cols-2 md:grid-cols-4 gap-4'>
 					{combinedMediaState.map((media, index) => (
@@ -288,7 +313,7 @@ export default function MediaEditManager({
 							{/* Order badge */}
 							<div className='absolute top-2 left-2 z-10 bg-gray-800 bg-opacity-70 text-white text-xs px-2 py-1 rounded-full font-semibold'>
 								#{index + 1}
-								{media.isNew ? ' NEW' : ''}
+								{media.isNew && ' Նոր'}
 							</div>
 
 							{media.type === 'image' ? (
@@ -313,29 +338,10 @@ export default function MediaEditManager({
 								</div>
 							)}
 
-							<div className='absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2'>
-								{media.type === 'image' && !media.is_primary && (
-									<button
-										type='button'
-										onClick={() =>
-											media.isNew
-												? handleSetNewPrimary(index - existingMedia.length)
-												: onSetPrimaryExisting(media.id!)
-										}
-										className='p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700'
-										title='Set as primary'
-									>
-										<Star className='w-4 h-4' />
-									</button>
-								)}
-
+							<div className='absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-80 transition-opacity flex items-center justify-center gap-2'>
 								<button
 									type='button'
-									onClick={() =>
-										media.isNew
-											? handleRemoveNew(index - existingMedia.length)
-											: onDeleteExisting(media.id!)
-									}
+									onClick={() => handleDeleteMedia(index)}
 									className='p-2 bg-red-600 text-white rounded-full hover:bg-red-700'
 									title='Delete'
 								>
