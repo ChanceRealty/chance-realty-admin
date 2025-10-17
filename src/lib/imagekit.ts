@@ -84,7 +84,6 @@ export async function getAuthenticationParameters() {
 	}
 }
 
-
 export async function uploadToImageKit(
 	file: Buffer,
 	fileName: string,
@@ -92,32 +91,17 @@ export async function uploadToImageKit(
 ): Promise<ImageKitUploadResponse> {
 	try {
 		console.log('🔄 Starting ImageKit upload:', fileName)
-		console.log('📊 File size:', file.length, 'bytes')
-		console.log('📁 Target folder:', folder)
 
 		if (!configValidation.isValid) {
-			console.error('❌ ImageKit config invalid:', configValidation.issues)
 			throw new Error(
 				`ImageKit configuration invalid: ${configValidation.issues.join(', ')}`
 			)
 		}
 
-		// Test ImageKit connection before upload
-		console.log('🔗 Testing ImageKit connection...')
-		const connectionTest = await testImageKitConnection()
-		if (!connectionTest.success) {
-			console.error('❌ ImageKit connection test failed:', connectionTest.error)
-			throw new Error(`ImageKit connection failed: ${connectionTest.error}`)
-		}
-		console.log('✅ ImageKit connection successful')
+		const isVideo = fileName
+			.toLowerCase()
+			.match(/\.(mp4|avi|mov|wmv|flv|webm)$/i)
 
-		// Determine if it's an image or video
-		const isVideo = fileName.toLowerCase().match(/\.(mp4|avi|mov|wmv|flv|webm)$/i)
-		const isImage = fileName.toLowerCase().match(/\.(jpg|jpeg|png|gif|bmp|webp|avif)$/i)
-
-		console.log('📄 File type detected:', isImage ? 'image' : isVideo ? 'video' : 'unknown')
-
-		// Enhanced upload configuration with quality settings
 		const uploadConfig: any = {
 			file: file,
 			fileName: fileName,
@@ -125,44 +109,27 @@ export async function uploadToImageKit(
 			useUniqueFileName: true,
 		}
 
-		console.log('📤 Uploading to ImageKit with config:', {
-			fileName: uploadConfig.fileName,
-			folder: uploadConfig.folder,
-			useUniqueFileName: uploadConfig.useUniqueFileName
-		})
-
 		const uploadResponse = await imagekit.upload(uploadConfig)
 
-		console.log(`✅ Successfully uploaded ${fileName}:`, {
-			fileId: uploadResponse.fileId,
-			url: uploadResponse.url,
-			size: uploadResponse.size,
-		})
+		// ✅ CORRECT: For videos, append /ik-thumbnail.jpg
+		let thumbnailUrl = uploadResponse.thumbnailUrl || uploadResponse.url
 
-		return uploadResponse
-	} catch (error) {
-		console.error(`❌ Failed to upload ${fileName}:`, error)
+		if (isVideo && uploadResponse.url.includes('ik.imagekit.io')) {
+			// Remove any existing query parameters from the video URL first
+			const baseVideoUrl = uploadResponse.url.split('?')[0]
 
-		// Provide more specific error messages
-		if (error instanceof Error) {
-			console.error('Error details:', {
-				message: error.message,
-				stack: error.stack
-			})
-			
-			if (error.message.includes('authenticate') || error.message.includes('401')) {
-				throw new Error(
-					`ImageKit authentication failed. Please check your credentials: ${error.message}`
-				)
-			} else if (error.message.includes('quota') || error.message.includes('limit')) {
-				throw new Error(`ImageKit quota exceeded or file size too large: ${error.message}`)
-			} else if (error.message.includes('network') || error.message.includes('timeout')) {
-				throw new Error(
-					`Network error while uploading to ImageKit: ${error.message}`
-				)
-			}
+			// Create thumbnail URL: videoURL/ik-thumbnail.jpg?tr=transformations
+			thumbnailUrl = `${baseVideoUrl}/ik-thumbnail.jpg?tr=so-1.0:w-400:h-300:q-80`
+
+			console.log(`✅ Generated video thumbnail: ${thumbnailUrl}`)
 		}
 
+		return {
+			...uploadResponse,
+			thumbnailUrl: thumbnailUrl,
+		}
+	} catch (error) {
+		console.error(`❌ Failed to upload ${fileName}:`, error)
 		throw error
 	}
 }

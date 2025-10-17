@@ -1,6 +1,3 @@
-// src/app/api/admin/fix-video-thumbnails/route.ts
-// Create this new file to fix existing videos
-
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { verifyToken } from '@/lib/auth'
@@ -8,7 +5,6 @@ import { sql } from '@vercel/postgres'
 
 export async function POST(request: Request) {
 	try {
-		// Verify admin authentication
 		const cookieStore = cookies()
 		const token = (await cookieStore).get('token')?.value
 
@@ -24,45 +20,40 @@ export async function POST(request: Request) {
 			)
 		}
 
-		console.log('🔧 Starting to fix video thumbnails...')
+		console.log('🔧 Fixing all video thumbnails...')
 
-		// Get all video media items
 		const result = await sql`
 			SELECT id, url, thumbnail_url, type 
 			FROM property_media 
 			WHERE type = 'video'
 		`
 
-		console.log(`📊 Found ${result.rows.length} video items`)
+		console.log(`📊 Found ${result.rows.length} videos to fix`)
 
 		let fixedCount = 0
-		let skippedCount = 0
 		const errors = []
+		const details = []
 
 		for (const video of result.rows) {
 			try {
-				// Check if thumbnail needs fixing
-				const needsFix =
-					!video.thumbnail_url ||
-					video.thumbnail_url === video.url ||
-					video.thumbnail_url.trim() === ''
+				if (video.url.includes('ik.imagekit.io')) {
+					const baseVideoUrl = video.url.split('?')[0]
+					const newThumbnailUrl = `${baseVideoUrl}/ik-thumbnail.jpg?tr=so-1.0:w-400:h-300:q-80`
 
-				if (needsFix && video.url.includes('ik.imagekit.io')) {
-					// Generate proper thumbnail URL
-					const baseUrl = video.url.split('?')[0]
-					const thumbnailUrl = `${baseUrl}?tr=so-1.0,w-400,h-300,fo-auto,q-80`
-
-					// Update the database
 					await sql`
 						UPDATE property_media 
-						SET thumbnail_url = ${thumbnailUrl}
+						SET thumbnail_url = ${newThumbnailUrl}
 						WHERE id = ${video.id}
 					`
 
+					details.push({
+						id: video.id,
+						old: video.thumbnail_url,
+						new: newThumbnailUrl,
+					})
+
 					console.log(`✅ Fixed video ${video.id}`)
 					fixedCount++
-				} else {
-					skippedCount++
 				}
 			} catch (error) {
 				console.error(`❌ Error fixing video ${video.id}:`, error)
@@ -75,17 +66,17 @@ export async function POST(request: Request) {
 
 		return NextResponse.json({
 			success: true,
-			message: 'Video thumbnails fixed',
+			message: `Successfully fixed ${fixedCount} video thumbnails!`,
 			stats: {
 				total: result.rows.length,
 				fixed: fixedCount,
-				skipped: skippedCount,
 				errors: errors.length,
 			},
-			errors: errors.length > 0 ? errors : undefined,
+			details: details.slice(0, 5), // Show first 5 examples
+			errors,
 		})
 	} catch (error) {
-		console.error('❌ Error fixing video thumbnails:', error)
+		console.error('❌ Error:', error)
 		return NextResponse.json(
 			{
 				error: 'Failed to fix video thumbnails',
@@ -94,4 +85,8 @@ export async function POST(request: Request) {
 			{ status: 500 }
 		)
 	}
+}
+
+export async function GET(request: Request) {
+	return POST(request)
 }

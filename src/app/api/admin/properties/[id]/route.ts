@@ -622,15 +622,15 @@ export async function PUT(
 						let thumbnailUrl = uploadResponse.thumbnailUrl || uploadResponse.url
 
 						if (mediaType === 'video') {
-							// For ImageKit videos, create a thumbnail URL
-							thumbnailUrl = uploadResponse.url.includes('ik.imagekit.io')
-								? `${
-										uploadResponse.url.split('?')[0]
-								  }?tr=so-1.0,w-400,h-300,fo-auto`
-								: uploadResponse.url
-
-							console.log(`✅ Generated video thumbnail URL: ${thumbnailUrl}`)
+							if (uploadResponse.url.includes('ik.imagekit.io')) {
+								const baseVideoUrl = uploadResponse.url.split('?')[0]
+								thumbnailUrl = `${baseVideoUrl}/ik-thumbnail.jpg?tr=so-1.0:w-400:h-300:q-80`
+								console.log(`✅ Generated video thumbnail URL: ${thumbnailUrl}`)
+							} else {
+								thumbnailUrl = uploadResponse.url
+							}
 						}
+
 
 						// If this is going to be the new primary image, unset existing primary
 						if (isPrimary) {
