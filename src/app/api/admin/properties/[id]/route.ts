@@ -348,22 +348,20 @@ export async function PUT(
 			(formData.get('primaryMediaIndex') as string) || '0'
 		)
 
-		// Inside your PUT handler, after parsing formData, add:
-
+		// ✅ Get existing media order
 		const existingMediaOrderStr = formData.get('existingMediaOrder') as string
-		if (existingMediaOrderStr) {
-			const existingMediaOrder = JSON.parse(existingMediaOrderStr)
+		const existingMediaOrder = existingMediaOrderStr
+			? JSON.parse(existingMediaOrderStr)
+			: []
 
-			// Update display_order for each existing media item
-			for (const mediaItem of existingMediaOrder) {
-				await sql`
-      UPDATE property_media 
-      SET display_order = ${mediaItem.display_order},
-          is_primary = ${mediaItem.is_primary}
-	  WHERE id = ${mediaItem.id} AND property_id = ${id}
-	`
-			}
-		}
+		console.log(
+			'📊 Existing media order from client:',
+			existingMediaOrder.map((m: any) => ({
+				id: m.id,
+				display_order: m.display_order,
+				is_primary: m.is_primary,
+			}))
+		)
 
 		console.log('Updating property:', {
 			id,
@@ -374,6 +372,7 @@ export async function PUT(
 			isHidden: propertyData.is_hidden,
 			isExclusive: propertyData.is_exclusive,
 			newMediaCount: mediaFiles.length,
+			existingMediaCount: existingMediaOrder.length,
 		})
 
 		// Validate required fields
@@ -416,7 +415,7 @@ export async function PUT(
 				throw new Error('Property ID already exists for another property')
 			}
 
-			// ✅ FIX: Convert status name to status ID
+			// ✅ Convert status name to status ID
 			let statusId = 1 // Default to available
 			if (propertyData.status) {
 				console.log('🔍 Looking up status ID for name:', propertyData.status)
@@ -484,7 +483,7 @@ export async function PUT(
 					propertyData.address?.trim() || null,
 					propertyData.latitude,
 					propertyData.longitude,
-					statusId, // ✅
+					statusId,
 					propertyData.owner_name.trim(),
 					propertyData.owner_phone.trim(),
 					propertyData.has_viber || false,
@@ -499,15 +498,13 @@ export async function PUT(
 
 			console.log('✅ Property basic info updated successfully')
 
-			// Update property-specific attributes (same as before)
+			// Update property-specific attributes
 			switch (propertyData.property_type as PropertyType) {
 				case 'house':
-					// Delete existing attributes
 					await sql.query(
 						'DELETE FROM house_attributes WHERE property_id = $1',
 						[id]
 					)
-					// Insert new attributes
 					await sql.query(
 						`INSERT INTO house_attributes (
 							property_id, bedrooms, bathrooms, area_sqft, lot_size_sqft, floors, ceiling_height
@@ -578,14 +575,12 @@ export async function PUT(
 					break
 			}
 
-			// Update property features (same as before)
-			// Delete existing features
+			// Update property features
 			await sql.query(
 				'DELETE FROM property_to_features WHERE property_id = $1',
 				[id]
 			)
 
-			// Insert new features
 			if (
 				propertyData.selectedFeatures &&
 				propertyData.selectedFeatures.length > 0
@@ -598,14 +593,33 @@ export async function PUT(
 				}
 			}
 
-			// Handle new media files if any (same as before)
+			// ✅ STEP 1: Calculate the starting display_order for new media
+			const maxExistingOrder =
+				existingMediaOrder.length > 0
+					? Math.max(...existingMediaOrder.map((m: any) => m.display_order))
+					: -1
+
+			console.log(`📊 Max existing display_order: ${maxExistingOrder}`)
+
+			// ✅ STEP 2: Upload new media files FIRST (if any)
+			const newMediaIds: number[] = []
+
 			if (mediaFiles && mediaFiles.length > 0) {
-				console.log(`Uploading ${mediaFiles.length} new media files...`)
+				console.log(`📤 Uploading ${mediaFiles.length} new media files...`)
+				const startingDisplayOrder = maxExistingOrder + 1
 
 				for (let i = 0; i < mediaFiles.length; i++) {
 					const file = mediaFiles[i]
 					const mediaType = mediaTypes[i] || 'image'
-					const isPrimary = i === primaryMediaIndex && mediaType === 'image'
+
+					// Calculate absolute display_order
+					const absoluteDisplayOrder = startingDisplayOrder + i
+
+					console.log(
+						`📸 Uploading file ${i + 1}/${mediaFiles.length}: ${
+							file.name
+						}, display_order: ${absoluteDisplayOrder}`
+					)
 
 					try {
 						// Convert file to buffer
@@ -631,34 +645,28 @@ export async function PUT(
 							}
 						}
 
-
-						// If this is going to be the new primary image, unset existing primary
-						if (isPrimary) {
-							await sql.query(
-								'UPDATE property_media SET is_primary = false WHERE property_id = $1 AND type = $2',
-								[id, 'image']
-							)
-						}
-
-						// Save media info to database
-						await sql.query(
+						// Save media info to database with absolute display_order
+						const mediaResult = await sql.query(
 							`INSERT INTO property_media (
 								property_id, file_id, url, thumbnail_url, type, is_primary, display_order
 							) VALUES (
 								$1, $2, $3, $4, $5, $6, $7
-							)`,
+							) RETURNING id`,
 							[
 								id,
 								uploadResponse.fileId,
 								uploadResponse.url,
 								thumbnailUrl,
 								mediaType,
-								isPrimary,
-								i,
+								false, // Set is_primary later
+								absoluteDisplayOrder,
 							]
 						)
 
-						console.log(`✅ Successfully uploaded ${file.name}`)
+						newMediaIds.push(mediaResult.rows[0].id)
+						console.log(
+							`✅ Successfully uploaded ${file.name} with display_order ${absoluteDisplayOrder}, id: ${mediaResult.rows[0].id}`
+						)
 					} catch (uploadError) {
 						console.error(`❌ Failed to upload ${file.name}:`, uploadError)
 						// Continue with other files rather than failing the entire update
@@ -666,10 +674,73 @@ export async function PUT(
 				}
 			}
 
+			// ✅ STEP 3: Update existing media display_order and is_primary
+			console.log('📝 Updating existing media display orders...')
+
+			// First, unset all is_primary flags
+			await sql.query(
+				'UPDATE property_media SET is_primary = false WHERE property_id = $1 AND type = $2',
+				[id, 'image']
+			)
+
+			// Then update each existing media item's display_order and is_primary
+			for (const mediaItem of existingMediaOrder) {
+				console.log(
+					`📝 Updating existing media ${mediaItem.id}: order=${mediaItem.display_order}, primary=${mediaItem.is_primary}`
+				)
+
+				await sql.query(
+					`UPDATE property_media 
+					SET 
+						display_order = $1,
+						is_primary = $2
+					WHERE id = $3 AND property_id = $4`,
+					[
+						mediaItem.display_order,
+						mediaItem.is_primary && mediaItem.type !== 'video',
+						mediaItem.id,
+						id,
+					]
+				)
+			}
+
+			// ✅ STEP 4: Ensure the first item (display_order = 0) is set as primary if it's an image
+			const firstMediaResult = await sql.query(
+				`SELECT id, type FROM property_media 
+				WHERE property_id = $1 AND display_order = 0
+				LIMIT 1`,
+				[id]
+			)
+
+			if (
+				firstMediaResult.rows.length > 0 &&
+				firstMediaResult.rows[0].type === 'image'
+			) {
+				await sql.query(
+					'UPDATE property_media SET is_primary = true WHERE id = $1',
+					[firstMediaResult.rows[0].id]
+				)
+				console.log(
+					`✅ Set media ${firstMediaResult.rows[0].id} as primary (first in order)`
+				)
+			} else if (firstMediaResult.rows.length > 0) {
+				console.log(
+					`ℹ️ First media (order 0) is a video, not setting as primary`
+				)
+			}
+
 			// Commit transaction
 			await sql.query('COMMIT')
 
 			console.log('🎉 Property update completed successfully!')
+			console.log('📊 Final summary:')
+			console.log(`  - Existing media updated: ${existingMediaOrder.length}`)
+			console.log(`  - New media uploaded: ${newMediaIds.length}`)
+			console.log(
+				`  - Total media count: ${
+					existingMediaOrder.length + newMediaIds.length
+				}`
+			)
 
 			return NextResponse.json({
 				success: true,

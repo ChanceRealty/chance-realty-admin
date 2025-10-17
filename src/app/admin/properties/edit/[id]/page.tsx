@@ -642,19 +642,25 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 			formDataToSend.append('mediaTypes', JSON.stringify(mediaTypes))
 			formDataToSend.append('primaryMediaIndex', primaryMediaIndex.toString())
 
-			// Add existing media order
-			formDataToSend.append(
-				'existingMediaOrder',
-				JSON.stringify(
-					existingMedia.map((media, index) => ({
-						id: media.id,
-						display_order: index,
-						is_primary: media.is_primary,
-					}))
-				)
-			)
+				const existingMediaWithOrder = existingMedia.map(media => ({
+					id: media.id,
+					display_order: media.display_order, // ✅ Use the display_order that was set during drag-drop
+					is_primary: media.is_primary,
+				}))
 
-			console.log('🚀 Submitting property update...')
+				formDataToSend.append(
+					'existingMediaOrder',
+					JSON.stringify(existingMediaWithOrder)
+				)
+
+				console.log('📤 Sending media order:', {
+					existingCount: existingMedia.length,
+					newCount: mediaFiles.length,
+					existingOrders: existingMediaWithOrder.map(m => m.display_order),
+					primaryMediaIndex,
+				})
+
+				console.log('🚀 Submitting property update...')
 
 			const response = await fetch(
 				`/api/admin/properties/${resolvedParams.id}`,
@@ -1428,7 +1434,6 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 							onExistingMediaChange={setExistingMedia}
 							onNewMediaChange={handleMediaChange}
 							onDeleteExisting={handleDeleteExistingMedia}
-							onSetPrimaryExisting={handleSetPrimaryImage}
 						/>
 					</div>
 					{/* Submit Button */}

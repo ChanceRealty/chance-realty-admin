@@ -111,16 +111,15 @@ export default function MediaEditManager({
 		})
 	}
 
-	// 🔹 Функция нормализации состояния
-	const normalizeCombinedState = (
-		items: CombinedMediaItem[]
-	): CombinedMediaItem[] => {
-		return items.map((item, idx) => ({
-			...item,
-			display_order: idx,
-			is_primary: idx === 0, // первый всегда главный
-		}))
-	}
+const normalizeCombinedState = (items: CombinedMediaItem[]): CombinedMediaItem[] => {
+  return items.map((item, idx) => ({
+    ...item,
+    display_order: idx,
+    is_primary: idx === 0, // первый всегда главный
+  }));
+};
+
+
 
 	// 🔹 Обновляем combinedMediaState при изменении existingMedia / новых файлов
 	useEffect(() => {
@@ -274,11 +273,9 @@ export default function MediaEditManager({
 			setNewFileTypes(updatedNewTypes)
 			setNewPreviews(updatedNewPreviews)
 			setNewIds(updatedNewIds)
-
 			onExistingMediaChange(
 				updatedExisting.sort((a, b) => a.display_order - b.display_order)
 			)
-
 			let newPrimaryIndex = 0
 			for (let i = 0; i < normalized.length; i++) {
 				if (normalized[i].isNew && normalized[i].is_primary) {
