@@ -241,9 +241,17 @@ export default function PropertyViewPopup({
 	}
 
 	const formatPrice = (price: number, currency: string = 'USD') => {
+		if (currency === 'AMD') {
+			return new Intl.NumberFormat('hy-AM', {
+				style: 'currency',
+				currency: 'AMD',
+				maximumFractionDigits: 0,
+			}).format(price)
+		}
+
 		return new Intl.NumberFormat('en-US', {
 			style: 'currency',
-			currency: currency,
+			currency: 'USD',
 			maximumFractionDigits: 0,
 		}).format(price)
 	}

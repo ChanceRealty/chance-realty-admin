@@ -754,14 +754,15 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 								<label className='block text-sm font-medium text-gray-700 mb-2'>
 									Գինը
 								</label>
-								<div className='flex'>
+								<div className='flex gap-2'>
 									<select
 										name='currency'
 										value={formData.currency}
 										onChange={handleInputChange}
 										className='border border-r-0 text-gray-700 border-gray-300 rounded-l-lg px-3 py-2 bg-gray-50'
 									>
-										<option value='USD'>USD</option>
+										<option value='USD'>USD ($)</option>
+										<option value='AMD'>AMD (֏)</option>
 									</select>
 									<input
 										type='number'
@@ -772,7 +773,7 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 										min='0'
 										step='0.01'
 										className='flex-1 border border-gray-300 text-black rounded-r-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-										placeholder='Enter price'
+										placeholder='Մուտքագրեք գինը'
 									/>
 								</div>
 							</div>

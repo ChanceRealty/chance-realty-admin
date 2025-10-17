@@ -571,7 +571,6 @@ export default function AddPropertyPage() {
 									placeholder='Մուտքագրեք անշարժ գույքի ID-ն'
 								/>
 							</div>
-
 							<div>
 								<label className='block text-sm font-medium text-gray-700 mb-2'>
 									Հայտարարության տեսակը
@@ -591,19 +590,19 @@ export default function AddPropertyPage() {
 									)}
 								</select>
 							</div>
-
 							<div>
 								<label className='block text-sm font-medium text-gray-700 mb-2'>
 									Գինը
 								</label>
-								<div className='flex'>
+								<div className='flex gap-2'>
 									<select
 										name='currency'
 										value={formData.currency}
 										onChange={handleInputChange}
 										className='border border-r-0 text-gray-700 border-gray-300 rounded-l-lg px-3 py-2 bg-gray-50'
 									>
-										<option value='USD'>USD</option>
+										<option value='USD'>USD ($)</option>
+										<option value='AMD'>AMD (֏)</option>
 									</select>
 									<input
 										type='number'
@@ -618,7 +617,6 @@ export default function AddPropertyPage() {
 									/>
 								</div>
 							</div>
-
 							<div>
 								<label className='block text-sm font-medium text-gray-700 mb-2'>
 									Կարգավիճակ

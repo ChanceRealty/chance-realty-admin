@@ -330,7 +330,15 @@ export default function AdminDashboard() {
 		land: 'Հողատարածք',
 	}
 
-	const formatPrice = (price: number) => {
+	const formatPrice = (price: number, currency: string = 'USD') => {
+		if (currency === 'AMD') {
+			return new Intl.NumberFormat('hy-AM', {
+				style: 'currency',
+				currency: 'AMD',
+				maximumFractionDigits: 0,
+			}).format(price)
+		}
+
 		return new Intl.NumberFormat('en-US', {
 			style: 'currency',
 			currency: 'USD',
@@ -786,7 +794,7 @@ export default function AdminDashboard() {
 											<div>
 												<span className='text-gray-500'>Գինը:</span>
 												<div className='text-gray-900 font-medium mt-1'>
-													{formatPrice(property.price)}
+													{formatPrice(property.price, property.currency)}
 												</div>
 											</div>
 											<div>
@@ -1071,7 +1079,7 @@ export default function AdminDashboard() {
 
 												<td className='px-6 py-4 whitespace-nowrap'>
 													<div className='text-sm text-gray-900'>
-														{formatPrice(property.price)}
+														{formatPrice(property.price, property.currency)}
 													</div>
 													<div className='text-sm text-gray-500'>
 														{listingTypeDisplay[property.listing_type] ||
