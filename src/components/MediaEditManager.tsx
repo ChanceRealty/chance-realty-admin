@@ -54,7 +54,7 @@ export default function MediaEditManager({
 	const [isUpdatingFromDrop, setIsUpdatingFromDrop] = useState(false)
 	const fileInputRef = useRef<HTMLInputElement>(null)
 
-	// 🔹 Генерация thumbnail для видео
+	// 🔹 Generate video thumbnail
 	const generateVideoThumbnail = async (videoFile: File): Promise<string> => {
 		return new Promise(resolve => {
 			const video = document.createElement('video')
@@ -111,43 +111,75 @@ export default function MediaEditManager({
 		})
 	}
 
-const normalizeCombinedState = (items: CombinedMediaItem[]): CombinedMediaItem[] => {
-  return items.map((item, idx) => ({
-    ...item,
-    display_order: idx,
-    is_primary: idx === 0, // первый всегда главный
-  }));
-};
+	// ✅ FIX: Properly normalize combined state with correct display_order
+	const normalizeCombinedState = (
+		items: CombinedMediaItem[]
+	): CombinedMediaItem[] => {
+		return items.map((item, idx) => ({
+			...item,
+			display_order: idx,
+			is_primary: idx === 0 && item.type === 'image',
+		}))
+	}
 
-
-
-	// 🔹 Обновляем combinedMediaState при изменении existingMedia / новых файлов
 	useEffect(() => {
+		// Не обновляем, если идёт перетаскивание
 		if (isUpdatingFromDrop) return
 
-		const combined: CombinedMediaItem[] = [
-			...existingMedia.map(m => ({ ...m, isNew: false })),
-			...newFiles.map((file, idx) => ({
-				id: newIds[idx],
-				url: newPreviews[idx],
-				thumbnail_url: newPreviews[idx],
-				type: newFileTypes[idx] as 'image' | 'video',
-				is_primary: false,
-				display_order: idx,
-				isNew: true,
-				file,
-			})),
-		]
+		setCombinedMediaState(prev => {
+			// Если предыдущего состояния нет, создаём его
+			if (prev.length === 0) {
+				const combined: CombinedMediaItem[] = [
+					...existingMedia.map(m => ({ ...m, isNew: false })),
+					...newFiles.map((file, idx) => ({
+						id: newIds[idx],
+						url: newPreviews[idx],
+						thumbnail_url: newPreviews[idx],
+						type: newFileTypes[idx] as 'image' | 'video',
+						is_primary: false,
+						display_order: existingMedia.length + idx,
+						isNew: true,
+						file,
+					})),
+				]
+				return normalizeCombinedState(combined)
+			}
 
-		setCombinedMediaState(normalizeCombinedState(combined))
+			// Если уже есть состояние, не пересоздаём порядок,
+			// просто добавляем новые файлы в конец (без сброса старого порядка)
+			const existingIds = prev.map(p => p.id)
+			const newItems = newIds
+				.filter(id => !existingIds.includes(id))
+				.map((id, idx) => {
+					const fileIdx = newIds.findIndex(nid => nid === id)
+					return {
+						id,
+						url: newPreviews[fileIdx],
+						thumbnail_url: newPreviews[fileIdx],
+						type: newFileTypes[fileIdx] as 'image' | 'video',
+						is_primary: false,
+						display_order: prev.length + idx,
+						isNew: true,
+						file: newFiles[fileIdx],
+					} as CombinedMediaItem
+				})
+
+			if (newItems.length === 0) return prev // ничего нового — ничего не меняем
+
+			const updated = [...prev, ...newItems]
+			return normalizeCombinedState(updated)
+		})
 	}, [existingMedia, newFiles, newPreviews, newFileTypes, newIds])
+
+
 
 	const cleanupPreviews = (urls: string[]) => {
 		urls.forEach(url => url.startsWith('blob:') && URL.revokeObjectURL(url))
 	}
+
 	useEffect(() => () => cleanupPreviews(newPreviews), [])
 
-	// 🔹 Обработка новых файлов
+	// 🔹 Handle new files
 	const handleFiles = async (files: File[]) => {
 		const validFiles: File[] = []
 		const validTypes: string[] = []
@@ -190,21 +222,47 @@ const normalizeCombinedState = (items: CombinedMediaItem[]): CombinedMediaItem[]
 		const updatedPreviews = [...newPreviews, ...previews]
 		const updatedIds = [...newIds, ...ids]
 
+		console.log('➕ Adding new files:', {
+			newCount: validFiles.length,
+			totalNew: updatedFiles.length,
+			existingCount: existingMedia.length,
+		})
+
 		setNewFiles(updatedFiles)
 		setNewFileTypes(updatedTypes)
 		setNewPreviews(updatedPreviews)
 		setNewIds(updatedIds)
 
-		onNewMediaChange(updatedFiles, updatedTypes, 0)
+		// ✅ Find first image for primary
+		let primaryIndex = 0
+		const allMedia = [
+			...existingMedia,
+			...updatedFiles.map((_, i) => ({ type: updatedTypes[i] })),
+		]
+		for (let i = 0; i < allMedia.length; i++) {
+			if (allMedia[i].type === 'image') {
+				primaryIndex = i < existingMedia.length ? 0 : i - existingMedia.length
+				break
+			}
+		}
+
+		onNewMediaChange(updatedFiles, updatedTypes, primaryIndex)
 	}
 
-	// 🔹 Удаление медиа
+	// 🔹 Delete media
 	const handleDeleteMedia = (index: number) => {
+		console.log('🗑️ Deleting media at index:', index)
+
 		const mediaItem = combinedMediaState[index]
+
 		if (mediaItem.isNew) {
+			// Определяем индекс файла в массиве новых файлов
 			const newFileIndex = combinedMediaState
 				.slice(0, index)
 				.filter(i => i.isNew).length
+
+			console.log('🗑️ Deleting new file at index:', newFileIndex)
+
 			const updatedFiles = newFiles.filter((_, i) => i !== newFileIndex)
 			const updatedTypes = newFileTypes.filter((_, i) => i !== newFileIndex)
 			const updatedPreviews = newPreviews.filter((_, i) => i !== newFileIndex)
@@ -214,11 +272,25 @@ const normalizeCombinedState = (items: CombinedMediaItem[]): CombinedMediaItem[]
 			setNewFileTypes(updatedTypes)
 			setNewPreviews(updatedPreviews)
 			setNewIds(updatedIds)
+
+			// Обновляем combinedMediaState сразу
+			setCombinedMediaState(prev =>
+				prev.filter(item => item.id !== mediaItem.id)
+			)
+
+			// Обновляем внешний обработчик
 			onNewMediaChange(updatedFiles, updatedTypes, 0)
 		} else {
+			console.log('🗑️ Deleting existing media with ID:', mediaItem.id)
 			onDeleteExisting(mediaItem.id as number)
+
+			// Также удаляем из combinedMediaState, чтобы исчезло из UI
+			setCombinedMediaState(prev =>
+				prev.filter(item => item.id !== mediaItem.id)
+			)
 		}
 	}
+
 
 	// 🔹 Drag'n'drop
 	const handleDragStart = (e: React.DragEvent, index: number) => {
@@ -241,9 +313,16 @@ const normalizeCombinedState = (items: CombinedMediaItem[]): CombinedMediaItem[]
 		const [draggedItem] = reordered.splice(draggedIndex, 1)
 		reordered.splice(index, 0, draggedItem)
 
-		const normalized = normalizeCombinedState(reordered)
+		// ✅ Пересчитываем порядок и главный элемент
+		const normalized = reordered.map((item, idx) => ({
+			...item,
+			display_order: idx,
+			is_primary: idx === 0 && item.type === 'image', // первый image — главный
+		}))
+
 		setCombinedMediaState(normalized)
 
+		// ✅ Разделяем на существующие и новые
 		const updatedExisting: ExistingMedia[] = []
 		const updatedNewFiles: File[] = []
 		const updatedNewTypes: string[] = []
@@ -256,7 +335,7 @@ const normalizeCombinedState = (items: CombinedMediaItem[]): CombinedMediaItem[]
 				updatedNewTypes.push(item.type)
 				updatedNewPreviews.push(item.url)
 				updatedNewIds.push(item.id as string)
-			} else if (!item.isNew && item.id) {
+			} else if (!item.isNew) {
 				updatedExisting.push({
 					id: item.id as number,
 					url: item.url,
@@ -268,28 +347,30 @@ const normalizeCombinedState = (items: CombinedMediaItem[]): CombinedMediaItem[]
 			}
 		})
 
-		setTimeout(() => {
-			setNewFiles(updatedNewFiles)
-			setNewFileTypes(updatedNewTypes)
-			setNewPreviews(updatedNewPreviews)
-			setNewIds(updatedNewIds)
-			onExistingMediaChange(
-				updatedExisting.sort((a, b) => a.display_order - b.display_order)
-			)
-			let newPrimaryIndex = 0
-			for (let i = 0; i < normalized.length; i++) {
-				if (normalized[i].isNew && normalized[i].is_primary) {
-					newPrimaryIndex = normalized.slice(0, i).filter(it => it.isNew).length
-					break
+		// ✅ Новый главный индекс (первый image среди новых)
+		let newPrimaryIndex = -1
+		let newImageCounter = 0
+		for (let i = 0; i < normalized.length; i++) {
+			const it = normalized[i]
+			if (it.isNew) {
+				if (newPrimaryIndex === -1 && it.is_primary && it.type === 'image') {
+					newPrimaryIndex = newImageCounter
 				}
+				newImageCounter++
 			}
-			onNewMediaChange(updatedNewFiles, updatedNewTypes, newPrimaryIndex)
+		}
+		if (newPrimaryIndex === -1) newPrimaryIndex = 0
 
-			setDraggedIndex(null)
-			setDragOverIndex(null)
-			setTimeout(() => setIsUpdatingFromDrop(false), 50)
-		}, 0)
+		onExistingMediaChange(
+			updatedExisting.sort((a, b) => a.display_order - b.display_order)
+		)
+		onNewMediaChange(updatedNewFiles, updatedNewTypes, newPrimaryIndex)
+
+		setDraggedIndex(null)
+		setDragOverIndex(null)
+		setTimeout(() => setIsUpdatingFromDrop(false), 50)
 	}
+
 
 	const handleDragEnd = () => {
 		setDraggedIndex(null)
@@ -374,9 +455,7 @@ const normalizeCombinedState = (items: CombinedMediaItem[]): CombinedMediaItem[]
 				</div>
 			)}
 
-			<div
-				className={`border-2 border-dashed rounded-lg p-6 transition-colors`}
-			>
+			<div className='border-2 border-dashed rounded-lg p-6 transition-colors'>
 				<div className='flex flex-col items-center justify-center space-y-2'>
 					<Upload className='w-10 h-10 text-gray-400' />
 					<p className='text-center text-gray-500'>
