@@ -242,11 +242,11 @@ export default function PropertyViewPopup({
 
 	const formatPrice = (price: number, currency: string = 'USD') => {
 		if (currency === 'AMD') {
-			return new Intl.NumberFormat('hy-AM', {
-				style: 'currency',
-				currency: 'AMD',
+			// Format the number with no decimals and add the Armenian Dram symbol
+			const formatted = new Intl.NumberFormat('hy-AM', {
 				maximumFractionDigits: 0,
 			}).format(price)
+			return `${formatted} ֏` // Armenian Dram symbol
 		}
 
 		return new Intl.NumberFormat('en-US', {

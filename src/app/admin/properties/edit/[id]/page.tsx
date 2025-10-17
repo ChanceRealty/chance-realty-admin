@@ -224,8 +224,12 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 					throw new Error(propertyData?.error || 'Property data is invalid')
 				}
 
-				// Populate form data with existing property data
-				console.log('📝 Populating form with property data...')
+				console.log('📝 Raw property data location:', {
+					state_id: propertyData.state_id,
+					city_id: propertyData.city_id,
+					district_id: propertyData.district_id,
+				})
+
 				setFormData({
 					custom_id: propertyData.custom_id || '',
 					title: propertyData.title || '',
@@ -242,7 +246,6 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 					owner_name: propertyData.owner_name || '',
 					owner_phone: propertyData.owner_phone || '',
 					address_admin: propertyData.address_admin || '',
-					// ✅ Handle status properly - it might be a number (ID) or string (name)
 					status: propertyData.status_name || 'available',
 					has_viber: propertyData.has_viber || false,
 					has_whatsapp: propertyData.has_whatsapp || false,
@@ -250,6 +253,33 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 					is_hidden: propertyData.is_hidden || false,
 					is_exclusive: propertyData.is_exclusive || false,
 				})
+
+				console.log('✅ Form data set with location:', {
+					state_id: propertyData.state_id?.toString() || '',
+					city_id: propertyData.city_id?.toString() || '',
+					district_id: propertyData.district_id?.toString() || '',
+				})
+
+				// ✅ CRITICAL: Fetch cities immediately after setting state_id
+				if (propertyData.state_id) {
+					console.log(
+						'🏙️ Loading cities for existing state_id:',
+						propertyData.state_id
+					)
+					fetch(`/api/properties/cities/${propertyData.state_id}`)
+						.then(res => res.json())
+						.then(citiesData => {
+							console.log(
+								'✅ Cities loaded on init:',
+								citiesData?.length || 0,
+								'items'
+							)
+							setCities(citiesData || [])
+						})
+						.catch(error =>
+							console.error('❌ Error loading initial cities:', error)
+						)
+				}
 
 				// Populate attributes based on property type
 				if (propertyData.attributes) {
@@ -325,17 +355,32 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 	}, [resolvedParams.id])
 
 	useEffect(() => {
+		// Don't fetch cities on initial load while property data is still loading
+		if (loading) {
+			console.log('⏳ Still loading property data, skipping city fetch')
+			return
+		}
+
 		if (formData.state_id) {
+			console.log('🏙️ Fetching cities for state_id:', formData.state_id)
+
 			// Fetch cities for selected state
 			fetch(`/api/properties/cities/${formData.state_id}`)
 				.then(res => res.json())
-				.then(data => setCities(data))
-				.catch(error => console.error('Error fetching cities:', error))
+				.then(data => {
+					console.log('✅ Cities loaded:', data?.length || 0, 'items')
+					setCities(data)
+				})
+				.catch(error => console.error('❌ Error fetching cities:', error))
 		} else {
+			console.log('❌ No state_id, clearing cities')
 			setCities([])
-			setFormData(prev => ({ ...prev, city_id: '' }))
+			// Only reset city_id if we're not loading (to prevent clearing on initial load)
+			if (!loading) {
+				setFormData(prev => ({ ...prev, city_id: '', district_id: '' }))
+			}
 		}
-	}, [formData.state_id])
+	}, [formData.state_id, loading])
 
 	const handleInputChange = (
 		e: React.ChangeEvent<
@@ -451,6 +496,19 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 		setError('')
 
 		try {
+			console.log('📝 Form data before submit:', {
+				state_id: formData.state_id,
+				city_id: formData.city_id,
+				district_id: formData.district_id,
+			})
+
+			// Validate location fields
+			if (!formData.state_id) {
+				setError('Խնդրում ենք ընտրել մարզ/նահանգ')
+				setSaving(false)
+				return
+			}
+
 			let finalCityId = null
 			let finalDistrictId = null
 
@@ -459,23 +517,40 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 				s => s.id === parseInt(formData.state_id)
 			)
 
+			console.log('🏛️ Selected state:', selectedState)
+
 			if (selectedState?.uses_districts) {
-				// For Yerevan: district_id is set, city_id stays NULL
+				// For Yerevan: district_id is required, city_id stays NULL
+				if (!formData.district_id) {
+					setError('Խնդրում ենք ընտրել թաղամաս Երևանի համար')
+					setSaving(false)
+					return
+				}
 				console.log(
 					'🏘️ Yerevan property: Using district_id, city_id will be NULL'
 				)
-				finalDistrictId = formData.district_id
-					? parseInt(formData.district_id)
-					: null
-				finalCityId = null // Important: city_id is NULL for Yerevan
+				finalDistrictId = parseInt(formData.district_id)
+				finalCityId = null
 			} else {
-				// For other states: city_id is set, district_id stays NULL
+				// For other states: city_id is required, district_id stays NULL
+				if (!formData.city_id) {
+					setError('Խնդրում ենք ընտրել քաղաք')
+					setSaving(false)
+					return
+				}
 				console.log(
 					'🏙️ Non-Yerevan property: Using city_id, district_id will be NULL'
 				)
-				finalCityId = formData.city_id ? parseInt(formData.city_id) : null
-				finalDistrictId = null // Important: district_id is NULL for non-Yerevan
+				finalCityId = parseInt(formData.city_id)
+				finalDistrictId = null
 			}
+
+			console.log('📍 Final location IDs:', {
+				state_id: parseInt(formData.state_id),
+				city_id: finalCityId,
+				district_id: finalDistrictId,
+			})
+
 			// Prepare form data
 			const propertyData = {
 				...formData,
@@ -494,9 +569,15 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 			switch (formData.property_type) {
 				case 'house':
 					Object.assign(cleanedAttributes, {
-						bedrooms: parseInt(attributes.bedrooms),
-						bathrooms: parseFloat(attributes.bathrooms),
-						area_sqft: parseInt(attributes.area_sqft),
+						bedrooms: attributes.bedrooms
+							? parseInt(attributes.bedrooms)
+							: null,
+						bathrooms: attributes.bathrooms
+							? parseFloat(attributes.bathrooms)
+							: null,
+						area_sqft: attributes.area_sqft
+							? parseInt(attributes.area_sqft)
+							: null,
 						lot_size_sqft: attributes.lot_size_sqft
 							? parseInt(attributes.lot_size_sqft)
 							: null,
@@ -508,11 +589,19 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 					break
 				case 'apartment':
 					Object.assign(cleanedAttributes, {
-						bedrooms: parseInt(attributes.bedrooms),
-						bathrooms: parseFloat(attributes.bathrooms),
-						area_sqft: parseInt(attributes.area_sqft),
-						floor: parseInt(attributes.floor),
-						total_floors: parseInt(attributes.total_floors),
+						bedrooms: attributes.bedrooms
+							? parseInt(attributes.bedrooms)
+							: null,
+						bathrooms: attributes.bathrooms
+							? parseFloat(attributes.bathrooms)
+							: null,
+						area_sqft: attributes.area_sqft
+							? parseInt(attributes.area_sqft)
+							: null,
+						floor: attributes.floor ? parseInt(attributes.floor) : null,
+						total_floors: attributes.total_floors
+							? parseInt(attributes.total_floors)
+							: null,
 						ceiling_height: attributes.ceiling_height
 							? parseFloat(attributes.ceiling_height)
 							: null,
@@ -520,8 +609,10 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 					break
 				case 'commercial':
 					Object.assign(cleanedAttributes, {
-						business_type: attributes.business_type,
-						area_sqft: parseInt(attributes.area_sqft),
+						business_type: attributes.business_type || null,
+						area_sqft: attributes.area_sqft
+							? parseInt(attributes.area_sqft)
+							: null,
 						floors: attributes.floors ? parseInt(attributes.floors) : null,
 						ceiling_height: attributes.ceiling_height
 							? parseFloat(attributes.ceiling_height)
@@ -530,7 +621,9 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 					break
 				case 'land':
 					Object.assign(cleanedAttributes, {
-						area_acres: parseFloat(attributes.area_acres),
+						area_acres: attributes.area_acres
+							? parseFloat(attributes.area_acres)
+							: null,
 					})
 					break
 			}
@@ -548,7 +641,8 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 			// Add media types and primary index
 			formDataToSend.append('mediaTypes', JSON.stringify(mediaTypes))
 			formDataToSend.append('primaryMediaIndex', primaryMediaIndex.toString())
-			// Add this to formDataToSend
+
+			// Add existing media order
 			formDataToSend.append(
 				'existingMediaOrder',
 				JSON.stringify(
@@ -559,6 +653,9 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 					}))
 				)
 			)
+
+			console.log('🚀 Submitting property update...')
+
 			const response = await fetch(
 				`/api/admin/properties/${resolvedParams.id}`,
 				{
@@ -573,12 +670,14 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 				throw new Error(data.error || 'Failed to update property')
 			}
 
+			console.log('✅ Property updated successfully')
 			router.push('/admin')
 		} catch (error) {
-			console.error('Error updating property:', error)
+			console.error('❌ Error updating property:', error)
 			setError(
 				error instanceof Error ? error.message : 'Failed to update property'
 			)
+			window.scrollTo({ top: 0, behavior: 'smooth' })
 		} finally {
 			setSaving(false)
 		}
@@ -646,10 +745,6 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 				<form onSubmit={handleSubmit} className='space-y-8'>
 					{/* Basic Information */}
 					<div className='bg-white shadow rounded-lg p-6'>
-						<h2 className='text-lg font-semibold mb-6 text-gray-700'>
-							Հիմնական տեղեկություններ
-						</h2>
-
 						<div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
 							<div className='md:col-span-2'>
 								<label className='block text-sm font-medium text-gray-700 mb-2'>
@@ -738,6 +833,7 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 									name='listing_type'
 									value={formData.listing_type}
 									onChange={handleInputChange}
+									required
 									className='w-full border border-gray-300 text-gray-700 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
 								>
 									{(Object.keys(listingTypeDisplay) as ListingType[]).map(
@@ -815,70 +911,54 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 									</div>
 								)}
 							</div>
-							{/* Property Visibility Settings */}
-							<div className='bg-white shadow rounded-lg p-6 border-l-4 border-indigo-500'>
-								<h2 className='text-lg font-semibold mb-6 flex items-center text-gray-700'>
-									<Eye className='w-5 h-5 mr-2' />
-									Տեսանելիության կարգավորումներ
-								</h2>
+						</div>
+					</div>
+					{/* Property Visibility Settings */}
+					<div className='bg-white shadow rounded-lg p-6 border-l-4 border-indigo-500'>
+						<h2 className='text-lg font-semibold mb-6 flex items-center text-gray-700'>
+							<Eye className='w-5 h-5 mr-2' />
+							Տեսանելիության կարգավորումներ
+						</h2>
 
-								<div className='space-y-4'>
-									<div className='flex items-center'>
-										<input
-											type='checkbox'
-											id='is_hidden'
-											name='is_hidden'
-											checked={formData.is_hidden}
-											onChange={handleInputChange}
-											className='w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500'
-										/>
-										<label
-											htmlFor='is_hidden'
-											className='ml-3 text-sm font-medium text-gray-700'
-										>
-											<span className='flex items-center'>
-												<EyeOff className='w-4 h-4 mr-2 text-red-500' />
-												Թաքցնել հանրային ցուցակից
-											</span>
-										</label>
-									</div>
-									{formData.is_hidden && (
-										<div className='ml-7 p-3 bg-red-50 border border-red-200 rounded-lg'>
-											<p className='text-sm text-red-800'>
-												⚠️ Այս հայտարարությունը չի ցուցադրվի հանրային կայքում։
-												Միայն ադմինիստրատորները կարող են այն տեսնել։
-											</p>
-										</div>
-									)}
+						<div className='space-y-4'>
+							<div className='flex items-center'>
+								<input
+									type='checkbox'
+									id='is_hidden'
+									name='is_hidden'
+									checked={formData.is_hidden}
+									onChange={handleInputChange}
+									className='w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500'
+								/>
+								<label
+									htmlFor='is_hidden'
+									className='ml-3 text-sm font-medium text-gray-700'
+								>
+									<span className='flex items-center'>
+										<EyeOff className='w-4 h-4 mr-2 text-red-500' />
+										Թաքցնել կայքում
+									</span>
+								</label>
+							</div>
 
-									<div className='flex items-center'>
-										<input
-											type='checkbox'
-											id='is_exclusive'
-											name='is_exclusive'
-											checked={formData.is_exclusive}
-											onChange={handleInputChange}
-											className='w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500'
-										/>
-										<label
-											htmlFor='is_exclusive'
-											className='ml-3 text-sm font-medium text-gray-700'
-										>
-											<span className='flex items-center'>
-												<Crown className='w-4 h-4 mr-2 text-purple-500' />
-												Նշել որպես էքսկլյուզիվ
-											</span>
-										</label>
-									</div>
-									{formData.is_exclusive && (
-										<div className='ml-7 p-3 bg-purple-50 border border-purple-200 rounded-lg'>
-											<p className='text-sm text-purple-800'>
-												✨ Այս հայտարարությունը կնշվի որպես էքսկլյուզիվ և
-												կունենա հատուկ նշան։
-											</p>
-										</div>
-									)}
-								</div>
+							<div className='flex items-center'>
+								<input
+									type='checkbox'
+									id='is_exclusive'
+									name='is_exclusive'
+									checked={formData.is_exclusive}
+									onChange={handleInputChange}
+									className='w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500'
+								/>
+								<label
+									htmlFor='is_exclusive'
+									className='ml-3 text-sm font-medium text-gray-700'
+								>
+									<span className='flex items-center'>
+										<Crown className='w-4 h-4 mr-2 text-purple-500' />
+										Նշել որպես էքսկլյուզիվ
+									</span>
+								</label>
 							</div>
 						</div>
 					</div>
@@ -899,7 +979,6 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 									name='owner_name'
 									value={formData.owner_name}
 									onChange={handleInputChange}
-									required
 									className='w-full border border-gray-300 text-black rounded-lg px-4 py-2 focus:ring-2 focus:ring-red-500 focus:border-transparent'
 									placeholder='Enter owner name'
 								/>
@@ -914,18 +993,10 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 									name='owner_phone'
 									value={formData.owner_phone}
 									onChange={handleInputChange}
-									required
 									className='w-full border border-gray-300 text-black rounded-lg px-4 py-2 focus:ring-2 focus:ring-red-500 focus:border-transparent'
 									placeholder='Enter owner phone number'
 								/>
 							</div>
-						</div>
-
-						<div className='mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg'>
-							<p className='text-sm text-yellow-800'>
-								⚠️ Այս տեղեկությունները հանրային կայքում չեն ցուցադրվի և միայն
-								ադմինիստրատորի համար են։
-							</p>
 						</div>
 						<h2 className='text-lg p-2 font-semibold mb-6 flex items-center text-gray-700'>
 							<Phone className='w-5 h-5 mr-2' />
@@ -1050,9 +1121,6 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 								required={true}
 								className='w-full'
 							/>
-							<p className='text-sm text-gray-500 mt-1'>
-								Սկսեք մուտքագրել հասցեն և ընտրեք առաջարկությունների ցուցակից
-							</p>
 						</div>
 					</div>
 					<div className='bg-white shadow rounded-lg p-6'>
@@ -1117,6 +1185,7 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 										onChange={handleAttributeChange}
 										min='0'
 										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
+										required
 									/>
 								</div>
 								<div>
@@ -1130,6 +1199,7 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 										onChange={handleAttributeChange}
 										min='1'
 										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
+										required
 									/>
 								</div>
 								<div>
@@ -1145,6 +1215,7 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 										step='0.1'
 										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
 										placeholder='օր․ 3.0'
+										required
 									/>
 								</div>
 							</div>
@@ -1236,6 +1307,7 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 										step='0.1'
 										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
 										placeholder='օր․ 3.0'
+										required
 									/>
 								</div>
 							</div>
@@ -1282,6 +1354,7 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 										onChange={handleAttributeChange}
 										min='1'
 										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
+										required
 									/>
 								</div>
 								<div>
@@ -1296,6 +1369,7 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 										min='0'
 										step='0.1'
 										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
+										required
 									/>
 								</div>
 							</div>

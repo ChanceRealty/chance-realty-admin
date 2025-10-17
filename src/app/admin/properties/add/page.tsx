@@ -488,10 +488,6 @@ export default function AddPropertyPage() {
 				<form onSubmit={handleSubmit} className='space-y-8'>
 					{/* Basic Information */}
 					<div className='bg-white shadow rounded-lg p-6'>
-						<h2 className='text-lg font-semibold mb-6 text-gray-700'>
-							Հիմնական տեղեկություններ
-						</h2>
-
 						<div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
 							<div className='md:col-span-2'>
 								<label className='block text-sm font-medium text-gray-700 mb-2'>
@@ -579,6 +575,7 @@ export default function AddPropertyPage() {
 									name='listing_type'
 									value={formData.listing_type}
 									onChange={handleInputChange}
+									required
 									className='w-full border border-gray-300 text-gray-700 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
 								>
 									{(Object.keys(listingTypeDisplay) as ListingType[]).map(
@@ -653,75 +650,58 @@ export default function AddPropertyPage() {
 										})()}
 									</div>
 								)}
-								{/* Property Visibility Settings */}
-								<div className='bg-white shadow rounded-lg p-6 border-l-4 border-indigo-500'>
-									<h2 className='text-lg font-semibold mb-6 flex items-center text-gray-700'>
-										<Eye className='w-5 h-5 mr-2' />
-										Տեսանելիության կարգավորումներ
-									</h2>
-
-									<div className='space-y-4'>
-										<div className='flex items-center'>
-											<input
-												type='checkbox'
-												id='is_hidden'
-												name='is_hidden'
-												checked={formData.is_hidden}
-												onChange={handleInputChange}
-												className='w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500'
-											/>
-											<label
-												htmlFor='is_hidden'
-												className='ml-3 text-sm font-medium text-gray-700'
-											>
-												<span className='flex items-center'>
-													<EyeOff className='w-4 h-4 mr-2 text-red-500' />
-													Թաքցնել հանրային ցուցակից
-												</span>
-											</label>
-										</div>
-										{formData.is_hidden && (
-											<div className='ml-7 p-3 bg-red-50 border border-red-200 rounded-lg'>
-												<p className='text-sm text-red-800'>
-													⚠️ Այս հայտարարությունը չի ցուցադրվի հանրային կայքում։
-													Միայն ադմինիստրատորները կարող են այն տեսնել։
-												</p>
-											</div>
-										)}
-
-										<div className='flex items-center'>
-											<input
-												type='checkbox'
-												id='is_exclusive'
-												name='is_exclusive'
-												checked={formData.is_exclusive}
-												onChange={handleInputChange}
-												className='w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500'
-											/>
-											<label
-												htmlFor='is_exclusive'
-												className='ml-3 text-sm font-medium text-gray-700'
-											>
-												<span className='flex items-center'>
-													<Crown className='w-4 h-4 mr-2 text-purple-500' />
-													Նշել որպես էքսկլյուզիվ
-												</span>
-											</label>
-										</div>
-										{formData.is_exclusive && (
-											<div className='ml-7 p-3 bg-purple-50 border border-purple-200 rounded-lg'>
-												<p className='text-sm text-purple-800'>
-													✨ Այս հայտարարությունը կնշվի որպես էքսկլյուզիվ և
-													կունենա հատուկ նշան։
-												</p>
-											</div>
-										)}
-									</div>
-								</div>
 							</div>
 						</div>
 					</div>
+					{/* Property Visibility Settings */}
+					<div className='bg-white shadow rounded-lg p-6 border-l-4 border-indigo-500'>
+						<h2 className='text-lg font-semibold mb-6 flex items-center text-gray-700'>
+							<Eye className='w-5 h-5 mr-2' />
+							Տեսանելիության կարգավորումներ
+						</h2>
 
+						<div className='space-y-4'>
+							<div className='flex items-center'>
+								<input
+									type='checkbox'
+									id='is_hidden'
+									name='is_hidden'
+									checked={formData.is_hidden}
+									onChange={handleInputChange}
+									className='w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500'
+								/>
+								<label
+									htmlFor='is_hidden'
+									className='ml-3 text-sm font-medium text-gray-700'
+								>
+									<span className='flex items-center'>
+										<EyeOff className='w-4 h-4 mr-2 text-red-500' />
+										Թաքցնել կայքում
+									</span>
+								</label>
+							</div>
+
+							<div className='flex items-center'>
+								<input
+									type='checkbox'
+									id='is_exclusive'
+									name='is_exclusive'
+									checked={formData.is_exclusive}
+									onChange={handleInputChange}
+									className='w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500'
+								/>
+								<label
+									htmlFor='is_exclusive'
+									className='ml-3 text-sm font-medium text-gray-700'
+								>
+									<span className='flex items-center'>
+										<Crown className='w-4 h-4 mr-2 text-purple-500' />
+										Նշել որպես էքսկլյուզիվ
+									</span>
+								</label>
+							</div>
+						</div>
+					</div>
 					{/* Owner Information (Admin Only) */}
 					<div className='bg-white shadow rounded-lg p-6 border-l-4 border-red-500'>
 						<h2 className='text-lg font-semibold mb-6 flex items-center text-gray-700'>
@@ -739,7 +719,6 @@ export default function AddPropertyPage() {
 									name='owner_name'
 									value={formData.owner_name}
 									onChange={handleInputChange}
-									required
 									className='w-full border border-gray-300 text-black rounded-lg px-4 py-2 focus:ring-2 focus:ring-red-500 focus:border-transparent'
 									placeholder='Enter owner name'
 								/>
@@ -754,18 +733,10 @@ export default function AddPropertyPage() {
 									name='owner_phone'
 									value={formData.owner_phone}
 									onChange={handleInputChange}
-									required
 									className='w-full border border-gray-300 text-black rounded-lg px-4 py-2 focus:ring-2 focus:ring-red-500 focus:border-transparent'
 									placeholder='Enter owner phone number'
 								/>
 							</div>
-						</div>
-
-						<div className='mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg'>
-							<p className='text-sm text-yellow-800'>
-								⚠️ Այս տեղեկությունները հանրային կայքում չեն ցուցադրվի և միայն
-								ադմինիստրատորի համար են։
-							</p>
 						</div>
 						<h2 className='text-lg p-2 font-semibold mb-6 flex items-center text-gray-700'>
 							<Phone className='w-5 h-5 mr-2' />
@@ -893,9 +864,6 @@ export default function AddPropertyPage() {
 								required={true}
 								className='w-full'
 							/>
-							<p className='text-sm text-gray-500 mt-1'>
-								Սկսեք մուտքագրել հասցեն և ընտրեք առաջարկությունների ցուցակից
-							</p>
 						</div>
 					</div>
 
@@ -962,6 +930,7 @@ export default function AddPropertyPage() {
 										onChange={handleAttributeChange}
 										min='0'
 										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
+										required
 									/>
 								</div>
 								<div>
@@ -975,6 +944,7 @@ export default function AddPropertyPage() {
 										onChange={handleAttributeChange}
 										min='1'
 										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
+										required
 									/>
 								</div>
 								<div>
@@ -990,6 +960,7 @@ export default function AddPropertyPage() {
 										step='0.1'
 										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
 										placeholder='օր․ 3.0'
+										required
 									/>
 								</div>
 							</div>
@@ -1081,6 +1052,7 @@ export default function AddPropertyPage() {
 										step='0.1'
 										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
 										placeholder='օր․ 3.0'
+										required
 									/>
 								</div>
 							</div>
@@ -1127,6 +1099,7 @@ export default function AddPropertyPage() {
 										onChange={handleAttributeChange}
 										min='1'
 										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
+										required
 									/>
 								</div>
 								<div>
@@ -1141,6 +1114,7 @@ export default function AddPropertyPage() {
 										min='0'
 										step='0.1'
 										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
+										required
 									/>
 								</div>
 							</div>

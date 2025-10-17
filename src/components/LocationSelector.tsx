@@ -1,4 +1,4 @@
-// src/components/LocationSelector.tsx - Fixed for Yerevan districts (city_id nullable)
+// src/components/LocationSelector.tsx - Fixed for edit page loading
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -32,6 +32,7 @@ export default function LocationSelector({
 	const [loading, setLoading] = useState(true)
 	const [loadingCities, setLoadingCities] = useState(false)
 	const [loadingDistricts, setLoadingDistricts] = useState(false)
+	const [isInitialLoad, setIsInitialLoad] = useState(true)
 
 	// Fetch states on component mount
 	useEffect(() => {
@@ -40,31 +41,52 @@ export default function LocationSelector({
 
 	// Handle state selection changes
 	useEffect(() => {
-		if (stateId) {
-			const state = states.find(s => s.id === parseInt(stateId))
-			setSelectedState(state || null)
+		if (!stateId || loading) {
+			setSelectedState(null)
+			return
+		}
 
-			if (state?.uses_districts) {
-				// For Yerevan: load districts and clear city_id (set to null)
-				console.log('🏘️ Yerevan selected - loading districts, clearing city_id')
-				fetchDistricts(parseInt(stateId))
-				setCities([])
-				onCityChange('') // Clear city_id for Yerevan (will be null in DB)
+		const state = states.find(s => s.id === parseInt(stateId))
+		setSelectedState(state || null)
+
+		if (!state) return
+
+		if (state.uses_districts) {
+			// For Yerevan: load districts
+			console.log('🏘️ Yerevan selected - loading districts')
+			fetchDistricts(parseInt(stateId))
+			setCities([])
+
+			// Only clear city_id if this is NOT the initial load
+			if (!isInitialLoad) {
+				console.log('🔄 Not initial load - clearing city_id')
+				onCityChange('')
 			} else {
-				// For other states: load cities and clear district_id
-				console.log(
-					'🏙️ Non-Yerevan state selected - loading cities, clearing district_id'
-				)
-				fetchCities(parseInt(stateId))
-				setDistricts([])
-				onDistrictChange('') // Clear district_id for non-Yerevan states
+				console.log('⏳ Initial load - preserving city_id')
 			}
 		} else {
-			setSelectedState(null)
-			setCities([])
+			// For other states: load cities
+			console.log('🏙️ Non-Yerevan state selected - loading cities')
+			fetchCities(parseInt(stateId))
 			setDistricts([])
+
+			// Only clear district_id if this is NOT the initial load
+			if (!isInitialLoad) {
+				console.log('🔄 Not initial load - clearing district_id')
+				onDistrictChange('')
+			} else {
+				console.log('⏳ Initial load - preserving district_id')
+			}
 		}
-	}, [stateId, states])
+
+		// After first run, mark as not initial load
+		if (isInitialLoad) {
+			console.log(
+				'✅ Initial load complete, enabling field clearing for future changes'
+			)
+			setIsInitialLoad(false)
+		}
+	}, [stateId, states, loading])
 
 	const fetchStates = async () => {
 		try {
@@ -72,10 +94,11 @@ export default function LocationSelector({
 			const response = await fetch('/api/properties/states')
 			if (response.ok) {
 				const data = await response.json()
+				console.log('📍 States loaded:', data.length)
 				setStates(data)
 			}
 		} catch (error) {
-			console.error('Error fetching states:', error)
+			console.error('❌ Error fetching states:', error)
 		} finally {
 			setLoading(false)
 		}
@@ -87,10 +110,11 @@ export default function LocationSelector({
 			const response = await fetch(`/api/properties/cities/${stateId}`)
 			if (response.ok) {
 				const data = await response.json()
+				console.log('🏙️ Cities loaded:', data.length)
 				setCities(data)
 			}
 		} catch (error) {
-			console.error('Error fetching cities:', error)
+			console.error('❌ Error fetching cities:', error)
 		} finally {
 			setLoadingCities(false)
 		}
@@ -102,20 +126,24 @@ export default function LocationSelector({
 			const response = await fetch(`/api/properties/districts/${stateId}`)
 			if (response.ok) {
 				const data = await response.json()
+				console.log('🏘️ Districts loaded:', data.length)
 				setDistricts(data)
 			}
 		} catch (error) {
-			console.error('Error fetching districts:', error)
+			console.error('❌ Error fetching districts:', error)
 		} finally {
 			setLoadingDistricts(false)
 		}
 	}
 
 	const handleStateChange = (value: string) => {
+		console.log('🔄 User manually changed state to:', value)
 		onStateChange(value)
-		// Reset both city and district when state changes
+		// When user manually changes state, clear both city and district
 		onCityChange('')
 		onDistrictChange('')
+		// This is not an initial load anymore
+		setIsInitialLoad(false)
 	}
 
 	if (loading) {
@@ -134,7 +162,7 @@ export default function LocationSelector({
 			{/* State Selection */}
 			<div>
 				<label className='block text-sm font-medium text-gray-700 mb-2'>
-					Մարզ / Նահանգ
+					Մարզ / Նահանգ {required && <span className='text-red-500'>*</span>}
 				</label>
 				<select
 					value={stateId}
@@ -157,7 +185,7 @@ export default function LocationSelector({
 			{selectedState?.uses_districts && (
 				<div>
 					<label className='block text-sm font-medium text-gray-700 mb-2'>
-						Թաղամաս <span className='text-red-500'>*</span>
+						Թաղամաս {required && <span className='text-red-500'>*</span>}
 					</label>
 					<select
 						value={districtId}
@@ -177,9 +205,6 @@ export default function LocationSelector({
 							))
 						)}
 					</select>
-					<p className='text-sm text-blue-600 mt-1'>
-						💡 Երևանի համար ընտրեք թաղամասը (քաղաք ավտոմատ կնշվի)
-					</p>
 				</div>
 			)}
 
@@ -187,7 +212,7 @@ export default function LocationSelector({
 			{selectedState && !selectedState.uses_districts && (
 				<div>
 					<label className='block text-sm font-medium text-gray-700 mb-2'>
-						Քաղաք <span className='text-red-500'>*</span>
+						Քաղաք {required && <span className='text-red-500'>*</span>}
 					</label>
 					<select
 						value={cityId}
@@ -207,24 +232,6 @@ export default function LocationSelector({
 							))
 						)}
 					</select>
-				</div>
-			)}
-
-			{/* Helper Text */}
-			{selectedState && (
-				<div className='bg-blue-50 border border-blue-200 rounded-lg p-3'>
-					<p className='text-sm text-blue-800'>
-						{selectedState.uses_districts ? (
-							<>
-								<strong>Երևան:</strong> Ընտրեք թաղամասը։ Քաղաքը ավտոմատ կլինի
-								"Երևան"։
-							</>
-						) : (
-							<>
-								<strong>{selectedState.name}:</strong> Ընտրեք քաղաքը մարզում։
-							</>
-						)}
-					</p>
 				</div>
 			)}
 		</div>
