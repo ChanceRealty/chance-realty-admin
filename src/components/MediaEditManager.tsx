@@ -1,7 +1,3 @@
-// src/components/MediaEditManager.tsx - FIXED deletion logic
-
-// Replace the entire component with this corrected version:
-
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
@@ -11,9 +7,9 @@ import {
 	Video,
 	Check,
 	Trash2,
-	Star,
 	AlertCircle,
-	GripVertical,
+	Play,
+	Loader2,
 } from 'lucide-react'
 
 interface ExistingMedia {
@@ -62,10 +58,17 @@ export default function MediaEditManager({
 	const [dragActive, setDragActive] = useState(false)
 	const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
 	const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
-	const [combinedMediaState, setCombinedMediaState] = useState<CombinedMediaItem[]>([])
+	const [combinedMediaState, setCombinedMediaState] = useState<
+		CombinedMediaItem[]
+	>([])
+	const [videoThumbnailLoaded, setVideoThumbnailLoaded] = useState<
+		Record<number, boolean>
+	>({})
+	const [videoThumbnailError, setVideoThumbnailError] = useState<
+		Record<number, boolean>
+	>({})
 	const fileInputRef = useRef<HTMLInputElement>(null)
 
-	// Initialize combined media state
 	useEffect(() => {
 		const hasExistingPrimary = existingMedia.some(m => m.is_primary)
 
@@ -77,7 +80,8 @@ export default function MediaEditManager({
 			...newFiles.map((file, idx) => ({
 				url: newPreviews[idx],
 				type: newFileTypes[idx] as 'image' | 'video',
-				is_primary: !hasExistingPrimary && idx === 0 && newFileTypes[idx] === 'image',
+				is_primary:
+					!hasExistingPrimary && idx === 0 && newFileTypes[idx] === 'image',
 				display_order: existingMedia.length + idx,
 				isNew: true,
 				file: file,
@@ -87,9 +91,11 @@ export default function MediaEditManager({
 		setCombinedMediaState(normalizePrimary(combined))
 	}, [existingMedia, newFiles, newPreviews, newFileTypes])
 
-	const normalizePrimary = (items: CombinedMediaItem[]): CombinedMediaItem[] => {
+	const normalizePrimary = (
+		items: CombinedMediaItem[]
+	): CombinedMediaItem[] => {
 		const imageItems = items.filter(item => item.type === 'image')
-		
+
 		if (imageItems.length === 0) {
 			return items.map((item, idx) => ({
 				...item,
@@ -174,41 +180,34 @@ export default function MediaEditManager({
 			setNewFiles(prev => [...prev, ...validFiles])
 			setNewFileTypes(prev => [...prev, ...validTypes])
 			setNewPreviews(prev => [...prev, ...previews])
-			
-			// Notify parent of new media
+
 			const allFiles = [...newFiles, ...validFiles]
 			const allTypes = [...newFileTypes, ...validTypes]
 			onNewMediaChange(allFiles, allTypes, 0)
 		}
 	}
 
-	// ✅ FIXED: Delete handler that works for both new and existing media
 	const handleDeleteMedia = (index: number) => {
 		const mediaItem = combinedMediaState[index]
-		
+
 		if (mediaItem.isNew) {
-			// ✅ Delete new file
 			const newFileIndex = combinedMediaState
 				.slice(0, index)
 				.filter(item => item.isNew).length
-			
-			// Cleanup blob URL
+
 			const url = newPreviews[newFileIndex]
 			if (url?.startsWith('blob:')) URL.revokeObjectURL(url)
-			
-			// Remove from arrays
+
 			const updatedFiles = newFiles.filter((_, i) => i !== newFileIndex)
 			const updatedTypes = newFileTypes.filter((_, i) => i !== newFileIndex)
 			const updatedPreviews = newPreviews.filter((_, i) => i !== newFileIndex)
-			
+
 			setNewFiles(updatedFiles)
 			setNewFileTypes(updatedTypes)
 			setNewPreviews(updatedPreviews)
-			
-			// Notify parent
+
 			onNewMediaChange(updatedFiles, updatedTypes, 0)
 		} else {
-			// ✅ Delete existing media
 			if (mediaItem.id) {
 				onDeleteExisting(mediaItem.id)
 			}
@@ -234,11 +233,10 @@ export default function MediaEditManager({
 		const reordered = [...combinedMediaState]
 		const [draggedItem] = reordered.splice(draggedIndex, 1)
 		reordered.splice(index, 0, draggedItem)
-		
+
 		const normalized = normalizePrimary(reordered)
 		setCombinedMediaState(normalized)
 
-		// Split back into existing and new
 		const updatedExisting: ExistingMedia[] = []
 		const updatedNewFiles: File[] = []
 		const updatedNewTypes: string[] = []
@@ -278,9 +276,9 @@ export default function MediaEditManager({
 
 	const handleSetPrimary = (index: number) => {
 		const mediaItem = combinedMediaState[index]
-		
+
 		if (mediaItem.type !== 'image') return
-		
+
 		if (mediaItem.isNew) {
 			const newFileIndex = combinedMediaState
 				.slice(0, index)
@@ -291,6 +289,64 @@ export default function MediaEditManager({
 		}
 	}
 
+	// ✅ Render media item with proper video thumbnail handling
+	const renderMediaItem = (media: CombinedMediaItem, index: number) => {
+		if (media.type === 'video') {
+			return (
+				<div className='aspect-square relative bg-gray-900'>
+					{/* Try to show thumbnail first */}
+					{media.thumbnail_url && !videoThumbnailError[index] ? (
+						<>
+							<Image
+								src={media.thumbnail_url}
+								alt={`Video ${index + 1}`}
+								fill
+								className='object-cover'
+								onLoad={() =>
+									setVideoThumbnailLoaded(prev => ({ ...prev, [index]: true }))
+								}
+								onError={() =>
+									setVideoThumbnailError(prev => ({ ...prev, [index]: true }))
+								}
+								unoptimized={media.isNew}
+							/>
+							{!videoThumbnailLoaded[index] && (
+								<div className='absolute inset-0 bg-gray-800 flex items-center justify-center'>
+									<Loader2 className='w-8 h-8 text-white animate-spin' />
+								</div>
+							)}
+						</>
+					) : (
+						// Fallback: show video element with poster
+						<video
+							src={media.url}
+							className='w-full h-full object-cover'
+							preload='metadata'
+							poster={media.thumbnail_url || `${media.url}#t=1`}
+						/>
+					)}
+					{/* Video badge */}
+					<div className='absolute top-2 right-2 bg-gray-900 text-white px-2 py-1 rounded text-xs font-bold'>
+						<Video size={20} />
+					</div>
+				</div>
+			)
+		}
+
+		// Image rendering
+		return (
+			<div className='aspect-square relative'>
+				<Image
+					src={media.url}
+					alt={`Media ${index + 1}`}
+					fill
+					className='object-cover'
+					unoptimized={media.isNew}
+				/>
+			</div>
+		)
+	}
+
 	return (
 		<div className='space-y-6'>
 			{/* Media Grid */}
@@ -298,7 +354,11 @@ export default function MediaEditManager({
 				<div className='grid grid-cols-2 md:grid-cols-4 gap-4'>
 					{combinedMediaState.map((media, index) => (
 						<div
-							key={media.isNew ? `new-${index}` : `existing-${media.id}`}
+							key={
+								media.isNew
+									? `new-${media.file?.name || media.url}`
+									: `existing-${media.id}`
+							}
 							className={`relative group rounded-lg overflow-hidden cursor-move transition-all ${
 								draggedIndex === index ? 'opacity-50 scale-95' : ''
 							} ${
@@ -316,39 +376,7 @@ export default function MediaEditManager({
 								{media.isNew && ' Նոր'}
 							</div>
 
-							{media.type === 'image' ? (
-								<div className='aspect-square relative'>
-									<Image
-										src={media.url}
-										alt={`Media ${index + 1}`}
-										fill
-										className='object-cover'
-										unoptimized={media.isNew}
-									/>
-								</div>
-							) : (
-								<div className='aspect-square relative'>
-									{media.thumbnail_url ? (
-										<Image
-											src={media.thumbnail_url}
-											alt={`Video ${index + 1}`}
-											fill
-											className='object-cover'
-											unoptimized={media.isNew}
-										/>
-									) : (
-										<div className='w-full h-full bg-gray-200 flex items-center justify-center'>
-											<Video className='w-10 h-10 text-gray-500' />
-										</div>
-									)}
-									{/* Video play icon overlay */}
-									<div className='absolute inset-0 flex items-center justify-center bg-black bg-opacity-30'>
-										<div className='w-12 h-12 bg-white bg-opacity-90 rounded-full flex items-center justify-center'>
-											<Video className='w-6 h-6 text-gray-700' />
-										</div>
-									</div>
-								</div>
-							)}
+							{renderMediaItem(media, index)}
 
 							{media.is_primary && (
 								<div className='absolute bottom-2 left-2 bg-blue-600 text-white text-xs px-2 py-1 rounded-full flex items-center'>
