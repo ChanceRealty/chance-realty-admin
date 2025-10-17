@@ -619,6 +619,19 @@ export async function PUT(
 							`/properties/${id}`
 						)
 
+						let thumbnailUrl = uploadResponse.thumbnailUrl || uploadResponse.url
+
+						if (mediaType === 'video') {
+							// For ImageKit videos, create a thumbnail URL
+							thumbnailUrl = uploadResponse.url.includes('ik.imagekit.io')
+								? `${
+										uploadResponse.url.split('?')[0]
+								  }?tr=so-1.0,w-400,h-300,fo-auto`
+								: uploadResponse.url
+
+							console.log(`✅ Generated video thumbnail URL: ${thumbnailUrl}`)
+						}
+
 						// If this is going to be the new primary image, unset existing primary
 						if (isPrimary) {
 							await sql.query(
@@ -638,7 +651,7 @@ export async function PUT(
 								id,
 								uploadResponse.fileId,
 								uploadResponse.url,
-								uploadResponse.thumbnailUrl || uploadResponse.url,
+								thumbnailUrl,
 								mediaType,
 								isPrimary,
 								i,

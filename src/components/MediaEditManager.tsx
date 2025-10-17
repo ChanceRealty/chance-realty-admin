@@ -327,8 +327,26 @@ export default function MediaEditManager({
 									/>
 								</div>
 							) : (
-								<div className='aspect-square relative bg-gray-100 flex items-center justify-center'>
-									<Video className='w-10 h-10 text-gray-500' />
+								<div className='aspect-square relative'>
+									{media.thumbnail_url ? (
+										<Image
+											src={media.thumbnail_url}
+											alt={`Video ${index + 1}`}
+											fill
+											className='object-cover'
+											unoptimized={media.isNew}
+										/>
+									) : (
+										<div className='w-full h-full bg-gray-200 flex items-center justify-center'>
+											<Video className='w-10 h-10 text-gray-500' />
+										</div>
+									)}
+									{/* Video play icon overlay */}
+									<div className='absolute inset-0 flex items-center justify-center bg-black bg-opacity-30'>
+										<div className='w-12 h-12 bg-white bg-opacity-90 rounded-full flex items-center justify-center'>
+											<Video className='w-6 h-6 text-gray-700' />
+										</div>
+									</div>
 								</div>
 							)}
 

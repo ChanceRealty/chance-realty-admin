@@ -320,6 +320,22 @@ export async function POST(request: Request) {
 							`/properties/${propertyId}`
 						)
 
+							let thumbnailUrl =
+								uploadResponse.thumbnailUrl || uploadResponse.url
+
+							if (mediaType === 'video') {
+								// For ImageKit videos, create a thumbnail URL
+								// This extracts frame at 1 second and resizes to 400x300
+								thumbnailUrl = uploadResponse.url.includes('ik.imagekit.io')
+									? `${
+											uploadResponse.url.split('?')[0]
+									  }?tr=so-1.0,w-400,h-300,fo-auto`
+									: uploadResponse.url
+
+								console.log(`✅ Generated video thumbnail URL: ${thumbnailUrl}`)
+							}
+
+
 						// Save media info to database
 						const mediaResult = await sql.query(
 							`INSERT INTO property_media (
@@ -331,7 +347,7 @@ export async function POST(request: Request) {
 								propertyId,
 								uploadResponse.fileId,
 								uploadResponse.url,
-								uploadResponse.thumbnailUrl || uploadResponse.url,
+								thumbnailUrl,
 								mediaType,
 								isPrimary,
 								i, // display_order

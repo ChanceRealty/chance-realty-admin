@@ -361,8 +361,10 @@ export default function PropertyViewPopup({
 												<div className='relative w-full h-full bg-black flex items-center justify-center'>
 													<video
 														src={allMedia[currentMediaIndex].url}
+														poster={allMedia[currentMediaIndex].thumbnail_url} 
 														controls
 														className='max-w-full max-h-full'
+														preload='metadata'
 													>
 														Your browser does not support the video tag.
 													</video>

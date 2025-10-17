@@ -329,7 +329,6 @@ export default function MediaUploadIntegrated({
 								onDrop={e => handleDropReorder(e, index)}
 								onDragEnd={handleDragEnd}
 							>
-
 								{/* Order number badge */}
 								<div className='absolute top-2 left-2 z-10 bg-gray-800 bg-opacity-70 text-white text-xs px-2 py-1 rounded-full font-semibold'>
 									#{index + 1}
@@ -346,10 +345,22 @@ export default function MediaUploadIntegrated({
 										/>
 									</div>
 								) : (
-									<div className='aspect-square relative bg-gray-100 flex items-center justify-center'>
-										<Video className='w-10 h-10 text-gray-500' />
-										<div className='absolute bottom-0 left-0 right-0 bg-gray-800 bg-opacity-70 text-white p-1 text-xs text-center'>
-											Video: {files[index]?.name}
+									<div className='aspect-square relative bg-gray-900'>
+										<video
+											src={preview}
+											className='w-full h-full object-cover'
+											preload='metadata'
+										/>
+										{/* Play icon overlay */}
+										<div className='absolute inset-0 flex items-center justify-center bg-black bg-opacity-30'>
+											<div className='w-12 h-12 bg-white bg-opacity-90 rounded-full flex items-center justify-center'>
+												<Video className='w-6 h-6 text-gray-700' />
+											</div>
+										</div>
+										<div className='absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent p-2'>
+											<div className='text-white text-xs text-center truncate'>
+												{files[index]?.name}
+											</div>
 										</div>
 									</div>
 								)}
