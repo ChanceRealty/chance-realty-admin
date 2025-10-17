@@ -2,15 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import Image from 'next/image'
-import {
-	Upload,
-	Video,
-	Check,
-	Trash2,
-	AlertCircle,
-	Play,
-	Loader2,
-} from 'lucide-react'
+import { Upload, Video, Check, Trash2, AlertCircle } from 'lucide-react'
 
 interface ExistingMedia {
 	id: number
@@ -22,7 +14,7 @@ interface ExistingMedia {
 }
 
 interface CombinedMediaItem {
-	id?: number
+	id: string | number
 	url: string
 	thumbnail_url?: string
 	type: 'image' | 'video'
@@ -41,7 +33,6 @@ interface MediaEditManagerProps {
 		primaryIndex: number
 	) => void
 	onDeleteExisting: (mediaId: number) => void
-	onSetPrimaryExisting: (mediaId: number) => void
 }
 
 export default function MediaEditManager({
@@ -49,103 +40,120 @@ export default function MediaEditManager({
 	onExistingMediaChange,
 	onNewMediaChange,
 	onDeleteExisting,
-	onSetPrimaryExisting,
 }: MediaEditManagerProps) {
 	const [newFiles, setNewFiles] = useState<File[]>([])
 	const [newFileTypes, setNewFileTypes] = useState<string[]>([])
 	const [newPreviews, setNewPreviews] = useState<string[]>([])
+	const [newIds, setNewIds] = useState<string[]>([])
 	const [error, setError] = useState('')
-	const [dragActive, setDragActive] = useState(false)
 	const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
 	const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
 	const [combinedMediaState, setCombinedMediaState] = useState<
 		CombinedMediaItem[]
 	>([])
-	const [videoThumbnailLoaded, setVideoThumbnailLoaded] = useState<
-		Record<number, boolean>
-	>({})
-	const [videoThumbnailError, setVideoThumbnailError] = useState<
-		Record<number, boolean>
-	>({})
+	const [isUpdatingFromDrop, setIsUpdatingFromDrop] = useState(false)
 	const fileInputRef = useRef<HTMLInputElement>(null)
 
-	useEffect(() => {
-		const hasExistingPrimary = existingMedia.some(m => m.is_primary)
+	// 🔹 Генерация thumbnail для видео
+	const generateVideoThumbnail = async (videoFile: File): Promise<string> => {
+		return new Promise(resolve => {
+			const video = document.createElement('video')
+			const canvas = document.createElement('canvas')
+			const ctx = canvas.getContext('2d')
 
-		const combined: CombinedMediaItem[] = [
-			...existingMedia.map(m => ({
-				...m,
-				isNew: false,
-			})),
-			...newFiles.map((file, idx) => ({
-				url: newPreviews[idx],
-				type: newFileTypes[idx] as 'image' | 'video',
-				is_primary:
-					!hasExistingPrimary && idx === 0 && newFileTypes[idx] === 'image',
-				display_order: existingMedia.length + idx,
-				isNew: true,
-				file: file,
-			})),
-		]
+			video.preload = 'metadata'
+			video.muted = true
+			video.playsInline = true
 
-		setCombinedMediaState(normalizePrimary(combined))
-	}, [existingMedia, newFiles, newPreviews, newFileTypes])
+			video.onloadeddata = () => {
+				canvas.width = 400
+				canvas.height = 300
+				video.currentTime = Math.min(1, video.duration * 0.1)
+			}
 
-	const normalizePrimary = (
-		items: CombinedMediaItem[]
-	): CombinedMediaItem[] => {
-		const imageItems = items.filter(item => item.type === 'image')
+			video.onseeked = () => {
+				if (ctx) {
+					const aspectRatio = video.videoWidth / video.videoHeight
+					let drawWidth = canvas.width
+					let drawHeight = canvas.height
+					let offsetX = 0
+					let offsetY = 0
 
-		if (imageItems.length === 0) {
-			return items.map((item, idx) => ({
-				...item,
-				is_primary: false,
-				display_order: idx,
-			}))
-		}
+					if (aspectRatio > canvas.width / canvas.height) {
+						drawHeight = canvas.width / aspectRatio
+						offsetY = (canvas.height - drawHeight) / 2
+					} else {
+						drawWidth = canvas.height * aspectRatio
+						offsetX = (canvas.width - drawWidth) / 2
+					}
 
-		return items.map((item, idx) => ({
-			...item,
-			is_primary: idx === 0 && item.type === 'image',
-			display_order: idx,
-		}))
-	}
+					ctx.fillStyle = '#000'
+					ctx.fillRect(0, 0, canvas.width, canvas.height)
+					ctx.drawImage(video, offsetX, offsetY, drawWidth, drawHeight)
 
-	const cleanupPreviews = (urlsToCleanup: string[]) => {
-		urlsToCleanup.forEach(url => {
-			if (url.startsWith('blob:')) URL.revokeObjectURL(url)
+					canvas.toBlob(
+						blob => {
+							resolve(
+								blob
+									? URL.createObjectURL(blob)
+									: URL.createObjectURL(videoFile)
+							)
+						},
+						'image/jpeg',
+						0.8
+					)
+				}
+				URL.revokeObjectURL(video.src)
+			}
+
+			video.onerror = () => resolve(URL.createObjectURL(videoFile))
+			video.src = URL.createObjectURL(videoFile)
 		})
 	}
 
+	// 🔹 Функция нормализации состояния
+	const normalizeCombinedState = (
+		items: CombinedMediaItem[]
+	): CombinedMediaItem[] => {
+		return items.map((item, idx) => ({
+			...item,
+			display_order: idx,
+			is_primary: idx === 0, // первый всегда главный
+		}))
+	}
+
+	// 🔹 Обновляем combinedMediaState при изменении existingMedia / новых файлов
 	useEffect(() => {
-		return () => cleanupPreviews(newPreviews)
-	}, [])
+		if (isUpdatingFromDrop) return
 
-	const handleDrag = (e: React.DragEvent) => {
-		e.preventDefault()
-		e.stopPropagation()
-		if (e.type === 'dragenter' || e.type === 'dragover') setDragActive(true)
-		else if (e.type === 'dragleave') setDragActive(false)
+		const combined: CombinedMediaItem[] = [
+			...existingMedia.map(m => ({ ...m, isNew: false })),
+			...newFiles.map((file, idx) => ({
+				id: newIds[idx],
+				url: newPreviews[idx],
+				thumbnail_url: newPreviews[idx],
+				type: newFileTypes[idx] as 'image' | 'video',
+				is_primary: false,
+				display_order: idx,
+				isNew: true,
+				file,
+			})),
+		]
+
+		setCombinedMediaState(normalizeCombinedState(combined))
+	}, [existingMedia, newFiles, newPreviews, newFileTypes, newIds])
+
+	const cleanupPreviews = (urls: string[]) => {
+		urls.forEach(url => url.startsWith('blob:') && URL.revokeObjectURL(url))
 	}
+	useEffect(() => () => cleanupPreviews(newPreviews), [])
 
-	const handleDrop = (e: React.DragEvent) => {
-		e.preventDefault()
-		e.stopPropagation()
-		setDragActive(false)
-		if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-			handleFiles(Array.from(e.dataTransfer.files))
-		}
-	}
-
-	const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		if (e.target.files && e.target.files.length > 0)
-			handleFiles(Array.from(e.target.files))
-	}
-
-	const handleFiles = (files: File[]) => {
+	// 🔹 Обработка новых файлов
+	const handleFiles = async (files: File[]) => {
 		const validFiles: File[] = []
 		const validTypes: string[] = []
 		const previews: string[] = []
+		const ids: string[] = []
 		let errorMessage = ''
 
 		for (const file of files) {
@@ -157,6 +165,7 @@ export default function MediaEditManager({
 				validFiles.push(file)
 				validTypes.push('image')
 				previews.push(URL.createObjectURL(file))
+				ids.push(crypto.randomUUID())
 			} else if (file.type.startsWith('video/')) {
 				if (file.size > 100 * 1024 * 1024) {
 					errorMessage = `Video "${file.name}" exceeds 100MB`
@@ -164,7 +173,8 @@ export default function MediaEditManager({
 				}
 				validFiles.push(file)
 				validTypes.push('video')
-				previews.push(URL.createObjectURL(file))
+				previews.push(await generateVideoThumbnail(file))
+				ids.push(crypto.randomUUID())
 			} else {
 				errorMessage = `File "${file.name}" is not supported`
 			}
@@ -176,44 +186,42 @@ export default function MediaEditManager({
 			return
 		}
 
-		if (validFiles.length > 0) {
-			setNewFiles(prev => [...prev, ...validFiles])
-			setNewFileTypes(prev => [...prev, ...validTypes])
-			setNewPreviews(prev => [...prev, ...previews])
+		const updatedFiles = [...newFiles, ...validFiles]
+		const updatedTypes = [...newFileTypes, ...validTypes]
+		const updatedPreviews = [...newPreviews, ...previews]
+		const updatedIds = [...newIds, ...ids]
 
-			const allFiles = [...newFiles, ...validFiles]
-			const allTypes = [...newFileTypes, ...validTypes]
-			onNewMediaChange(allFiles, allTypes, 0)
-		}
+		setNewFiles(updatedFiles)
+		setNewFileTypes(updatedTypes)
+		setNewPreviews(updatedPreviews)
+		setNewIds(updatedIds)
+
+		onNewMediaChange(updatedFiles, updatedTypes, 0)
 	}
 
+	// 🔹 Удаление медиа
 	const handleDeleteMedia = (index: number) => {
 		const mediaItem = combinedMediaState[index]
-
 		if (mediaItem.isNew) {
 			const newFileIndex = combinedMediaState
 				.slice(0, index)
-				.filter(item => item.isNew).length
-
-			const url = newPreviews[newFileIndex]
-			if (url?.startsWith('blob:')) URL.revokeObjectURL(url)
-
+				.filter(i => i.isNew).length
 			const updatedFiles = newFiles.filter((_, i) => i !== newFileIndex)
 			const updatedTypes = newFileTypes.filter((_, i) => i !== newFileIndex)
 			const updatedPreviews = newPreviews.filter((_, i) => i !== newFileIndex)
+			const updatedIds = newIds.filter((_, i) => i !== newFileIndex)
 
 			setNewFiles(updatedFiles)
 			setNewFileTypes(updatedTypes)
 			setNewPreviews(updatedPreviews)
-
+			setNewIds(updatedIds)
 			onNewMediaChange(updatedFiles, updatedTypes, 0)
 		} else {
-			if (mediaItem.id) {
-				onDeleteExisting(mediaItem.id)
-			}
+			onDeleteExisting(mediaItem.id as number)
 		}
 	}
 
+	// 🔹 Drag'n'drop
 	const handleDragStart = (e: React.DragEvent, index: number) => {
 		setDraggedIndex(index)
 		e.dataTransfer.effectAllowed = 'move'
@@ -221,7 +229,6 @@ export default function MediaEditManager({
 
 	const handleDragOver = (e: React.DragEvent, index: number) => {
 		e.preventDefault()
-		e.dataTransfer.dropEffect = 'move'
 		if (draggedIndex === null || draggedIndex === index) return
 		setDragOverIndex(index)
 	}
@@ -230,26 +237,29 @@ export default function MediaEditManager({
 		e.preventDefault()
 		if (draggedIndex === null || draggedIndex === index) return
 
+		setIsUpdatingFromDrop(true)
 		const reordered = [...combinedMediaState]
 		const [draggedItem] = reordered.splice(draggedIndex, 1)
 		reordered.splice(index, 0, draggedItem)
 
-		const normalized = normalizePrimary(reordered)
+		const normalized = normalizeCombinedState(reordered)
 		setCombinedMediaState(normalized)
 
 		const updatedExisting: ExistingMedia[] = []
 		const updatedNewFiles: File[] = []
 		const updatedNewTypes: string[] = []
 		const updatedNewPreviews: string[] = []
+		const updatedNewIds: string[] = []
 
 		normalized.forEach((item, idx) => {
 			if (item.isNew && item.file) {
 				updatedNewFiles.push(item.file)
 				updatedNewTypes.push(item.type)
 				updatedNewPreviews.push(item.url)
+				updatedNewIds.push(item.id as string)
 			} else if (!item.isNew && item.id) {
 				updatedExisting.push({
-					id: item.id,
+					id: item.id as number,
 					url: item.url,
 					thumbnail_url: item.thumbnail_url,
 					type: item.type,
@@ -259,14 +269,29 @@ export default function MediaEditManager({
 			}
 		})
 
-		setNewFiles(updatedNewFiles)
-		setNewFileTypes(updatedNewTypes)
-		setNewPreviews(updatedNewPreviews)
-		onExistingMediaChange(updatedExisting)
-		onNewMediaChange(updatedNewFiles, updatedNewTypes, 0)
+		setTimeout(() => {
+			setNewFiles(updatedNewFiles)
+			setNewFileTypes(updatedNewTypes)
+			setNewPreviews(updatedNewPreviews)
+			setNewIds(updatedNewIds)
 
-		setDraggedIndex(null)
-		setDragOverIndex(null)
+			onExistingMediaChange(
+				updatedExisting.sort((a, b) => a.display_order - b.display_order)
+			)
+
+			let newPrimaryIndex = 0
+			for (let i = 0; i < normalized.length; i++) {
+				if (normalized[i].isNew && normalized[i].is_primary) {
+					newPrimaryIndex = normalized.slice(0, i).filter(it => it.isNew).length
+					break
+				}
+			}
+			onNewMediaChange(updatedNewFiles, updatedNewTypes, newPrimaryIndex)
+
+			setDraggedIndex(null)
+			setDragOverIndex(null)
+			setTimeout(() => setIsUpdatingFromDrop(false), 50)
+		}, 0)
 	}
 
 	const handleDragEnd = () => {
@@ -274,58 +299,17 @@ export default function MediaEditManager({
 		setDragOverIndex(null)
 	}
 
-	const handleSetPrimary = (index: number) => {
-		const mediaItem = combinedMediaState[index]
-
-		if (mediaItem.type !== 'image') return
-
-		if (mediaItem.isNew) {
-			const newFileIndex = combinedMediaState
-				.slice(0, index)
-				.filter(item => item.isNew).length
-			onNewMediaChange(newFiles, newFileTypes, newFileIndex)
-		} else if (mediaItem.id) {
-			onSetPrimaryExisting(mediaItem.id)
-		}
-	}
-
-	// ✅ Render media item with proper video thumbnail handling
 	const renderMediaItem = (media: CombinedMediaItem, index: number) => {
 		if (media.type === 'video') {
 			return (
 				<div className='aspect-square relative bg-gray-900'>
-					{/* Try to show thumbnail first */}
-					{media.thumbnail_url && !videoThumbnailError[index] ? (
-						<>
-							<Image
-								src={media.thumbnail_url}
-								alt={`Video ${index + 1}`}
-								fill
-								className='object-cover'
-								onLoad={() =>
-									setVideoThumbnailLoaded(prev => ({ ...prev, [index]: true }))
-								}
-								onError={() =>
-									setVideoThumbnailError(prev => ({ ...prev, [index]: true }))
-								}
-								unoptimized={media.isNew}
-							/>
-							{!videoThumbnailLoaded[index] && (
-								<div className='absolute inset-0 bg-gray-800 flex items-center justify-center'>
-									<Loader2 className='w-8 h-8 text-white animate-spin' />
-								</div>
-							)}
-						</>
-					) : (
-						// Fallback: show video element with poster
-						<video
-							src={media.url}
-							className='w-full h-full object-cover'
-							preload='metadata'
-							poster={media.thumbnail_url || `${media.url}#t=1`}
-						/>
-					)}
-					{/* Video badge */}
+					<Image
+						src={media.thumbnail_url || media.url}
+						alt={`Video ${index + 1}`}
+						fill
+						className='object-cover'
+						unoptimized
+					/>
 					<div className='absolute top-2 right-2 bg-gray-900 text-white px-2 py-1 rounded text-xs font-bold'>
 						<Video size={20} />
 					</div>
@@ -333,7 +317,6 @@ export default function MediaEditManager({
 			)
 		}
 
-		// Image rendering
 		return (
 			<div className='aspect-square relative'>
 				<Image
@@ -349,28 +332,23 @@ export default function MediaEditManager({
 
 	return (
 		<div className='space-y-6'>
-			{/* Media Grid */}
 			{combinedMediaState.length > 0 && (
 				<div className='grid grid-cols-2 md:grid-cols-4 gap-4'>
 					{combinedMediaState.map((media, index) => (
 						<div
-							key={
-								media.isNew
-									? `new-${media.file?.name || media.url}`
-									: `existing-${media.id}`
-							}
-							className={`relative group rounded-lg overflow-hidden cursor-move transition-all ${
+							key={media.id}
+							className={`relative group rounded-lg overflow-hidden transition-all ${
 								draggedIndex === index ? 'opacity-50 scale-95' : ''
 							} ${
 								dragOverIndex === index ? 'ring-2 ring-blue-500 scale-105' : ''
 							}`}
+							style={{ cursor: 'move' }}
 							draggable
 							onDragStart={e => handleDragStart(e, index)}
 							onDragOver={e => handleDragOver(e, index)}
 							onDrop={e => handleDropMedia(e, index)}
 							onDragEnd={handleDragEnd}
 						>
-							{/* Order badge */}
 							<div className='absolute top-2 left-2 z-10 bg-gray-800 bg-opacity-70 text-white text-xs px-2 py-1 rounded-full font-semibold'>
 								#{index + 1}
 								{media.isNew && ' Նոր'}
@@ -399,15 +377,8 @@ export default function MediaEditManager({
 				</div>
 			)}
 
-			{/* Upload Section */}
 			<div
-				className={`border-2 border-dashed rounded-lg p-6 transition-colors ${
-					dragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
-				}`}
-				onDragEnter={handleDrag}
-				onDragLeave={handleDrag}
-				onDragOver={handleDrag}
-				onDrop={handleDrop}
+				className={`border-2 border-dashed rounded-lg p-6 transition-colors`}
 			>
 				<div className='flex flex-col items-center justify-center space-y-2'>
 					<Upload className='w-10 h-10 text-gray-400' />
@@ -421,7 +392,9 @@ export default function MediaEditManager({
 						type='file'
 						multiple
 						accept='image/*,video/*'
-						onChange={handleFileChange}
+						onChange={e =>
+							e.target.files && handleFiles(Array.from(e.target.files))
+						}
 						className='hidden'
 						ref={fileInputRef}
 					/>

@@ -20,7 +20,6 @@ import {
 	ChevronLeft,
 	ChevronRight,
 	Play,
-	Hash,
 	Globe,
 	Navigation,
 	Copy,
@@ -332,8 +331,9 @@ export default function PropertyViewPopup({
 									<span className='truncate'>{getLocationDisplay()}</span>
 								</div>
 								<div className='flex items-center mt-1 sm:mt-0'>
-									<Hash className='w-3 h-3 sm:w-4 sm:h-4 mr-1' />
-									<span>ID: {property.custom_id || '-'}</span>
+									<span className='text-lg font-bold'>
+										ID: {property.custom_id || '-'}
+									</span>
 								</div>
 							</div>
 						</div>
@@ -361,7 +361,7 @@ export default function PropertyViewPopup({
 												<div className='relative w-full h-full bg-black flex items-center justify-center'>
 													<video
 														src={allMedia[currentMediaIndex].url}
-														poster={allMedia[currentMediaIndex].thumbnail_url} 
+														poster={allMedia[currentMediaIndex].thumbnail_url}
 														controls
 														className='max-w-full max-h-full'
 														preload='metadata'
@@ -623,16 +623,16 @@ export default function PropertyViewPopup({
 									</div>
 								</div>
 
-								{/* ✅ MOBILE-RESPONSIVE House Attributes */}
-								{property.property_type === 'house' && (
-									<div className='bg-green-50 rounded-lg sm:rounded-xl p-3 sm:p-6'>
+								{/* ✅ MOBILE-RESPONSIVE Apartment Attributes */}
+								{property.property_type === 'apartment' && (
+									<div className='bg-gradient-to-r from-indigo-50 to-purple-50 border-indigo-200 border rounded-lg sm:rounded-xl p-3 sm:p-6'>
 										<h3 className='text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-gray-900'>
-											Տան հատկանիշներ
+											Բնակարանի հատկանիշներ
 										</h3>
 										<div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4'>
 											{getAttributeValue('bedrooms') && (
 												<div className='flex items-center space-x-2 bg-white p-2 sm:p-3 rounded-lg'>
-													<Bed className='w-4 h-4 sm:w-5 sm:h-5 text-green-600 flex-shrink-0' />
+													<Bed className='w-4 h-4 sm:w-5 sm:h-5 text-blue-600 flex-shrink-0' />
 													<div className='min-w-0'>
 														<div className='font-semibold text-sm sm:text-base text-gray-600'>
 															{getAttributeValue('bedrooms')}
@@ -656,18 +656,103 @@ export default function PropertyViewPopup({
 											)}
 											{getAttributeValue('area_sqft') && (
 												<div className='flex items-center space-x-2 bg-white p-2 sm:p-3 rounded-lg'>
-													<Maximize className='w-4 h-4 sm:w-5 sm:h-5 text-purple-600 flex-shrink-0' />
+													<Maximize className='w-4 h-4 sm:w-5 sm:h-5 text-blue-600 flex-shrink-0' />
 													<div className='min-w-0'>
 														<div className='font-semibold text-sm sm:text-base text-gray-600'>
 															{getAttributeValue('area_sqft')}
 														</div>
-														<div className='text-xs text-gray-600'>քառ. մ</div>
+														<div className='text-xs text-gray-600'>
+															Մակերես (մ²)
+														</div>
+													</div>
+												</div>
+											)}
+											{getAttributeValue('floor') && (
+												<div className='flex items-center space-x-2 bg-white p-2 sm:p-3 rounded-lg'>
+													<Building className='w-4 h-4 sm:w-5 sm:h-5 text-blue-600 flex-shrink-0' />
+													<div className='min-w-0'>
+														<div className='font-semibold text-sm sm:text-base text-gray-600'>
+															{getAttributeValue('floor')}
+														</div>
+														<div className='text-xs text-gray-600'>Հարկ</div>
+													</div>
+												</div>
+											)}
+											{getAttributeValue('total_floors') && (
+												<div className='flex items-center space-x-2 bg-white p-2 sm:p-3 rounded-lg'>
+													<Building className='w-4 h-4 sm:w-5 sm:h-5 text-blue-600 flex-shrink-0' />
+													<div className='min-w-0'>
+														<div className='font-semibold text-sm sm:text-base text-gray-600'>
+															{getAttributeValue('total_floors')}
+														</div>
+														<div className='text-xs text-gray-600'>Ընդհանուր հարկեր</div>
+													</div>
+												</div>
+											)}
+											{getAttributeValue('ceiling_height') && (
+												<div className='flex items-center space-x-2 bg-white p-2 sm:p-3 rounded-lg'>
+													<ArrowUp className='w-4 h-4 sm:w-5 sm:h-5 text-blue-600 flex-shrink-0' />
+													<div className='min-w-0'>
+														<div className='font-semibold text-sm sm:text-base text-gray-600'>
+															{getAttributeValue('ceiling_height')}մ
+														</div>
+														<div className='text-xs text-gray-600'>
+															Առաստաղի բարձր.
+														</div>
+													</div>
+												</div>
+											)}
+										</div>
+									</div>
+								)}
+
+								{/* ✅ MOBILE-RESPONSIVE House Attributes */}
+								{property.property_type === 'house' && (
+									<div className='bg-gradient-to-r from-indigo-50 to-purple-50 border-indigo-200 border rounded-lg sm:rounded-xl p-3 sm:p-6'>
+										<h3 className='text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-gray-900'>
+											Տան հատկանիշներ
+										</h3>
+										<div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4'>
+											{getAttributeValue('bedrooms') && (
+												<div className='flex items-center space-x-2 bg-white p-2 sm:p-3 rounded-lg'>
+													<Bed className='w-4 h-4 sm:w-5 sm:h-5 text-blue-600 flex-shrink-0' />
+													<div className='min-w-0'>
+														<div className='font-semibold text-sm sm:text-base text-gray-600'>
+															{getAttributeValue('bedrooms')}
+														</div>
+														<div className='text-xs text-gray-600 truncate'>
+															Ննջասենյակ
+														</div>
+													</div>
+												</div>
+											)}
+											{getAttributeValue('bathrooms') && (
+												<div className='flex items-center space-x-2 bg-white p-2 sm:p-3 rounded-lg'>
+													<Bath className='w-4 h-4 sm:w-5 sm:h-5 text-blue-600 flex-shrink-0' />
+													<div className='min-w-0'>
+														<div className='font-semibold text-sm sm:text-base text-gray-600'>
+															{getAttributeValue('bathrooms')}
+														</div>
+														<div className='text-xs text-gray-600'>Լոգարան</div>
+													</div>
+												</div>
+											)}
+											{getAttributeValue('area_sqft') && (
+												<div className='flex items-center space-x-2 bg-white p-2 sm:p-3 rounded-lg'>
+													<Maximize className='w-4 h-4 sm:w-5 sm:h-5 text-blue-600 flex-shrink-0' />
+													<div className='min-w-0'>
+														<div className='font-semibold text-sm sm:text-base text-gray-600'>
+															{getAttributeValue('area_sqft')}
+														</div>
+														<div className='text-xs text-gray-600'>
+															Մակերես (մ²)
+														</div>
 													</div>
 												</div>
 											)}
 											{getAttributeValue('floors') && (
 												<div className='flex items-center space-x-2 bg-white p-2 sm:p-3 rounded-lg'>
-													<Building className='w-4 h-4 sm:w-5 sm:h-5 text-orange-600 flex-shrink-0' />
+													<Building className='w-4 h-4 sm:w-5 sm:h-5 text-blue-600 flex-shrink-0' />
 													<div className='min-w-0'>
 														<div className='font-semibold text-sm sm:text-base text-gray-600'>
 															{getAttributeValue('floors')}
@@ -678,20 +763,20 @@ export default function PropertyViewPopup({
 											)}
 											{getAttributeValue('lot_size_sqft') && (
 												<div className='flex items-center space-x-2 bg-white p-2 sm:p-3 rounded-lg'>
-													<Maximize className='w-4 h-4 sm:w-5 sm:h-5 text-indigo-600 flex-shrink-0' />
+													<Maximize className='w-4 h-4 sm:w-5 sm:h-5 text-blue-600 flex-shrink-0' />
 													<div className='min-w-0'>
 														<div className='font-semibold text-sm sm:text-base text-gray-600'>
 															{getAttributeValue('lot_size_sqft')}
 														</div>
 														<div className='text-xs text-gray-600'>
-															կից տարածք քառ.մ
+															Հողատարածքի մակերես (մ²)
 														</div>
 													</div>
 												</div>
 											)}
 											{getAttributeValue('ceiling_height') && (
 												<div className='flex items-center space-x-2 bg-white p-2 sm:p-3 rounded-lg'>
-													<ArrowUp className='w-4 h-4 sm:w-5 sm:h-5 text-pink-600 flex-shrink-0' />
+													<ArrowUp className='w-4 h-4 sm:w-5 sm:h-5 text-blue-600 flex-shrink-0' />
 													<div className='min-w-0'>
 														<div className='font-semibold text-sm sm:text-base text-gray-600'>
 															{getAttributeValue('ceiling_height')}մ
@@ -715,7 +800,7 @@ export default function PropertyViewPopup({
 										<div className='grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-4'>
 											{getAttributeValue('business_type') && (
 												<div className='flex items-center space-x-2 bg-white p-2 sm:p-3 rounded-lg'>
-													<Building className='w-4 h-4 sm:w-5 sm:h-5 text-purple-600 flex-shrink-0' />
+													<Building className='w-4 h-4 sm:w-5 sm:h-5 text-blue-600 flex-shrink-0' />
 													<div className='min-w-0'>
 														<div className='font-semibold text-sm sm:text-base text-gray-600'>
 															{getAttributeValue('business_type')}
@@ -728,18 +813,20 @@ export default function PropertyViewPopup({
 											)}
 											{getAttributeValue('area_sqft') && (
 												<div className='flex items-center space-x-2 bg-white p-2 sm:p-3 rounded-lg'>
-													<Maximize className='w-4 h-4 sm:w-5 sm:h-5 text-purple-600 flex-shrink-0' />
+													<Maximize className='w-4 h-4 sm:w-5 sm:h-5 text-blue-600 flex-shrink-0' />
 													<div className='min-w-0'>
 														<div className='font-semibold text-sm sm:text-base text-gray-600'>
 															{getAttributeValue('area_sqft')}
 														</div>
-														<div className='text-xs text-gray-600'>քառ. մ</div>
+														<div className='text-xs text-gray-600'>
+															Մակերես (մ²)
+														</div>
 													</div>
 												</div>
 											)}
 											{getAttributeValue('floors') && (
 												<div className='flex items-center space-x-2 bg-white p-2 sm:p-3 rounded-lg'>
-													<Building className='w-4 h-4 sm:w-5 sm:h-5 text-purple-600 flex-shrink-0' />
+													<Building className='w-4 h-4 sm:w-5 sm:h-5 text-blue-600 flex-shrink-0' />
 													<div className='min-w-0'>
 														<div className='font-semibold text-sm sm:text-base text-gray-600'>
 															{getAttributeValue('floors')}
@@ -750,7 +837,7 @@ export default function PropertyViewPopup({
 											)}
 											{getAttributeValue('ceiling_height') && (
 												<div className='flex items-center space-x-2 bg-white p-2 sm:p-3 rounded-lg'>
-													<ArrowUp className='w-4 h-4 sm:w-5 sm:h-5 text-indigo-600 flex-shrink-0' />
+													<ArrowUp className='w-4 h-4 sm:w-5 sm:h-5 text-blue-600 flex-shrink-0' />
 													<div className='min-w-0'>
 														<div className='font-semibold text-sm sm:text-base text-gray-600'>
 															{getAttributeValue('ceiling_height')}մ
@@ -773,13 +860,13 @@ export default function PropertyViewPopup({
 												Հողակտորի մակերես
 											</h3>
 											<div className='flex items-center space-x-2 bg-white p-3 sm:p-4 rounded-lg inline-flex'>
-												<Maximize className='w-5 h-5 sm:w-6 sm:h-6 text-yellow-600' />
+												<Maximize className='w-5 h-5 sm:w-6 sm:h-6 text-blue-600' />
 												<div>
 													<div className='text-lg sm:text-xl font-semibold text-gray-600'>
 														{getAttributeValue('area_acres')}
 													</div>
 													<div className='text-xs sm:text-sm text-gray-600'>
-														քառակուսի մետր
+														Հողատարածքի մակերես (մ²)
 													</div>
 												</div>
 											</div>
@@ -814,7 +901,7 @@ export default function PropertyViewPopup({
 
 								{/* ✅ MOBILE-RESPONSIVE Description */}
 								{property.description && (
-									<div className='bg-gray-50 rounded-lg sm:rounded-xl p-3 sm:p-6'>
+									<div className='bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-lg sm:rounded-xl p-3 sm:p-6'>
 										<h3 className='text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-gray-900'>
 											Նկարագրություն
 										</h3>
@@ -825,7 +912,7 @@ export default function PropertyViewPopup({
 								)}
 
 								{/* ✅ MOBILE-RESPONSIVE Location Details */}
-								<div className='bg-indigo-50 rounded-lg sm:rounded-xl p-3 sm:p-6'>
+								<div className='bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-lg sm:rounded-xl p-3 sm:p-6'>
 									<h3 className='text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-gray-900 flex items-center'>
 										<Navigation className='w-4 h-4 sm:w-5 sm:h-5 mr-2' />
 										Գտնվելու վայրի մանրամասներ
@@ -874,10 +961,10 @@ export default function PropertyViewPopup({
 							{/* ✅ MOBILE-RESPONSIVE Right Column - Owner & Additional Info */}
 							<div className='space-y-4 sm:space-y-6'>
 								{/* ✅ MOBILE-RESPONSIVE Owner Information */}
-								<div className='bg-gradient-to-b from-green-50 to-blue-50 rounded-lg sm:rounded-xl p-3 sm:p-6'>
+								<div className='bg-gradient-to-r from-indigo-50 to-purple-50 border-indigo-200 border rounded-lg sm:rounded-xl p-3 sm:p-6'>
 									<div className='flex flex-col gap-3 sm:gap-4'>
 										<div className='text-center p-3 sm:p-4 bg-white rounded-lg shadow-sm'>
-											<div className='text-lg sm:text-2xl font-bold text-green-600 flex items-center justify-center'>
+											<div className='text-lg sm:text-2xl font-bold text-blue-600 flex items-center justify-center'>
 												<span className='truncate'>
 													{formatPrice(property.price, property.currency)}
 												</span>
@@ -898,7 +985,7 @@ export default function PropertyViewPopup({
 										</div>
 
 										<div className='text-center p-3 sm:p-4 bg-white rounded-lg shadow-sm'>
-											<div className='text-xs sm:text-md font-bold text-purple-600 truncate'>
+											<div className='text-xs sm:text-md font-bold text-blue-600 truncate'>
 												{propertyTypeDisplay[property.property_type]}
 											</div>
 											<div className='text-xs sm:text-sm text-gray-500 mt-1'>
@@ -907,7 +994,7 @@ export default function PropertyViewPopup({
 										</div>
 
 										<div className='text-center p-3 sm:p-4 bg-white rounded-lg shadow-sm'>
-											<div className='text-xs sm:text-md font-bold text-purple-600 truncate'>
+											<div className='text-xs sm:text-md font-bold text-blue-600 truncate'>
 												{listingTypeDisplay[property.listing_type] || 'Անհայտ'}
 											</div>
 											<div className='text-xs sm:text-sm text-gray-500 mt-1'>
@@ -916,7 +1003,7 @@ export default function PropertyViewPopup({
 										</div>
 
 										<div className='text-center p-3 sm:p-4 bg-white rounded-lg shadow-sm'>
-											<div className='text-xs sm:text-md font-bold text-purple-600 truncate'>
+											<div className='text-xs sm:text-md font-bold text-blue-600 truncate'>
 												{statusNameDisplay[
 													property.status_name || property.status
 												] || 'Անհայտ'}
@@ -929,7 +1016,7 @@ export default function PropertyViewPopup({
 								</div>
 
 								{/* ✅ MOBILE-RESPONSIVE Property Meta Info */}
-								<div className='bg-gray-50 rounded-lg sm:rounded-xl p-3 sm:p-6'>
+								<div className='bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-lg sm:rounded-xl p-3 sm:p-6'>
 									<h3 className='text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-gray-900'>
 										Լրացուցիչ տեղեկություններ
 									</h3>
@@ -979,7 +1066,7 @@ export default function PropertyViewPopup({
 								)}
 
 								{/* ✅ MOBILE-RESPONSIVE Quick Actions */}
-								<div className='bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg sm:rounded-xl p-3 sm:p-6'>
+								<div className='bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-lg sm:rounded-xl p-3 sm:p-6'>
 									<h3 className='text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-gray-900'>
 										Արագ գործողություններ
 									</h3>
