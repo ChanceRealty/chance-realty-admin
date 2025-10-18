@@ -65,14 +65,6 @@ export async function POST(request: Request) {
 				)
 			}
 
-			// Validate required owner fields
-			if (!propertyData.owner_name?.trim()) {
-				throw new Error('Owner name is required')
-			}
-
-			if (!propertyData.owner_phone?.trim()) {
-				throw new Error('Owner phone is required')
-			}
 
 			// Validate bathrooms value
 			if (

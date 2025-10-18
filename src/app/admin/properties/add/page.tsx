@@ -251,7 +251,18 @@ export default function AddPropertyPage() {
 			const checked = (e.target as HTMLInputElement).checked
 			setAttributes(prev => ({ ...prev, [name]: checked }))
 		} else {
-			setAttributes(prev => ({ ...prev, [name]: value }))
+			// ✅ Convert comma to period for decimal number fields
+			let processedValue = value
+
+			// List of fields that accept decimal values
+			const decimalFields = ['ceiling_height', 'bathrooms', 'area_acres']
+
+			if (decimalFields.includes(name) && type === 'number') {
+				// Replace comma with period for decimal inputs
+				processedValue = value.replace(',', '.')
+			}
+
+			setAttributes(prev => ({ ...prev, [name]: processedValue }))
 		}
 	}
 
@@ -334,7 +345,7 @@ export default function AddPropertyPage() {
 							: null,
 						floors: attributes.floors ? parseInt(attributes.floors) : null,
 						ceiling_height: attributes.ceiling_height // ✅ Added for houses
-							? parseFloat(attributes.ceiling_height)
+							? parseFloat(attributes.ceiling_height.replace(',', '.'))
 							: null,
 					})
 					break
@@ -952,15 +963,14 @@ export default function AddPropertyPage() {
 										Առաստաղի բարձրությունը (մետր)
 									</label>
 									<input
-										type='number'
+										type='text'
 										name='ceiling_height'
 										value={attributes.ceiling_height}
 										onChange={handleAttributeChange}
-										min='0'
-										step='0.1'
 										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
 										placeholder='օր․ 3.0'
 										required
+										pattern='[0-9]+([.,][0-9]+)?'
 									/>
 								</div>
 							</div>
@@ -1044,15 +1054,14 @@ export default function AddPropertyPage() {
 										Առաստաղի բարձրությունը (մետր)
 									</label>
 									<input
-										type='number'
+										type='text'
 										name='ceiling_height'
 										value={attributes.ceiling_height}
 										onChange={handleAttributeChange}
-										min='0'
-										step='0.1'
 										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
 										placeholder='օր․ 3.0'
 										required
+										pattern='[0-9]+([.,][0-9]+)?'
 									/>
 								</div>
 							</div>
@@ -1107,14 +1116,14 @@ export default function AddPropertyPage() {
 										Առաստաղի բարձրությունը (մետր)
 									</label>
 									<input
-										type='number'
+										type='text'
 										name='ceiling_height'
 										value={attributes.ceiling_height}
 										onChange={handleAttributeChange}
-										min='0'
-										step='0.1'
 										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
+										placeholder='օր․ 3.0'
 										required
+										pattern='[0-9]+([.,][0-9]+)?'
 									/>
 								</div>
 							</div>

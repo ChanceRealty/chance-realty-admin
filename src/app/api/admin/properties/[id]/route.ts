@@ -387,19 +387,6 @@ export async function PUT(
 			)
 		}
 
-		if (!propertyData.owner_name?.trim()) {
-			return NextResponse.json(
-				{ error: 'Owner name is required' },
-				{ status: 400 }
-			)
-		}
-
-		if (!propertyData.owner_phone?.trim()) {
-			return NextResponse.json(
-				{ error: 'Owner phone is required' },
-				{ status: 400 }
-			)
-		}
 
 		// Start transaction
 		await sql.query('BEGIN')

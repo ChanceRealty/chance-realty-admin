@@ -406,9 +406,21 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 			const checked = (e.target as HTMLInputElement).checked
 			setAttributes(prev => ({ ...prev, [name]: checked }))
 		} else {
-			setAttributes(prev => ({ ...prev, [name]: value }))
+			// ✅ Convert comma to period for decimal number fields
+			let processedValue = value
+
+			// List of fields that accept decimal values
+			const decimalFields = ['ceiling_height', 'bathrooms', 'area_acres']
+
+			if (decimalFields.includes(name) && type === 'number') {
+				// Replace comma with period for decimal inputs
+				processedValue = value.replace(',', '.')
+			}
+
+			setAttributes(prev => ({ ...prev, [name]: processedValue }))
 		}
 	}
+
 
 	const handleFeatureToggle = (featureId: number) => {
 		setFormData(prev => ({
@@ -642,25 +654,25 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 			formDataToSend.append('mediaTypes', JSON.stringify(mediaTypes))
 			formDataToSend.append('primaryMediaIndex', primaryMediaIndex.toString())
 
-				const existingMediaWithOrder = existingMedia.map(media => ({
-					id: media.id,
-					display_order: media.display_order, // ✅ Use the display_order that was set during drag-drop
-					is_primary: media.is_primary,
-				}))
+			const existingMediaWithOrder = existingMedia.map(media => ({
+				id: media.id,
+				display_order: media.display_order, // ✅ Use the display_order that was set during drag-drop
+				is_primary: media.is_primary,
+			}))
 
-				formDataToSend.append(
-					'existingMediaOrder',
-					JSON.stringify(existingMediaWithOrder)
-				)
+			formDataToSend.append(
+				'existingMediaOrder',
+				JSON.stringify(existingMediaWithOrder)
+			)
 
-				console.log('📤 Sending media order:', {
-					existingCount: existingMedia.length,
-					newCount: mediaFiles.length,
-					existingOrders: existingMediaWithOrder.map(m => m.display_order),
-					primaryMediaIndex,
-				})
+			console.log('📤 Sending media order:', {
+				existingCount: existingMedia.length,
+				newCount: mediaFiles.length,
+				existingOrders: existingMediaWithOrder.map(m => m.display_order),
+				primaryMediaIndex,
+			})
 
-				console.log('🚀 Submitting property update...')
+			console.log('🚀 Submitting property update...')
 
 			const response = await fetch(
 				`/api/admin/properties/${resolvedParams.id}`,
@@ -1213,15 +1225,14 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 										Առաստաղի բարձրությունը (մետր)
 									</label>
 									<input
-										type='number'
+										type='text'
 										name='ceiling_height'
 										value={attributes.ceiling_height}
 										onChange={handleAttributeChange}
-										min='0'
-										step='0.1'
 										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
 										placeholder='օր․ 3.0'
 										required
+										pattern='[0-9]+([.,][0-9]+)?'
 									/>
 								</div>
 							</div>
@@ -1305,15 +1316,14 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 										Առաստաղի բարձրությունը (մետր)
 									</label>
 									<input
-										type='number'
+										type='text'
 										name='ceiling_height'
 										value={attributes.ceiling_height}
 										onChange={handleAttributeChange}
-										min='0'
-										step='0.1'
 										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
 										placeholder='օր․ 3.0'
 										required
+										pattern='[0-9]+([.,][0-9]+)?'
 									/>
 								</div>
 							</div>
@@ -1368,14 +1378,14 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 										Առաստաղի բարձրությունը (մետր)
 									</label>
 									<input
-										type='number'
+										type='text'
 										name='ceiling_height'
 										value={attributes.ceiling_height}
 										onChange={handleAttributeChange}
-										min='0'
-										step='0.1'
 										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
+										placeholder='օր․ 3.0'
 										required
+										pattern='[0-9]+([.,][0-9]+)?'
 									/>
 								</div>
 							</div>
