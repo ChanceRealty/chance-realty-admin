@@ -5,6 +5,9 @@ import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
 import AdminLayout from '@/components/AdminLayout'
 import MediaEditManager from '@/components/MediaEditManager'
+import { ToastContainer } from '@/components/Toast'
+import { useToast } from '@/hooks/useToast'
+
 import {
 	PropertyType,
 	ListingType,
@@ -54,6 +57,7 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 	const [mediaFiles, setMediaFiles] = useState<File[]>([])
 	const [mediaTypes, setMediaTypes] = useState<string[]>([])
 	const [primaryMediaIndex, setPrimaryMediaIndex] = useState(0)
+	const { toasts, removeToast, showSuccess, showError, showWarning } = useToast()
 
 	// Basic property data
 	const [formData, setFormData] = useState({
@@ -318,18 +322,14 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 			})
 			.catch(error => {
 				console.error('❌ Edit Property: Error loading data:', error)
-				setError(
-					'Failed to load property data. Please check the console for details.'
-				)
+					showError('Չհաջողվեց բեռնել հայտարարության տվյալները')
+
 
 				if (error.message.includes('Property not found')) {
-					setError(
-						`Property with ID ${propertyId} was not found. It may have been deleted or you may not have permission to view it.`
-					)
+				showError(`Հայտարարությունը ID ${propertyId}-ով չի գտնվել`)
+
 				} else if (error.message.includes('Failed to fetch property: 404')) {
-					setError(
-						`Property with ID ${propertyId} does not exist or has been removed.`
-					)
+					showError(`Հայտարարությունը ID ${propertyId}-ով չի գտնվել կամ հեռացվել է։`)
 				} else {
 					setError(`Failed to load property data: ${error.message}`)
 				}
@@ -516,10 +516,11 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 
 			// Validate location fields
 			if (!formData.state_id) {
-				setError('Խնդրում ենք ընտրել մարզ/նահանգ')
+				showError('Խնդրում ենք ընտրել մարզ/նահանգ')
 				setSaving(false)
 				return
 			}
+
 
 			let finalCityId = null
 			let finalDistrictId = null
@@ -534,7 +535,7 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 			if (selectedState?.uses_districts) {
 				// For Yerevan: district_id is required, city_id stays NULL
 				if (!formData.district_id) {
-					setError('Խնդրում ենք ընտրել թաղամաս Երևանի համար')
+					showError('Խնդրում ենք ընտրել թաղամաս Երևանի համար')
 					setSaving(false)
 					return
 				}
@@ -685,16 +686,23 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 			const data = await response.json()
 
 			if (!response.ok) {
+				showError(data.error || 'Չհաջողվեց թարմացնել հայտարարությունը')
 				throw new Error(data.error || 'Failed to update property')
 			}
 
-			console.log('✅ Property updated successfully')
-			router.push('/admin')
+			showSuccess('Հայտարարությունը հաջողությամբ թարմացվել է')
+			setTimeout(() => {
+				router.push('/admin')
+			}, 2000)
 		} catch (error) {
 			console.error('❌ Error updating property:', error)
-			setError(
-				error instanceof Error ? error.message : 'Failed to update property'
-			)
+			if (!toasts.some(t => t.type === 'error')) {
+				showError(
+					error instanceof Error
+						? error.message
+						: 'Չհաջողվեց թարմացնել հայտարարությունը'
+				)
+			}
 			window.scrollTo({ top: 0, behavior: 'smooth' })
 		} finally {
 			setSaving(false)
@@ -747,19 +755,13 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 
 	return (
 		<AdminLayout>
+			<ToastContainer toasts={toasts} onRemove={removeToast} />
 			<div className='max-w-4xl mx-auto'>
 				<div className='mb-8'>
 					<h1 className='text-2xl font-bold text-gray-900'>
 						Փոփոխել անշարժ գույքը
 					</h1>
 				</div>
-
-				{error && (
-					<div className='mb-6 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg'>
-						{error}
-					</div>
-				)}
-
 				<form onSubmit={handleSubmit} className='space-y-8'>
 					{/* Basic Information */}
 					<div className='bg-white shadow rounded-lg p-6'>

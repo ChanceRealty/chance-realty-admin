@@ -1,11 +1,10 @@
-// src/app/admin/page.tsx - Updated with popup and Armenian translations
 'use client'
 
 import { useState, useEffect } from 'react'
 import AdminLayout from '@/components/AdminLayout'
 import Link from 'next/link'
 import Image from 'next/image'
-import PropertyViewPopup from '@/components/PropertyViewPopup' // Import the popup component
+import PropertyViewPopup from '@/components/PropertyViewPopup' 
 import {
 	Home,
 	Building2,
@@ -28,8 +27,20 @@ import {
 	Crown,
 	EyeOff,
 } from 'lucide-react'
-
+import { useToast } from '@/hooks/useToast'
 import { useRouter } from 'next/navigation'
+import { ToastContainer } from '@/components/Toast'
+
+import {
+	AlertDialog,
+	AlertDialogContent,
+	AlertDialogHeader,
+	AlertDialogFooter,
+	AlertDialogTitle,
+	AlertDialogDescription,
+	AlertDialogCancel,
+	AlertDialogAction,
+} from '@/components/ui/alert-dialog'
 
 interface DashboardStats {
 	totalProperties: number
@@ -87,6 +98,11 @@ export default function AdminDashboard() {
 		totalViews: 0,
 		recentProperties: [],
 	})
+	const [confirmDialog, setConfirmDialog] = useState<{
+		open: boolean
+		propertyId: number | null
+		propertyTitle: string
+	}>({ open: false, propertyId: null, propertyTitle: '' })
 	const [currentPage, setCurrentPage] = useState(1)
 	const [itemsPerPage] = useState(12)
 	const [loading, setLoading] = useState(true)
@@ -108,6 +124,8 @@ export default function AdminDashboard() {
 		is_hidden: '', 
 		is_exclusive: '',
 	})
+	const { toasts, removeToast, showSuccess, showError, showWarning } =
+		useToast()
 
 	const visibilityOptions = [
 		{ value: '', label: 'Բոլորը' },
@@ -207,17 +225,14 @@ export default function AdminDashboard() {
 		}
 	}
 
-	const handleDeleteProperty = async (
-		propertyId: number,
-		propertyTitle: string
-	) => {
-		if (
-			!confirm(
-				`Are you sure you want to delete "${propertyTitle}"? This action cannot be undone.`
-			)
-		) {
-			return
-		}
+	const handleRequestDelete = (id: number, title: string) => {
+		setConfirmDialog({ open: true, propertyId: id, propertyTitle: title })
+	}
+
+	const handleConfirmDelete = async () => {
+		if (!confirmDialog.propertyId) return
+		const propertyId = confirmDialog.propertyId
+		const propertyTitle = confirmDialog.propertyTitle
 
 		setDeletingId(propertyId)
 
@@ -232,18 +247,15 @@ export default function AdminDashboard() {
 				throw new Error(data.error || 'Failed to delete property')
 			}
 
-			setProperties(prev => prev.filter(property => property.id !== propertyId))
-			alert('Property deleted successfully')
+			setProperties(prev => prev.filter(p => p.id !== propertyId))
+			showSuccess(`"${propertyTitle}" հայտարարությունը ջնջվեց։`)
 		} catch (error) {
 			console.error('Error deleting property:', error)
-			alert(
-				error instanceof Error
-					? error.message
-					: 'Failed to delete property. Please try again.'
-			)
+			showError('Չհաջողվեց ջնջել հայտարարությունը։ Խնդրում ենք կրկին փորձել։')
 		} finally {
 			setDeletingId(null)
 			setShowMobileActions(null)
+			setConfirmDialog({ open: false, propertyId: null, propertyTitle: '' })
 		}
 	}
 
@@ -449,6 +461,32 @@ export default function AdminDashboard() {
 
 	return (
 		<AdminLayout>
+			<ToastContainer toasts={toasts} onRemove={removeToast} />
+			<AlertDialog
+				open={confirmDialog.open}
+				onOpenChange={open => setConfirmDialog({ ...confirmDialog, open })}
+			>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Հաստատե՞լ ջնջումը</AlertDialogTitle>
+						<AlertDialogDescription>
+							Համոզվա՞ծ եք, որ ցանկանում եք ջնջել «{confirmDialog.propertyTitle}
+							» հայտարարությունը։
+							<br />
+							Այս գործողությունը հնարավոր չէ հետարկել։
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>Չեղարկել</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={handleConfirmDelete}
+							className='bg-red-600 text-white hover:bg-red-700'
+						>
+							Այո, ջնջել
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 			<div className='space-y-4 sm:space-y-6'>
 				{/* Header */}
 				<div className='flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4'>
@@ -779,10 +817,7 @@ export default function AdminDashboard() {
 														</button>
 														<button
 															onClick={() =>
-																handleDeleteProperty(
-																	property.id,
-																	property.title
-																)
+																handleRequestDelete(property.id, property.title)
 															}
 															className='w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center text-sm text-red-600'
 														>
@@ -1132,10 +1167,7 @@ export default function AdminDashboard() {
 														<button
 															onClick={e => {
 																e.stopPropagation()
-																handleDeleteProperty(
-																	property.id,
-																	property.title
-																)
+																handleRequestDelete(property.id, property.title)
 															}}
 															disabled={isDeleting}
 															className='text-red-600 hover:text-red-900 disabled:opacity-50 flex items-center'

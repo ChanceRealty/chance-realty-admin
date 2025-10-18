@@ -5,6 +5,8 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import AdminLayout from '@/components/AdminLayout'
 import MediaUploadIntegrated from '@/components/MediaUpload'
+import { ToastContainer } from '@/components/Toast'
+import { useToast } from '@/hooks/useToast'
 import {
 	PropertyType,
 	ListingType,
@@ -42,6 +44,7 @@ export default function AddPropertyPage() {
 	const [mediaFiles, setMediaFiles] = useState<File[]>([])
 	const [mediaTypes, setMediaTypes] = useState<string[]>([])
 	const [primaryMediaIndex, setPrimaryMediaIndex] = useState(0)
+	const { toasts, removeToast, showSuccess, showError, showWarning } = useToast()
 
 	// Basic property data
 	const [formData, setFormData] = useState({
@@ -406,20 +409,28 @@ export default function AddPropertyPage() {
 				data = JSON.parse(responseText)
 			} catch (err) {
 				console.error('❌ Server returned invalid JSON:', responseText)
+				showError('Սերվերի սխալ։ Խնդրում ենք կրկին փորձել։')
 				throw new Error(responseText || 'Failed to create property')
 			}
 
 			if (!response.ok) {
+				showError(data?.error || 'Չհաջողվեց ստեղծել հայտարարությունը')
 				throw new Error(data?.error || 'Failed to create property')
 			}
 
-
-			router.push('/admin')
+			showSuccess('Հայտարարությունը հաջողությամբ ստեղծվել է')
+			setTimeout(() => {
+				router.push('/admin')
+			}, 2000)
 		} catch (error) {
 			console.error('Error creating property:', error)
-			setError(
-				error instanceof Error ? error.message : 'Failed to create property'
-			)
+			if (!toasts.some(t => t.type === 'error')) {
+				showError(
+					error instanceof Error
+						? error.message
+						: 'Չհաջողվեց ստեղծել հայտարարությունը'
+				)
+			}
 		} finally {
 			setLoading(false)
 		}
@@ -483,19 +494,13 @@ export default function AddPropertyPage() {
 
 	return (
 		<AdminLayout>
+			<ToastContainer toasts={toasts} onRemove={removeToast} />
 			<div className='max-w-4xl mx-auto'>
 				<div className='mb-8'>
 					<h1 className='text-2xl font-bold text-gray-900'>
 						Ավելացնել նոր անշարժ գույք
 					</h1>
 				</div>
-
-				{error && (
-					<div className='mb-6 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg'>
-						{error}
-					</div>
-				)}
-
 				<form onSubmit={handleSubmit} className='space-y-8'>
 					{/* Basic Information */}
 					<div className='bg-white shadow rounded-lg p-6'>
