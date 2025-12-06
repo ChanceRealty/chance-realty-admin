@@ -62,12 +62,13 @@ export interface BaseProperty {
 	address: string
 	status: string // Now references PropertyStatus.name
 	views: number
+	url_3d?: string
 	created_at: Date
 	updated_at: Date
 
 	address_admin?: string
 
-	is_hidden: boolean 
+	is_hidden: boolean
 	is_exclusive: boolean
 
 	// Owner details (admin only - not exposed to public)

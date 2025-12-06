@@ -34,6 +34,7 @@ import {
 	Crown,
 	EyeOff,
 	Eye,
+	Boxes,
 } from 'lucide-react'
 import Image from 'next/image'
 import LocationSelector from '@/components/LocationSelector'
@@ -83,6 +84,7 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 		has_telegram: false,
 		is_hidden: false,
 		is_exclusive: false,
+		url_3d: ''
 	})
 
 	// Property type specific attributes
@@ -256,6 +258,7 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 					has_telegram: propertyData.has_telegram || false,
 					is_hidden: propertyData.is_hidden || false,
 					is_exclusive: propertyData.is_exclusive || false,
+					url_3d: propertyData.url_3d || ''
 				})
 
 				console.log('✅ Form data set with location:', {
@@ -931,6 +934,30 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 									</div>
 								)}
 							</div>
+						</div>
+					</div>
+					{/* 3D Virtual Tour URL */}
+					<div className='bg-white shadow rounded-lg p-6 border-l-4 border-purple-500'>
+						<h2 className='text-lg font-semibold mb-6 flex items-center text-gray-700'>
+							<Boxes className='w-5 h-5 mr-2' />
+							3D Վիրտուալ տուր
+						</h2>
+						<div>
+							<label className='block text-sm font-medium text-gray-700 mb-2'>
+								3D տուրի հղում (ըստ ցանկության)
+							</label>
+							<input
+								type='url'
+								name='url_3d'
+								value={formData.url_3d}
+								onChange={handleInputChange}
+								className='w-full border border-gray-300 text-black rounded-lg px-4 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent'
+								placeholder='https://example.com/3d-tour'
+							/>
+							<p className='mt-2 text-sm text-gray-500'>
+								Մուտքագրեք հղումը Matterport, Kuula կամ այլ 3D տուրի
+								ծառայություններից
+							</p>
 						</div>
 					</div>
 					{/* Property Visibility Settings */}

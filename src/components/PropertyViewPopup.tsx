@@ -26,6 +26,7 @@ import {
 	MessageCircle,
 	EyeOff,
 	Crown,
+	Boxes,
 } from 'lucide-react'
 
 import { FaWhatsapp } from 'react-icons/fa'
@@ -622,6 +623,24 @@ export default function PropertyViewPopup({
 										</div>
 									</div>
 								</div>
+								{/* 3D Virtual Tour */}
+								{property.url_3d && (
+									<div className='bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg sm:rounded-xl p-3 sm:p-6'>
+										<h3 className='text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-gray-900 flex items-center'>
+											<Boxes className='w-4 h-4 sm:w-5 sm:h-5 mr-2 text-purple-600' />
+											3D Վիրտուալ տուր
+										</h3>
+										<a
+											href={property.url_3d}
+											target='_blank'
+											rel='noopener noreferrer'
+											className='inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm sm:text-base'
+										>
+											<Boxes className='w-4 h-4 mr-2' />
+											Դիտել 3D տուրը
+										</a>
+									</div>
+								)}
 
 								{/* ✅ MOBILE-RESPONSIVE Apartment Attributes */}
 								{property.property_type === 'apartment' && (
@@ -685,7 +704,9 @@ export default function PropertyViewPopup({
 														<div className='font-semibold text-sm sm:text-base text-gray-600'>
 															{getAttributeValue('total_floors')}
 														</div>
-														<div className='text-xs text-gray-600'>Ընդհանուր հարկեր</div>
+														<div className='text-xs text-gray-600'>
+															Ընդհանուր հարկեր
+														</div>
 													</div>
 												</div>
 											)}

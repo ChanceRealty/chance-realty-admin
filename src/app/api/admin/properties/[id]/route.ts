@@ -454,8 +454,9 @@ export async function PUT(
 					is_hidden = $20,
 					is_exclusive = $21,
 					address_admin = $22,
+					url_3d = $23,
 					updated_at = CURRENT_TIMESTAMP
-				WHERE id = $23`,
+				WHERE id = $24`,
 				[
 					propertyData.custom_id.trim(),
 					propertyData.title.trim(),
@@ -479,6 +480,7 @@ export async function PUT(
 					propertyData.is_hidden || false,
 					propertyData.is_exclusive || false,
 					propertyData.address_admin?.trim() || null,
+					propertyData.url_3d?.trim() || null,
 					id,
 				]
 			)
