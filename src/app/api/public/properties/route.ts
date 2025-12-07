@@ -81,6 +81,7 @@ export async function GET(request: Request) {
 			SELECT 
 				p.id,
 				p.custom_id,
+				p.url_3d,
 				-- Language-specific title and description
 				CASE 
 					WHEN $1 = 'ru' THEN COALESCE(p.title_ru, p.title)
