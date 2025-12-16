@@ -291,6 +291,16 @@ export default function AddPropertyPage() {
 	}
 
 	const handleSubmit = async (e: React.FormEvent) => {
+		const normalizedPrice = Number(
+			String(formData.price).replace(/\s/g, '').replace(/,/g, '')
+		)
+
+		if (!Number.isFinite(normalizedPrice) || normalizedPrice <= 0) {
+			showError('Սխալ գնի ձևաչափ')
+			setLoading(false)
+			return
+		}
+
 		e.preventDefault()
 		setLoading(true)
 		setError('')
@@ -328,10 +338,10 @@ export default function AddPropertyPage() {
 				custom_id: formData.custom_id.trim(),
 				latitude: formData.latitude,
 				longitude: formData.longitude,
-				price: parseFloat(formData.price),
+				price: normalizedPrice,
 				state_id: parseInt(formData.state_id),
-				city_id: finalCityId, // ✅ NULL for Yerevan
-				district_id: finalDistrictId, // ✅ NULL for non-Yerevan
+				city_id: finalCityId, // NULL for Yerevan
+				district_id: finalDistrictId, // NULL for non-Yerevan
 				owner_name: formData.owner_name.trim(),
 				owner_phone: formData.owner_phone.trim(),
 				address_admin: formData.address_admin.trim(),
@@ -620,13 +630,12 @@ export default function AddPropertyPage() {
 										<option value='AMD'>AMD (֏)</option>
 									</select>
 									<input
-										type='number'
+										type='text'
+										inputMode='numeric'
 										name='price'
 										value={formData.price}
 										onChange={handleInputChange}
 										required
-										min='0'
-										step='0.01'
 										className='flex-1 border text-black border-gray-300 rounded-r-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
 										placeholder='Մուտքագրեք գինը'
 									/>

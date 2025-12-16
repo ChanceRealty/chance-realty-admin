@@ -505,7 +505,18 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 		}))
 	}
 
+	
+
 	const handleSubmit = async (e: React.FormEvent) => {
+		const normalizedPrice = Number(
+			String(formData.price).replace(/\s/g, '').replace(/,/g, '')
+		)
+
+		if (!Number.isFinite(normalizedPrice)) {
+			alert('Սխալ գնի ձևաչափ։')
+			return
+		}
+		
 		e.preventDefault()
 		setSaving(true)
 		setError('')
@@ -571,7 +582,7 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 			const propertyData = {
 				...formData,
 				custom_id: formData.custom_id.trim(),
-				price: parseFloat(formData.price),
+				price: normalizedPrice,
 				state_id: parseInt(formData.state_id),
 				district_id: finalDistrictId,
 				city_id: finalCityId,
@@ -884,13 +895,12 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 										<option value='AMD'>AMD (֏)</option>
 									</select>
 									<input
-										type='number'
+										type='text' 
+										inputMode='numeric' 
 										name='price'
 										value={formData.price}
 										onChange={handleInputChange}
 										required
-										min='0'
-										step='0.01'
 										className='flex-1 border border-gray-300 text-black rounded-r-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
 										placeholder='Մուտքագրեք գինը'
 									/>
