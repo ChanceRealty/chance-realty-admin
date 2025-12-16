@@ -133,7 +133,8 @@ export async function GET_SINGLE(
 						'business_type', ca.business_type,
 						'area_sqft', ca.area_sqft,
 						'floors', ca.floors,
-						'ceiling_height', ca.ceiling_height
+						'ceiling_height', ca.ceiling_height,
+						'rooms', ca.rooms
 					)
 					WHEN p.property_type = 'land' THEN json_build_object(
 						'area_acres', la.area_acres

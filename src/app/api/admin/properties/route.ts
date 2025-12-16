@@ -246,14 +246,15 @@ export async function POST(request: Request) {
 				case 'commercial':
 					await sql.query(
 						`INSERT INTO commercial_attributes (
-              property_id, business_type, area_sqft, floors, ceiling_height
-            ) VALUES ($1, $2, $3, $4, $5)`,
+              property_id, business_type, area_sqft, floors, ceiling_height, rooms
+            ) VALUES ($1, $2, $3, $4, $5, $6)`,
 						[
 							propertyId,
 							attributesData.business_type,
 							attributesData.area_sqft,
 							attributesData.floors,
 							attributesData.ceiling_height,
+							attributesData.rooms,
 						]
 					)
 					break
@@ -541,7 +542,8 @@ export async function GET() {
           'business_type', ca.business_type,
           'area_sqft', ca.area_sqft,
           'floors', ca.floors,
-          'ceiling_height', ca.ceiling_height
+          'ceiling_height', ca.ceiling_height,
+		  'rooms', ca.rooms
         )
         FROM commercial_attributes ca
         WHERE ca.property_id = p.id

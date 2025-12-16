@@ -91,6 +91,7 @@ export default function AddPropertyPage() {
 		business_type: string
 		ceiling_height: string
 		area_acres: string
+		rooms: string
 	}>({
 		bedrooms: '',
 		bathrooms: '',
@@ -105,6 +106,7 @@ export default function AddPropertyPage() {
 		business_type: '',
 		ceiling_height: '',
 		area_acres: '',
+		rooms: '',
 	})
 
 	// ✅ FIXED: Armenian translations for status names
@@ -384,6 +386,7 @@ export default function AddPropertyPage() {
 						ceiling_height: attributes.ceiling_height
 							? parseFloat(attributes.ceiling_height)
 							: null,
+						rooms: attributes.rooms ? parseInt(attributes.rooms) : null,
 					})
 					break
 				case 'land':
@@ -1164,6 +1167,20 @@ export default function AddPropertyPage() {
 										placeholder='օր․ 3.0'
 										required
 										pattern='[0-9]+([.,][0-9]+)?'
+									/>
+								</div>
+								<div>
+									<label className='block text-sm font-medium text-gray-700 mb-2'>
+										Սենյակներ
+									</label>
+									<input
+										type='number'
+										name='rooms'
+										value={attributes.rooms}
+										onChange={handleAttributeChange}
+										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
+										required
+										min='0'
 									/>
 								</div>
 							</div>

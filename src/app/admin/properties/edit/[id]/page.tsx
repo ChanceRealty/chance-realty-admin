@@ -102,6 +102,7 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 		business_type: string
 		ceiling_height: string
 		area_acres: string
+		rooms: string
 	}>({
 		bedrooms: '',
 		bathrooms: '',
@@ -116,6 +117,7 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 		business_type: '',
 		ceiling_height: '',
 		area_acres: '',
+		rooms: '',
 	})
 
 	// ✅ FIXED: Armenian translations for status names
@@ -306,6 +308,7 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 						business_type: attrs.business_type || '',
 						ceiling_height: attrs.ceiling_height?.toString() || '',
 						area_acres: attrs.area_acres?.toString() || '',
+						rooms: attrs.rooms?.toString() || '',
 					})
 				}
 
@@ -644,6 +647,7 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 						ceiling_height: attributes.ceiling_height
 							? parseFloat(attributes.ceiling_height)
 							: null,
+						rooms: attributes.rooms ? parseInt(attributes.rooms) : null,
 					})
 					break
 				case 'land':
@@ -895,8 +899,8 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 										<option value='AMD'>AMD (֏)</option>
 									</select>
 									<input
-										type='text' 
-										inputMode='numeric' 
+										type='text'
+										inputMode='numeric'
 										name='price'
 										value={formData.price}
 										onChange={handleInputChange}
@@ -1425,6 +1429,20 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 										placeholder='օր․ 3.0'
 										required
 										pattern='[0-9]+([.,][0-9]+)?'
+									/>
+								</div>
+								<div>
+									<label className='block text-sm font-medium text-gray-700 mb-2'>
+										Սենյակներ
+									</label>
+									<input
+										type='number'
+										name='rooms'
+										value={attributes.rooms}
+										onChange={handleAttributeChange}
+										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
+										required
+										min='0'
 									/>
 								</div>
 							</div>

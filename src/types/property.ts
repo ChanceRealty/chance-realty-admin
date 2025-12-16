@@ -127,6 +127,7 @@ export interface CommercialAttributes {
 	area_sqft: number
 	floors?: number
 	ceiling_height?: number
+	rooms: number
 }
 
 export interface LandAttributes {

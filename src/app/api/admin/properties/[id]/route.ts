@@ -110,7 +110,7 @@ export async function GET(
 
 				case 'commercial':
 					const commercialResult = await sql`
-						SELECT business_type, area_sqft, floors, ceiling_height
+						SELECT business_type, area_sqft, floors, ceiling_height, rooms
 						FROM commercial_attributes WHERE property_id = ${id}
 					`
 					if (commercialResult.rows.length > 0) {
@@ -538,14 +538,15 @@ export async function PUT(
 					)
 					await sql.query(
 						`INSERT INTO commercial_attributes (
-							property_id, business_type, area_sqft, floors, ceiling_height
-						) VALUES ($1, $2, $3, $4, $5)`,
+							property_id, business_type, area_sqft, floors, ceiling_height, rooms
+						) VALUES ($1, $2, $3, $4, $5, $6)`,
 						[
 							id,
 							attributesData.business_type,
 							attributesData.area_sqft,
 							attributesData.floors,
 							attributesData.ceiling_height,
+							attributesData.rooms,
 						]
 					)
 					break

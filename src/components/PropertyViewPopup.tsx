@@ -27,6 +27,7 @@ import {
 	EyeOff,
 	Crown,
 	Boxes,
+	DoorClosed,
 } from 'lucide-react'
 
 import { FaWhatsapp } from 'react-icons/fa'
@@ -865,6 +866,19 @@ export default function PropertyViewPopup({
 														</div>
 														<div className='text-xs text-gray-600'>
 															Առաստաղի բարձր.
+														</div>
+													</div>
+												</div>
+											)}
+											{getAttributeValue('rooms') && (
+												<div className='flex items-center space-x-2 bg-white p-2 sm:p-3 rounded-lg'>
+													<DoorClosed className='w-4 h-4 sm:w-5 sm:h-5 text-blue-600 flex-shrink-0' />
+													<div className='min-w-0'>
+														<div className='font-semibold text-sm sm:text-base text-gray-600'>
+															{getAttributeValue('rooms')}
+														</div>
+														<div className='text-xs text-gray-600'>
+															Սենյակներ
 														</div>
 													</div>
 												</div>
