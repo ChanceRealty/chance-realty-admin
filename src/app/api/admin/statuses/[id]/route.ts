@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { verifyToken } from '@/lib/auth'
-import { sql } from '@vercel/postgres'
+import { query, transaction } from '@/lib/db'
 
 // Handle OPTIONS request for CORS
 export async function OPTIONS() {
@@ -40,18 +40,10 @@ export async function GET(
 			)
 		}
 
-		const result = await sql`
-			SELECT 
-				id, 
-				name, 
-				color, 
-				is_active, 
-				sort_order,
-				created_at,
-				updated_at
-			FROM property_statuses 
-			WHERE id = ${parseInt(id)}
-		`
+		const result = await query(
+			'SELECT id, name, color, is_active, sort_order, created_at, updated_at FROM property_statuses WHERE id = $1',
+			[parseInt(id)]
+		)
 
 		if (result.rows.length === 0) {
 			return NextResponse.json({ error: 'Status not found' }, { status: 404 })
@@ -104,10 +96,10 @@ export async function PUT(
 		}
 
 		// Check if name already exists for other statuses
-		const existing = await sql`
+		const existing = await query(`
 			SELECT id FROM property_statuses 
-			WHERE name = ${name} AND id != ${parseInt(id)}
-		`
+			WHERE name = $1 AND id != $2
+		`, [name, parseInt(id)])
 
 		if (existing.rows.length > 0) {
 			return NextResponse.json(
@@ -116,17 +108,18 @@ export async function PUT(
 			)
 		}
 
-		const result = await sql`
-			UPDATE property_statuses 
-			SET 
-				name = ${name}, 
-				color = ${color || '#gray'}, 
-				is_active = ${is_active !== false}, 
-				sort_order = ${sort_order || 0},
-				updated_at = CURRENT_TIMESTAMP
-			WHERE id = ${parseInt(id)}
-			RETURNING *
-		`
+		const result = await query(
+			`UPDATE property_statuses 
+   SET name = $1, color = $2, is_active = $3, sort_order = $4, updated_at = CURRENT_TIMESTAMP
+   WHERE id = $5 RETURNING *`,
+			[
+				name,
+				color || '#gray',
+				is_active !== false,
+				sort_order || 0,
+				parseInt(id),
+			]
+		)
 
 		if (result.rows.length === 0) {
 			return NextResponse.json({ error: 'Status not found' }, { status: 404 })
@@ -167,12 +160,11 @@ export async function DELETE(
 		}
 
 		// Check if status is being used by any properties
-		const propertiesUsingStatus = await sql`
+		const propertiesUsingStatus = await query(`
 			SELECT COUNT(*) as count 
 			FROM properties 
-			WHERE status = ${parseInt(id)}
-		`
-
+			WHERE status = $1
+		` , [parseInt(id)])
 		if (parseInt(propertiesUsingStatus.rows[0].count) > 0) {
 			return NextResponse.json(
 				{
@@ -183,12 +175,10 @@ export async function DELETE(
 			)
 		}
 
-		const result = await sql`
-			DELETE FROM property_statuses 
-			WHERE id = ${parseInt(id)}
-			RETURNING id
-		`
-
+		const result = await query(
+			'DELETE FROM property_statuses WHERE id = $1 RETURNING id',
+			[parseInt(id)]
+		)
 		if (result.rows.length === 0) {
 			return NextResponse.json({ error: 'Status not found' }, { status: 404 })
 		}

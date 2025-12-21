@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { verifyToken } from '@/lib/auth'
-import { sql } from '@vercel/postgres'
+import { query, transaction } from '@/lib/db'
 
 // Handle OPTIONS request for CORS
 export async function OPTIONS() {
@@ -42,7 +42,7 @@ export async function GET() {
 		console.log('✅ Admin authenticated, fetching statuses from database...')
 
 		// Query that matches your exact database schema
-		const result = await sql`
+		const result = await query(`
 			SELECT 
 				id, 
 				name, 
@@ -54,7 +54,7 @@ export async function GET() {
 			FROM property_statuses 
 			WHERE is_active = true
 			ORDER BY sort_order, name
-		`
+		`)
 
 		console.log(`✅ Found ${result.rows.length} statuses:`, result.rows)
 
@@ -100,9 +100,9 @@ export async function POST(request: Request) {
 		}
 
 		// Check if name already exists
-		const existing = await sql`
-			SELECT id FROM property_statuses WHERE name = ${name}
-		`
+		const existing = await query(`
+			SELECT id FROM property_statuses WHERE name = $1
+		`, [name])
 
 		if (existing.rows.length > 0) {
 			return NextResponse.json(
@@ -111,25 +111,11 @@ export async function POST(request: Request) {
 			)
 		}
 
-		const result = await sql`
-			INSERT INTO property_statuses (
-				name, 
-				color, 
-				is_active, 
-				sort_order,
-				created_at,
-				updated_at
-			)
-			VALUES (
-				${name}, 
-				${color || '#gray'}, 
-				${is_active !== false}, 
-				${sort_order || 0},
-				CURRENT_TIMESTAMP,
-				CURRENT_TIMESTAMP
-			)
-			RETURNING *
-		`
+		const result = await query(
+			`INSERT INTO property_statuses (name, color, is_active, sort_order, created_at, updated_at)
+   VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) RETURNING *`,
+			[name, color || '#gray', is_active !== false, sort_order || 0]
+		)
 
 		return NextResponse.json(result.rows[0])
 	} catch (error) {

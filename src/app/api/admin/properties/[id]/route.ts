@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { verifyToken } from '@/lib/auth'
-import { sql } from '@vercel/postgres'
+import { query, transaction } from '@/lib/db'
 import { PropertyType } from '@/types/property'
 import { uploadToImageKit } from '@/lib/imagekit'
 
@@ -41,7 +41,8 @@ export async function GET(
 		console.log('🏠 Fetching property for edit, ID:', id)
 
 		// ✅ CRITICAL: Make sure to select ALL required fields including social media
-		const propertyResult = await sql`
+		const propertyResult = await query(
+			`
 			SELECT 
 				p.*,
 				s.name as state_name,
@@ -59,8 +60,10 @@ export async function GET(
 			LEFT JOIN cities c ON p.city_id = c.id
 			LEFT JOIN districts d ON p.district_id = d.id
 			LEFT JOIN property_statuses ps ON p.status = ps.id
-			WHERE p.id = ${id}
-		`
+			WHERE p.id = $1
+		`,
+			[id]
+		)
 
 		if (propertyResult.rows.length === 0) {
 			return NextResponse.json({ error: 'Property not found' }, { status: 404 })
@@ -83,10 +86,10 @@ export async function GET(
 		try {
 			switch (property.property_type) {
 				case 'house':
-					const houseResult = await sql`
+					const houseResult = await query(`
 						SELECT bedrooms, bathrooms, area_sqft, lot_size_sqft, floors, ceiling_height
-						FROM house_attributes WHERE property_id = ${id}
-					`
+						FROM house_attributes WHERE property_id = $1
+					`, [id])
 					if (houseResult.rows.length > 0) {
 						attributes = houseResult.rows[0]
 						console.log('✅ House attributes found:', attributes)
@@ -96,10 +99,10 @@ export async function GET(
 					break
 
 				case 'apartment':
-					const apartmentResult = await sql`
+					const apartmentResult = await query(`
 						SELECT bedrooms, bathrooms, area_sqft, floor, total_floors, ceiling_height
-						FROM apartment_attributes WHERE property_id = ${id}
-					`
+						FROM apartment_attributes WHERE property_id = $1
+					`, [id])
 					if (apartmentResult.rows.length > 0) {
 						attributes = apartmentResult.rows[0]
 						console.log('✅ Apartment attributes found:', attributes)
@@ -109,10 +112,10 @@ export async function GET(
 					break
 
 				case 'commercial':
-					const commercialResult = await sql`
+					const commercialResult = await query(`
 						SELECT business_type, area_sqft, floors, ceiling_height, rooms
-						FROM commercial_attributes WHERE property_id = ${id}
-					`
+						FROM commercial_attributes WHERE property_id = $1
+					`, [id])
 					if (commercialResult.rows.length > 0) {
 						attributes = commercialResult.rows[0]
 						console.log('✅ Commercial attributes found:', attributes)
@@ -122,19 +125,19 @@ export async function GET(
 					break
 
 				case 'land':
-					const landResult = await sql`
+					const landResult = await query(`
 						SELECT area_acres
-						FROM land_attributes WHERE property_id = ${id}
-					`
+						FROM land_attributes WHERE property_id = $1
+					`, [id])
 					if (landResult.rows.length > 0) {
 						attributes = landResult.rows[0]
 						console.log('✅ Land attributes found:', attributes)
 					} else {
 						console.log('❌ No land attributes found')
 						// Let's check if the record exists at all
-						const checkLand = await sql`
-							SELECT COUNT(*) as count FROM land_attributes WHERE property_id = ${id}
-						`
+						const checkLand = await query(`
+							SELECT COUNT(*) as count FROM land_attributes WHERE property_id = $1
+						`, [id])
 						console.log('🔍 Land attributes count:', checkLand.rows[0]?.count || 0)
 					}
 					break
@@ -151,13 +154,13 @@ export async function GET(
 		console.log(`🏷️ Fetching features for property ${id}`)
 		
 		try {
-			const featuresResult = await sql`
+			const featuresResult = await query(`
 				SELECT pf.id, pf.name, pf.icon
 				FROM property_features pf
 				JOIN property_to_features ptf ON pf.id = ptf.feature_id
-				WHERE ptf.property_id = ${id}
+				WHERE ptf.property_id = $1
 				ORDER BY pf.name
-			`
+			`, [id])
 			features = featuresResult.rows.map(row => ({
 				id: Number(row.id),
 				name: String(row.name),
@@ -180,12 +183,12 @@ export async function GET(
 			created_at?: string;
 		}[] = []
 		try {
-			const mediaResult = await sql`
+			const mediaResult = await query(`
 				SELECT id, file_id, url, thumbnail_url, type, is_primary, display_order
 				FROM property_media 
-				WHERE property_id = ${id}
+				WHERE property_id = $1
 				ORDER BY is_primary DESC, display_order, created_at
-			`
+			`, [id])
 			media = mediaResult.rows.map(row => ({
 				id: Number(row.id),
 				file_id: String(row.file_id),
@@ -387,13 +390,9 @@ export async function PUT(
 			)
 		}
 
-
-		// Start transaction
-		await sql.query('BEGIN')
-
-		try {
+			await transaction(async (client) => {
 			// Check if custom_id exists for other properties
-			const existingProperty = await sql.query(
+			const existingProperty = await client.query(
 				'SELECT id FROM properties WHERE custom_id = $1 AND id != $2',
 				[propertyData.custom_id, id]
 			)
@@ -402,12 +401,11 @@ export async function PUT(
 				throw new Error('Property ID already exists for another property')
 			}
 
-			// ✅ Convert status name to status ID
 			let statusId = 1 // Default to available
 			if (propertyData.status) {
 				console.log('🔍 Looking up status ID for name:', propertyData.status)
 
-				const statusResult = await sql.query(
+				const statusResult = await client.query(
 					'SELECT id FROM property_statuses WHERE name = $1 AND is_active = true LIMIT 1',
 					[propertyData.status.trim()]
 				)
@@ -430,7 +428,7 @@ export async function PUT(
 			console.log('💾 Updating property with status ID:', statusId)
 
 			// Update main property including owner details
-			await sql.query(
+			await client.query(
 				`UPDATE properties SET
 					custom_id = $1,
 					title = $2,
@@ -490,11 +488,11 @@ export async function PUT(
 			// Update property-specific attributes
 			switch (propertyData.property_type as PropertyType) {
 				case 'house':
-					await sql.query(
+					await client.query(
 						'DELETE FROM house_attributes WHERE property_id = $1',
 						[id]
 					)
-					await sql.query(
+					await client.query(
 						`INSERT INTO house_attributes (
 							property_id, bedrooms, bathrooms, area_sqft, lot_size_sqft, floors, ceiling_height
 						) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -511,11 +509,11 @@ export async function PUT(
 					break
 
 				case 'apartment':
-					await sql.query(
+					await client.query(
 						'DELETE FROM apartment_attributes WHERE property_id = $1',
 						[id]
 					)
-					await sql.query(
+					await client.query(
 						`INSERT INTO apartment_attributes (
 							property_id, bedrooms, bathrooms, area_sqft, floor, total_floors, ceiling_height
 						) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -532,11 +530,11 @@ export async function PUT(
 					break
 
 				case 'commercial':
-					await sql.query(
+					await client.query(
 						'DELETE FROM commercial_attributes WHERE property_id = $1',
 						[id]
 					)
-					await sql.query(
+					await client.query(
 						`INSERT INTO commercial_attributes (
 							property_id, business_type, area_sqft, floors, ceiling_height, rooms
 						) VALUES ($1, $2, $3, $4, $5, $6)`,
@@ -552,11 +550,11 @@ export async function PUT(
 					break
 
 				case 'land':
-					await sql.query(
+					await client.query(
 						'DELETE FROM land_attributes WHERE property_id = $1',
 						[id]
 					)
-					await sql.query(
+					await client.query(
 						`INSERT INTO land_attributes (
 							property_id, area_acres
 						) VALUES ($1, $2)`,
@@ -566,7 +564,7 @@ export async function PUT(
 			}
 
 			// Update property features
-			await sql.query(
+			await client.query(
 				'DELETE FROM property_to_features WHERE property_id = $1',
 				[id]
 			)
@@ -576,7 +574,7 @@ export async function PUT(
 				propertyData.selectedFeatures.length > 0
 			) {
 				for (const featureId of propertyData.selectedFeatures) {
-					await sql.query(
+					await client.query(
 						'INSERT INTO property_to_features (property_id, feature_id) VALUES ($1, $2)',
 						[id, featureId]
 					)
@@ -636,7 +634,7 @@ export async function PUT(
 						}
 
 						// Save media info to database with absolute display_order
-						const mediaResult = await sql.query(
+						const mediaResult = await client.query(
 							`INSERT INTO property_media (
 								property_id, file_id, url, thumbnail_url, type, is_primary, display_order
 							) VALUES (
@@ -668,18 +666,15 @@ export async function PUT(
 			console.log('📝 Updating existing media display orders...')
 
 			// First, unset all is_primary flags
-			await sql.query(
+			await client.query(
 				'UPDATE property_media SET is_primary = false WHERE property_id = $1 AND type = $2',
 				[id, 'image']
 			)
 
 			// Then update each existing media item's display_order and is_primary
 			for (const mediaItem of existingMediaOrder) {
-				console.log(
-					`📝 Updating existing media ${mediaItem.id}: order=${mediaItem.display_order}, primary=${mediaItem.is_primary}`
-				)
 
-				await sql.query(
+				await client.query(
 					`UPDATE property_media 
 					SET 
 						display_order = $1,
@@ -694,8 +689,7 @@ export async function PUT(
 				)
 			}
 
-			// ✅ STEP 4: Ensure the first item (display_order = 0) is set as primary if it's an image
-			const firstMediaResult = await sql.query(
+			const firstMediaResult = await client.query(
 				`SELECT id, type FROM property_media 
 				WHERE property_id = $1 AND display_order = 0
 				LIMIT 1`,
@@ -706,42 +700,20 @@ export async function PUT(
 				firstMediaResult.rows.length > 0 &&
 				firstMediaResult.rows[0].type === 'image'
 			) {
-				await sql.query(
+				await client.query(
 					'UPDATE property_media SET is_primary = true WHERE id = $1',
 					[firstMediaResult.rows[0].id]
-				)
-				console.log(
-					`✅ Set media ${firstMediaResult.rows[0].id} as primary (first in order)`
-				)
-			} else if (firstMediaResult.rows.length > 0) {
-				console.log(
-					`ℹ️ First media (order 0) is a video, not setting as primary`
 				)
 			}
 
 			// Commit transaction
-			await sql.query('COMMIT')
+			await client.query('COMMIT')
+		})
 
-			console.log('🎉 Property update completed successfully!')
-			console.log('📊 Final summary:')
-			console.log(`  - Existing media updated: ${existingMediaOrder.length}`)
-			console.log(`  - New media uploaded: ${newMediaIds.length}`)
-			console.log(
-				`  - Total media count: ${
-					existingMediaOrder.length + newMediaIds.length
-				}`
-			)
-
-			return NextResponse.json({
-				success: true,
-				message: 'Property updated successfully',
-			})
-		} catch (error) {
-			// Rollback transaction on error
-			await sql.query('ROLLBACK')
-			console.error('Property update failed:', error)
-			throw error
-		}
+		return NextResponse.json({
+			success: true,
+			message: 'Property updated successfully',
+		})
 	} catch (error) {
 		console.error('Error updating property:', error)
 		return NextResponse.json(
@@ -786,62 +758,27 @@ export async function DELETE(
 			)
 		}
 
-		// Start transaction
-		await sql.query('BEGIN')
-
-		try {
-			// Get all media files to delete from ImageKit
-			const mediaResult = await sql`
-				SELECT file_id FROM property_media WHERE property_id = ${id}
-			`
-
-			// Delete related records (cascading delete)
-			await sql.query('DELETE FROM property_media WHERE property_id = $1', [id])
-			await sql.query(
-				'DELETE FROM property_to_features WHERE property_id = $1',
-				[id]
-			)
-			await sql.query('DELETE FROM property_views WHERE property_id = $1', [id])
-			await sql.query('DELETE FROM favorites WHERE property_id = $1', [id])
-
-			// Delete property-specific attributes
-			await sql.query('DELETE FROM house_attributes WHERE property_id = $1', [
-				id,
-			])
-			await sql.query(
-				'DELETE FROM apartment_attributes WHERE property_id = $1',
-				[id]
-			)
-			await sql.query(
-				'DELETE FROM commercial_attributes WHERE property_id = $1',
-				[id]
-			)
-			await sql.query('DELETE FROM land_attributes WHERE property_id = $1', [
-				id,
-			])
-
-			// Finally delete the property itself
-			const deleteResult = await sql.query(
-				'DELETE FROM properties WHERE id = $1',
-				[id]
-			)
-
-			if (deleteResult.rowCount === 0) {
-				throw new Error('Property not found')
-			}
-
-			// Commit transaction
-			await sql.query('COMMIT')
-
-			return NextResponse.json({
-				success: true,
-				message: 'Property deleted successfully',
-			})
-		} catch (error) {
-			// Rollback transaction on error
-			await sql.query('ROLLBACK')
-			throw error
-		}
+		await transaction(async (client) => {
+  		const mediaResult = await client.query(
+    		'SELECT file_id FROM property_media WHERE property_id = $1',
+    		[id]
+  			)
+  
+  await client.query('DELETE FROM property_media WHERE property_id = $1', [id])
+  await client.query('DELETE FROM property_to_features WHERE property_id = $1', [id])
+  await client.query('DELETE FROM property_views WHERE property_id = $1', [id])
+  await client.query('DELETE FROM favorites WHERE property_id = $1', [id])
+  await client.query('DELETE FROM house_attributes WHERE property_id = $1', [id])
+  await client.query('DELETE FROM apartment_attributes WHERE property_id = $1', [id])
+  await client.query('DELETE FROM commercial_attributes WHERE property_id = $1', [id])
+  await client.query('DELETE FROM land_attributes WHERE property_id = $1', [id])
+  
+  const deleteResult = await client.query('DELETE FROM properties WHERE id = $1', [id])
+  
+  if (deleteResult.rowCount === 0) {
+    throw new Error('Property not found')
+  }
+})
 	} catch (error) {
 		console.error('Error deleting property:', error)
 		return NextResponse.json(

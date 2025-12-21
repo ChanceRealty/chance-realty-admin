@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { verifyToken } from '@/lib/auth'
-import { sql } from '@vercel/postgres'
+import { query, transaction } from '@/lib/db'
 import { PropertyType } from '@/types/property'
 import { uploadToImageKit } from '@/lib/imagekit'
 import { translatePropertyData } from '@/lib/translateService'
@@ -50,11 +50,9 @@ export async function POST(request: Request) {
 		})
 
 		// Start a transaction
-		await sql.query('BEGIN')
-
-		try {
+		await transaction(async (client) => {
 			// Check if custom_id already exists
-			const existingProperty = await sql.query(
+			const existingProperty = await client.query(
 				'SELECT id FROM properties WHERE custom_id = $1',
 				[propertyData.custom_id]
 			)
@@ -81,7 +79,7 @@ export async function POST(request: Request) {
 				if (typeof propertyData.status === 'number') {
 					statusId = propertyData.status
 				} else if (typeof propertyData.status === 'string') {
-					const statusResult = await sql.query(
+					const statusResult = await client.query(
 						'SELECT id FROM property_statuses WHERE name = $1 AND is_active = true LIMIT 1',
 						[propertyData.status.trim()]
 					)
@@ -92,10 +90,6 @@ export async function POST(request: Request) {
 				}
 			}
 
-			console.log('Using status ID:', statusId)
-
-			// 🌐 TRANSLATE PROPERTY DATA
-			console.log('🌐 Starting property translation...')
 			let translations: {
 				title_ru?: string
 				title_en?: string
@@ -121,7 +115,7 @@ export async function POST(request: Request) {
 			}
 
 			// Insert the main property with translations
-			const propertyResult = await sql.query(
+			const propertyResult = await client.query(
 				`INSERT INTO properties (
 				  user_id, custom_id, title, description, property_type, listing_type,
 				  price, currency, state_id, city_id, district_id, address, latitude, longitude, status, owner_name, owner_phone,
@@ -170,7 +164,7 @@ export async function POST(request: Request) {
 
 			// Insert translation records for tracking (optional, for detailed logging)
 			if (translations.title_ru) {
-				await sql.query(
+				await client.query(
 					`INSERT INTO property_translations (property_id, language_code, field_name, translated_text, translation_source)
 					 VALUES ($1, $2, $3, $4, $5), ($1, $6, $7, $8, $9)`,
 					[
@@ -188,7 +182,7 @@ export async function POST(request: Request) {
 			}
 
 			if (translations.title_en) {
-				await sql.query(
+				await client.query(
 					`INSERT INTO property_translations (property_id, language_code, field_name, translated_text, translation_source)
 					 VALUES ($1, $2, $3, $4, $5), ($1, $6, $7, $8, $9)`,
 					[
@@ -208,7 +202,7 @@ export async function POST(request: Request) {
 			// Insert property type specific attributes (same as before)
 			switch (propertyData.property_type as PropertyType) {
 				case 'house':
-					await sql.query(
+					await client.query(
 						`INSERT INTO house_attributes (
               property_id, bedrooms, bathrooms, area_sqft, lot_size_sqft,
               floors, ceiling_height
@@ -226,7 +220,7 @@ export async function POST(request: Request) {
 					break
 
 				case 'apartment':
-					await sql.query(
+					await client.query(
 						`INSERT INTO apartment_attributes (
               property_id, bedrooms, bathrooms, area_sqft, floor,
               total_floors, ceiling_height
@@ -244,7 +238,7 @@ export async function POST(request: Request) {
 					break
 
 				case 'commercial':
-					await sql.query(
+					await client.query(
 						`INSERT INTO commercial_attributes (
               property_id, business_type, area_sqft, floors, ceiling_height, rooms
             ) VALUES ($1, $2, $3, $4, $5, $6)`,
@@ -260,7 +254,7 @@ export async function POST(request: Request) {
 					break
 
 				case 'land':
-					await sql.query(
+					await client.query(
 						`INSERT INTO land_attributes (
               property_id, area_acres
             ) VALUES ($1, $2)`,
@@ -275,7 +269,7 @@ export async function POST(request: Request) {
 				propertyData.selectedFeatures.length > 0
 			) {
 				for (const featureId of propertyData.selectedFeatures) {
-					await sql.query(
+					await client.query(
 						`INSERT INTO property_to_features (property_id, feature_id)
              VALUES ($1, $2)`,
 						[propertyId, featureId]
@@ -332,7 +326,7 @@ export async function POST(request: Request) {
 
 
 						// Save media info to database
-						const mediaResult = await sql.query(
+						const mediaResult = await client.query(
 							`INSERT INTO property_media (
 								property_id, file_id, url, thumbnail_url, type, is_primary, display_order
 							) VALUES (
@@ -397,7 +391,7 @@ export async function POST(request: Request) {
 			}
 
 			// Commit transaction
-			await sql.query('COMMIT')
+			await client.query('COMMIT')
 			console.log(
 				'🎉 Property creation with translations completed successfully!'
 			)
@@ -413,16 +407,8 @@ export async function POST(request: Request) {
 					english: !!translations.title_en,
 				},
 			})
-		} catch (error) {
-			// Rollback transaction on error
-			await sql.query('ROLLBACK')
-			console.error(
-				'❌ Property creation failed, transaction rolled back:',
-				error
-			)
-			throw error
-		}
-	} catch (error) {
+		} 
+		 )} catch (error) {
 		console.error('❌ Error creating property:', error)
 		return NextResponse.json(
 			{
@@ -452,7 +438,7 @@ export async function GET() {
 			)
 		}
 
-		const result = await sql`
+		const result = await query(`
   SELECT 
     p.id,
     p.custom_id,
@@ -588,7 +574,7 @@ export async function GET() {
   LEFT JOIN property_statuses ps ON p.status = ps.id
   WHERE (ps.is_active = true OR ps.id IS NULL)
   ORDER BY p.created_at DESC
-`
+`)
 
 		console.log(`✅ Admin API: Found ${result.rows.length} properties`)
 

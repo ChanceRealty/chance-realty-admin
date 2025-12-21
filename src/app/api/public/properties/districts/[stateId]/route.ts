@@ -1,5 +1,7 @@
+// src/app/api/public/properties/districts/[stateId]/route.ts
+
 import { NextResponse } from 'next/server'
-import { sql } from '@vercel/postgres'
+import { query } from '@/lib/db'
 
 function corsResponse(response: NextResponse) {
 	response.headers.set('Access-Control-Allow-Origin', '*')
@@ -30,7 +32,7 @@ export async function GET(
 
 		console.log(`🏘️ Public API: Fetching districts for state ID: ${stateId}`)
 
-		const result = await sql`
+		const result = await query(`
 			SELECT 
 				d.id,
 				d.name,
@@ -39,9 +41,9 @@ export async function GET(
 				d.name_ru,
 				d.state_id
 			FROM districts d
-			WHERE d.state_id = ${stateId}
+			WHERE d.state_id = $1
 			ORDER BY d.name_hy ASC
-		`
+		`, [stateId])
 
 		console.log(`✅ Public API: Found ${result.rows.length} districts`)
 

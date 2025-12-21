@@ -1,6 +1,6 @@
 // src/app/api/media/property/[id]/route.ts
 import { NextResponse } from 'next/server'
-import { sql } from '@vercel/postgres'
+import { query } from '@/lib/db'
 
 // Handle OPTIONS request for CORS
 export async function OPTIONS() {
@@ -29,15 +29,15 @@ export async function GET(
 			)
 		}
 
-		// Get all media for the property
-		const result = await sql`
-      SELECT 
-        id, property_id, file_id, url, thumbnail_url, 
-        type, is_primary, display_order, created_at
-      FROM property_media
-      WHERE property_id = ${propertyId}
-      ORDER BY display_order, created_at
-    `
+		const result = await query(
+			`SELECT 
+				id, property_id, file_id, url, thumbnail_url, 
+				type, is_primary, display_order, created_at
+			 FROM property_media
+			 WHERE property_id = $1
+			 ORDER BY display_order, created_at`,
+			[propertyId]
+		)
 
 		return NextResponse.json(result.rows)
 	} catch (error) {

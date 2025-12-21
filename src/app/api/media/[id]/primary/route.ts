@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { verifyToken } from '@/lib/auth'
-import { sql } from '@vercel/postgres'
+import { query, transaction } from '@/lib/db'
 
 // src/app/api/media/[id]/primary/route.ts - Fix the PUT function
 export async function PUT(
@@ -34,9 +34,10 @@ export async function PUT(
 		}
 
 		// Get the media item to check if it's an image and get property_id
-		const mediaResult = await sql`
-			SELECT property_id, type FROM property_media WHERE id = ${mediaId}
-		`
+		const mediaResult = await query(
+			'SELECT property_id, type FROM property_media WHERE id = $1',
+			[mediaId]
+		)
 
 		if (mediaResult.rows.length === 0) {
 			return NextResponse.json({ error: 'Media not found' }, { status: 404 })
@@ -51,34 +52,24 @@ export async function PUT(
 			)
 		}
 
-		// Start transaction
-		await sql.query('BEGIN')
-
-		try {
+		await transaction(async client => {
 			// Unset all existing primary images for this property
-			await sql`
-				UPDATE property_media 
-				SET is_primary = false 
-				WHERE property_id = ${media.property_id} AND type = 'image'
-			`
+			await client.query(
+				'UPDATE property_media SET is_primary = false WHERE property_id = $1 AND type = $2',
+				[media.property_id, 'image']
+			)
 
 			// Set this image as primary
-			await sql`
-				UPDATE property_media 
-				SET is_primary = true 
-				WHERE id = ${mediaId}
-			`
+			await client.query(
+				'UPDATE property_media SET is_primary = true WHERE id = $1',
+				[mediaId]
+			)
+		})
 
-			await sql.query('COMMIT')
-
-			return NextResponse.json({
-				success: true,
-				message: 'Primary image updated successfully',
-			})
-		} catch (error) {
-			await sql.query('ROLLBACK')
-			throw error
-		}
+		return NextResponse.json({
+			success: true,
+			message: 'Primary image updated successfully',
+		})
 	} catch (error) {
 		console.error('Error updating primary image:', error)
 		return NextResponse.json(

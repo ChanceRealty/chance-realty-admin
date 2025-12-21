@@ -165,6 +165,7 @@ export interface PropertyFilter {
 	is_hidden?: boolean // Filter by hidden status
 	is_exclusive?: boolean // Filter by exclusive status
 	show_hidden?: boolean
+	status?: string // Filter by property status name
 }
 
 // Extended property types with attributes (both admin and public versions)

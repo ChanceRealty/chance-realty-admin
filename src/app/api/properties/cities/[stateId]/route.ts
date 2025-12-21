@@ -1,3 +1,5 @@
+// src/app/api/properties/cities/[stateId]/route.ts
+
 import { NextResponse } from 'next/server'
 import { getCitiesByState } from '@/services/propertyService'
 

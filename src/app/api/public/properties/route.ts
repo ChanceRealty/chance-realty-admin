@@ -1,6 +1,6 @@
 // src/app/api/public/properties/route.ts - FIXED VERSION
 import { NextResponse } from 'next/server'
-import { sql } from '@vercel/postgres'
+import { query } from '@/lib/db'
 import { PropertyFilter } from '@/types/property'
 
 function corsResponse(response: NextResponse) {
@@ -80,7 +80,7 @@ export async function GET(request: Request) {
 				: 20,
 		}
 
-		let query = `
+		let queryText = `
 			SELECT 
 				p.id,
 				p.custom_id,
@@ -223,13 +223,13 @@ export async function GET(request: Request) {
 		let paramIndex = 2 // Start from 2 since language is $1
 
 		if (filter.property_type) {
-			query += ` AND p.property_type = $${paramIndex}`
+			queryText += ` AND p.property_type = $${paramIndex}`
 			params.push(filter.property_type)
 			paramIndex++
 		}
 
 		if (filter.listing_type) {
-			query += ` AND p.listing_type = $${paramIndex}`
+			queryText += ` AND p.listing_type = $${paramIndex}`
 			params.push(filter.listing_type)
 			paramIndex++
 		}
@@ -239,42 +239,44 @@ export async function GET(request: Request) {
 		const hasDistricts = districtIds && districtIds.length > 0
 
 		if (hasStates) {
-			query += ` AND p.state_id = ANY($${paramIndex}::int[])`
+			queryText += ` AND p.state_id = ANY($${paramIndex}::int[])`
 			params.push(stateIds)
 			paramIndex++
 		}
 
 		if (hasCities && hasDistricts) {
-			query += ` AND (p.city_id = ANY($${paramIndex}::int[]) OR p.district_id = ANY($${
+			queryText += ` AND (p.city_id = ANY($${paramIndex}::int[]) OR p.district_id = ANY($${
 				paramIndex + 1
 			}::int[]))`
 			params.push(cityIds, districtIds)
 			paramIndex += 2
 		} else if (hasCities) {
-			query += ` AND p.city_id = ANY($${paramIndex}::int[])`
+			queryText += ` AND p.city_id = ANY($${paramIndex}::int[])`
 			params.push(cityIds)
 			paramIndex++
 		} else if (hasDistricts) {
-			query += ` AND p.district_id = ANY($${paramIndex}::int[])`
+			queryText += ` AND p.district_id = ANY($${paramIndex}::int[])`
 			params.push(districtIds)
 			paramIndex++
 		}
-
+		
 		if (filter.min_price) {
-			query += ` AND p.price >= $${paramIndex}`
+			queryText += ` AND p.price >= $${paramIndex}`
 			params.push(String(filter.min_price))
 			paramIndex++
 		}
 
 		if (filter.max_price) {
-			query += ` AND p.price <= $${paramIndex}`
+			queryText += ` AND p.price <= $${paramIndex}`
 			params.push(String(filter.max_price))
 			paramIndex++
 		}
 
 		const showExclusiveOnly = searchParams.get('exclusive') === 'true'
 		if (showExclusiveOnly) {
-			query += ` AND p.is_exclusive = true`
+			queryText += ` AND p.is_exclusive = $${paramIndex}`
+			params.push(1)
+			paramIndex++
 		}
 
 
@@ -284,7 +286,7 @@ export async function GET(request: Request) {
 				filter.property_type === 'apartment' ||
 				!filter.property_type)
 		) {
-			query += ` AND (
+			queryText += ` AND (
 				(p.property_type = 'house' AND ha.bedrooms >= $${paramIndex}) OR
 				(p.property_type = 'apartment' AND aa.bedrooms >= $${paramIndex})
 			)`
@@ -298,7 +300,7 @@ export async function GET(request: Request) {
 				filter.property_type === 'apartment' ||
 				!filter.property_type)
 		) {
-			query += ` AND (
+			queryText += ` AND (
 				(p.property_type = 'house' AND ha.bathrooms >= $${paramIndex}) OR
 				(p.property_type = 'apartment' AND aa.bathrooms >= $${paramIndex})
 			)`
@@ -316,18 +318,18 @@ export async function GET(request: Request) {
 			: 'created_at'
 		const safeSortOrder = sortOrder === 'asc' ? 'asc' : 'desc'
 
-		query += ` ORDER BY p.${safeSortBy} ${safeSortOrder}`
+		queryText += ` ORDER BY p.${safeSortBy} ${safeSortOrder}`
 
 		// Pagination
 		const limit = Math.min(filter.limit || 20, 1000)
 		const offset = ((filter.page || 1) - 1) * limit
-		query += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`
+		queryText += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`
 		params.push(String(limit), String(offset))
 
 		console.log(`✅ Executing public property query for language: ${language}`)
 		console.log(`📊 Query params: ${JSON.stringify(params)}`)
 
-		const result = await sql.query(query, params)
+		const result = await query(queryText, params)
 
 		console.log(`📊 Query returned ${result.rows.length} properties`)
 

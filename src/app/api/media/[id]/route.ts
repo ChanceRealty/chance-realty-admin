@@ -1,7 +1,8 @@
+//src/app/api/media/[id]/route.ts
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { verifyToken } from '@/lib/auth'
-import { sql } from '@vercel/postgres'
+import { query, transaction } from '@/lib/db'
 
 export async function OPTIONS() {
 	return new NextResponse(null, {
@@ -68,41 +69,40 @@ export async function DELETE(
 			return NextResponse.json({ error: 'Invalid media ID' }, { status: 400 })
 		}
 
-		const mediaResult = await sql`
-			SELECT * FROM property_media WHERE id = ${mediaId}
-		`
+		const mediaResult = await query(
+			'SELECT * FROM property_media WHERE id = $1',
+			[mediaId]
+		)
+		
 		if (mediaResult.rows.length === 0) {
 			return NextResponse.json({ error: 'Media not found' }, { status: 404 })
 		}
 
 		const media = mediaResult.rows[0]
-		await sql.query('BEGIN')
-		try {
+		await transaction(async client => {
 			await imagekit.deleteFile(media.file_id)
-			await sql`DELETE FROM property_media WHERE id = ${mediaId}`
-			
+
+			await client.query('DELETE FROM property_media WHERE id = $1', [mediaId])
+
 			if (media.is_primary && media.type === 'image') {
-				const firstImageResult = await sql`
-					SELECT id FROM property_media 
-					WHERE property_id = ${media.property_id} AND type = 'image'
-					ORDER BY display_order, created_at
-					LIMIT 1
-				`
+				const firstImageResult = await client.query(
+					`SELECT id FROM property_media 
+					 WHERE property_id = $1 AND type = $2
+					 ORDER BY display_order, created_at
+					 LIMIT 1`,
+					[media.property_id, 'image']
+				)
+
 				if (firstImageResult.rows.length > 0) {
-					await sql`
-						UPDATE property_media 
-						SET is_primary = true 
-						WHERE id = ${firstImageResult.rows[0].id}
-					`
+					await client.query(
+						'UPDATE property_media SET is_primary = true WHERE id = $1',
+						[firstImageResult.rows[0].id]
+					)
 				}
 			}
-			
-			await sql.query('COMMIT')
-			return NextResponse.json({ success: true })
-		} catch (error) {
-			await sql.query('ROLLBACK')
-			throw error
-		}
+		})
+
+		return NextResponse.json({ success: true })
 	} catch (error) {
 		console.error('Error deleting media:', error)
 		return NextResponse.json(

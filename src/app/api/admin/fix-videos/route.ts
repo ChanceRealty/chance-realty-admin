@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { verifyToken } from '@/lib/auth'
-import { sql } from '@vercel/postgres'
+import { query } from '@/lib/db'
 
 export async function POST(request: Request) {
 	try {
@@ -22,11 +22,11 @@ export async function POST(request: Request) {
 
 		console.log('🔧 Fixing all video thumbnails...')
 
-		const result = await sql`
-			SELECT id, url, thumbnail_url, type 
-			FROM property_media 
-			WHERE type = 'video'
-		`
+		const result = await query(`
+  			SELECT id, url, thumbnail_url, type 
+  			FROM property_media 
+  			WHERE type = 'video'
+		`)
 
 		console.log(`📊 Found ${result.rows.length} videos to fix`)
 
@@ -40,11 +40,10 @@ export async function POST(request: Request) {
 					const baseVideoUrl = video.url.split('?')[0]
 					const newThumbnailUrl = `${baseVideoUrl}/ik-thumbnail.jpg?tr=so-1.0:w-400:h-300:q-80`
 
-					await sql`
-						UPDATE property_media 
-						SET thumbnail_url = ${newThumbnailUrl}
-						WHERE id = ${video.id}
-					`
+					await query(
+						'UPDATE property_media SET thumbnail_url = $1 WHERE id = $2',
+						[newThumbnailUrl, video.id]
+					)
 
 					details.push({
 						id: video.id,

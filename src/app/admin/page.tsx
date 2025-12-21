@@ -41,6 +41,7 @@ import {
 	AlertDialogCancel,
 	AlertDialogAction,
 } from '@/components/ui/alert-dialog'
+import { PropertyFilter } from '@/types/property'
 
 interface DashboardStats {
 	totalProperties: number
@@ -64,6 +65,8 @@ interface PropertyListItem {
 	property_type: string
 	listing_type: string
 	price: number
+	price_min: number
+	price_max: number
 	status_name: string
 	status_display?: string
 	status_armenian?: string
@@ -87,6 +90,9 @@ interface PropertyListItem {
 	has_telegram: boolean
 	is_hidden: boolean 
 	is_exclusive: boolean
+	state_id: number
+	city_id: number
+	district_id: number
 }
 
 export default function AdminDashboard() {
@@ -117,15 +123,88 @@ export default function AdminDashboard() {
 		null
 	)
 	const [showPropertyPopup, setShowPropertyPopup] = useState(false)
-	const [filters, setFilters] = useState({
-		property_type: '',
-		listing_type: '',
-		status: '',
-		is_hidden: '', 
-		is_exclusive: '',
-	})
+	const [filters, setFilters] = useState<PropertyFilter>({})
+
+
 	const { toasts, removeToast, showSuccess, showError, showWarning } =
 		useToast()
+
+	const [statesOptions, setStatesOptions] = useState<
+		{ value: string; label: string }[]
+	>([])
+	const [citiesOptions, setCitiesOptions] = useState<
+		{ value: string; label: string }[]
+	>([])
+	const [districtsOptions, setDistrictsOptions] = useState<
+		{ value: string; label: string }[]
+	>([])
+
+	async function fetchStates(): Promise<{ id: number; name: string }[]> {
+		const res = await fetch('/api/properties/states')
+		if (!res.ok) throw new Error('Failed to fetch states')
+		const data = await res.json()
+		return data as { id: number; name: string }[]
+	}
+
+	async function fetchCitiesByState(stateId: number): Promise<{ id: number; name: string }[]> {
+		const res = await fetch(`/api/properties/cities/${stateId}`)
+		if (!res.ok) throw new Error('Failed to fetch cities')
+		const data = await res.json()
+		return data as { id: number; name: string }[]
+	}
+
+	async function fetchDistrictsByState(stateId: number): Promise<{ id: number; name: string }[]> {
+		const res = await fetch(`/api/properties/districts/${stateId}`)
+		if (!res.ok) throw new Error('Failed to fetch districts')
+		const data = await res.json()
+		return data as { id: number; name: string }[]
+	}
+
+
+	useEffect(() => {
+		async function loadStates() {
+			const states = await fetchStates()
+			setStatesOptions(
+				states.map(s => ({
+					value: String(s.id),
+					label: s.name,
+				}))
+			)
+		}
+		loadStates()
+	}, [])
+
+	useEffect(() => {
+		if (!filters.state_id) {
+			setCitiesOptions([])
+			setDistrictsOptions([])
+			return
+		}
+
+		async function loadCitiesAndDistricts() {
+			const [cities, districts] = await Promise.all([
+				fetchCitiesByState(filters.state_id as number),
+				fetchDistrictsByState(filters.state_id as number),
+			])
+
+			setCitiesOptions(
+				cities.map(c => ({
+					value: String(c.id),
+					label: c.name,
+				}))
+			)
+
+			setDistrictsOptions(
+				districts.map(d => ({
+					value: String(d.id),
+					label: d.name,
+				}))
+			)
+		}
+
+		loadCitiesAndDistricts()
+	}, [filters.state_id])
+
 
 	const visibilityOptions = [
 		{ value: '', label: 'Բոլորը' },
@@ -301,33 +380,54 @@ export default function AdminDashboard() {
 		}
 
 		const matchesPropertyType =
-			filters.property_type === '' ||
+			filters.property_type === undefined ||
 			property.property_type === filters.property_type
 
 		const matchesListingType =
-			filters.listing_type === '' ||
+			filters.listing_type === undefined ||
 			property.listing_type === filters.listing_type
 
 		const matchesStatus =
-			filters.status === '' || property.status_name === filters.status
+			filters.status === undefined ||
+			property.status_name?.toLowerCase() === filters.status.toLowerCase()
+
 
 			const matchesVisibility =
-				filters.is_hidden === '' ||
-				String(property.is_hidden) === filters.is_hidden
+				filters.is_hidden === undefined ||
+				property.is_hidden === filters.is_hidden
 
 			const matchesExclusive =
-				filters.is_exclusive === '' ||
-				String(property.is_exclusive) === filters.is_exclusive
+				filters.is_exclusive === undefined ||
+				(property.is_exclusive) === filters.is_exclusive
 
+			const priceMin = Number(filters.min_price) || 0
+			const priceMax = Number(filters.max_price) || Infinity
+			const matchesPrice =
+				(filters.min_price === undefined ||
+					property.price >= filters.min_price) &&
+				(filters.max_price === undefined || property.price <= filters.max_price)
+
+
+			// Фильтры по локации
+			const matchesState =
+				!filters.state_id || property.state_id === Number(filters.state_id)
+			const matchesCity =
+				!filters.city_id || property.city_id === Number(filters.city_id)
+			const matchesDistrict =
+				!filters.district_id ||
+				property.district_id === Number(filters.district_id)
+			
 			return (
 				matchesPropertyType &&
 				matchesListingType &&
 				matchesStatus &&
 				matchesVisibility &&
-				matchesExclusive
+				matchesExclusive &&
+				matchesPrice &&
+				matchesState &&
+				matchesCity &&
+				matchesDistrict
 			)
-
-		return matchesPropertyType && matchesListingType && matchesStatus
 	})
 
 	const indexOfLastItem = currentPage * itemsPerPage
@@ -603,18 +703,18 @@ export default function AdminDashboard() {
 
 						{/* Expanded Filters */}
 						{showFilters && (
-							<div className='border-t pt-4'>
+							<div className='border-t pt-4 space-y-4'>
 								<div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4'>
 									<div>
 										<label className='block text-sm font-medium text-gray-700 mb-1'>
 											Գույքի տեսակ
 										</label>
 										<select
-											value={filters.property_type}
+											value={filters.property_type || ''}
 											onChange={e =>
 												setFilters({
 													...filters,
-													property_type: e.target.value,
+													property_type: (e.target.value as any) || undefined,
 												})
 											}
 											className='w-full border border-gray-300 text-black rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm'
@@ -631,9 +731,12 @@ export default function AdminDashboard() {
 											Հայտարարության տեսակ
 										</label>
 										<select
-											value={filters.listing_type}
+											value={filters.listing_type || ''}
 											onChange={e =>
-												setFilters({ ...filters, listing_type: e.target.value })
+												setFilters({
+													...filters,
+													listing_type: (e.target.value as any) || undefined,
+												})
 											}
 											className='w-full border text-black border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm'
 										>
@@ -667,10 +770,19 @@ export default function AdminDashboard() {
 											Տեսանելիություն
 										</label>
 										<select
-											value={filters.is_hidden}
-											onChange={e =>
-												setFilters({ ...filters, is_hidden: e.target.value })
+											value={
+												filters.is_hidden === undefined
+													? ''
+													: String(filters.is_hidden)
 											}
+											onChange={e => {
+												const value = e.target.value
+												setFilters({
+													...filters,
+													is_hidden:
+														value === '' ? undefined : value === 'true',
+												})
+											}}
 											className='w-full border text-black border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm'
 										>
 											{visibilityOptions.map(option => (
@@ -685,10 +797,19 @@ export default function AdminDashboard() {
 											Էքսկլյուզիվություն
 										</label>
 										<select
-											value={filters.is_exclusive}
-											onChange={e =>
-												setFilters({ ...filters, is_exclusive: e.target.value })
+											value={
+												filters.is_exclusive === undefined
+													? ''
+													: String(filters.is_exclusive)
 											}
+											onChange={e => {
+												const value = e.target.value
+												setFilters({
+													...filters,
+													is_exclusive:
+														value === '' ? undefined : value === 'true',
+												})
+											}}
 											className='w-full border text-black border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm'
 										>
 											{exclusiveOptions.map(option => (
@@ -698,16 +819,138 @@ export default function AdminDashboard() {
 											))}
 										</select>
 									</div>
+									<div>
+										<label className='block text-sm font-medium text-gray-700 mb-1'>
+											Գին
+										</label>
+										<div className='flex gap-2'>
+											<input
+												type='number'
+												placeholder='Մին'
+												value={filters.min_price || ''}
+												onChange={e =>
+													setFilters({
+														...filters,
+														min_price: e.target.value
+															? Number(e.target.value)
+															: undefined,
+													})
+												}
+												className='w-1/2 border h-9 border-gray-300 text-black rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm'
+											/>
+											<input
+												type='number'
+												placeholder='Մաքս'
+												value={filters.max_price || ''}
+												onChange={e =>
+													setFilters({
+														...filters,
+														max_price: e.target.value
+															? Number(e.target.value)
+															: undefined,
+													})
+												}
+												className='w-1/2 h-9 border border-gray-300 text-black rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm'
+											/>
+										</div>
+									</div>
 								</div>
+								<div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4'>
+									{/* Region / State */}
+									<div>
+										<label className='block text-sm font-medium text-gray-700 mb-1'>
+											Մարզ
+										</label>
+										<select
+											value={filters.state_id ? String(filters.state_id) : ''}
+											onChange={e =>
+												setFilters({
+													...filters,
+													state_id: e.target.value
+														? Number(e.target.value)
+														: undefined,
+												})
+											}
+											className='w-full border border-gray-300 text-black rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm'
+										>
+											<option value=''>Բոլորը</option>
+											{statesOptions.map(option => (
+												<option key={option.value} value={option.value}>
+													{option.label}
+												</option>
+											))}
+										</select>
+									</div>
+
+									{/* City */}
+									<div>
+										<label className='block text-sm font-medium text-gray-700 mb-1'>
+											Քաղաք
+										</label>
+										<select
+											value={filters.city_id ? String(filters.city_id) : ''}
+											onChange={e =>
+												setFilters({
+													...filters,
+													city_id: e.target.value
+														? Number(e.target.value)
+														: undefined,
+												})
+											}
+											className='w-full border border-gray-300 text-black rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm'
+										>
+											<option value=''>Բոլորը</option>
+											{citiesOptions.map(option => (
+												<option key={option.value} value={option.value}>
+													{option.label}
+												</option>
+											))}
+										</select>
+									</div>
+
+									{/* District */}
+									<div>
+										<label className='block text-sm font-medium text-gray-700 mb-1'>
+											Շրջան
+										</label>
+										<select
+											value={
+												filters.district_id ? String(filters.district_id) : ''
+											}
+											onChange={e =>
+												setFilters({
+													...filters,
+													district_id: e.target.value
+														? Number(e.target.value)
+														: undefined,
+												})
+											}
+											className='w-full border border-gray-300 text-black rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm'
+										>
+											<option value=''>Բոլորը</option>
+											{districtsOptions.map(option => (
+												<option key={option.value} value={option.value}>
+													{option.label}
+												</option>
+											))}
+										</select>
+									</div>
+								</div>
+
 								<div className='mt-4'>
 									<button
 										onClick={() => {
 											setFilters({
-												property_type: '',
-												listing_type: '',
-												status: '',
-												is_hidden: '',
-												is_exclusive: '',
+												property_type: undefined,
+												listing_type: undefined,
+												status: undefined,
+												is_hidden: undefined,
+												is_exclusive: undefined,
+												min_price: undefined,
+												max_price: undefined,
+												state_id: undefined,
+												city_id: undefined,
+												district_id: undefined,
 											})
 										}}
 										className='text-blue-600 hover:text-blue-800 text-sm font-medium'

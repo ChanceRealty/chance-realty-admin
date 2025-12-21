@@ -1,19 +1,17 @@
 // src/scripts/fixVideoThumbnails.ts
-// Run this once to fix all existing videos in your database
 
-import { sql } from '@vercel/postgres'
+import { query } from '@/lib/db'
 
 async function fixExistingVideoThumbnails() {
 	try {
 		console.log('🔧 Starting to fix video thumbnails...')
 
 		// Get all video media items
-		const result = await sql`
+		const result = await query(`
 			SELECT id, url, thumbnail_url, type 
 			FROM property_media 
 			WHERE type = 'video'
-		`
-
+		`)
 		console.log(`📊 Found ${result.rows.length} video items to fix`)
 
 		let fixedCount = 0
@@ -31,12 +29,14 @@ async function fixExistingVideoThumbnails() {
 				const baseUrl = video.url.split('?')[0]
 				const thumbnailUrl = `${baseUrl}?tr=so-1.0,w-400,h-300,fo-auto,q-80`
 
-				// Update the database
-				await sql`
-					UPDATE property_media 
-					SET thumbnail_url = ${thumbnailUrl}
-					WHERE id = ${video.id}
-				`
+				await query(
+					`
+  					UPDATE property_media 
+  					SET thumbnail_url = $1
+  					WHERE id = $2
+  					`,
+					[thumbnailUrl, video.id]
+				)
 
 				console.log(`✅ Fixed video ${video.id}: ${thumbnailUrl}`)
 				fixedCount++

@@ -4,7 +4,7 @@ import {
 	getPropertyByCustomId,
 	incrementPropertyViews,
 } from '@/services/propertyService'
-import { sql } from '@vercel/postgres'
+import { query } from '@/lib/db'
 
 function corsResponse(response: NextResponse) {
 	response.headers.set('Access-Control-Allow-Origin', '*')
@@ -89,7 +89,7 @@ export async function GET_SINGLE(
 			`🔍 Public API fetching property: ${customId} in language: ${language}`
 		)
 
-		const query = `
+		const queryText = `
 			SELECT 
 				p.*,
 				-- Language-specific title and description
@@ -159,7 +159,7 @@ export async function GET_SINGLE(
 			WHERE p.custom_id = $1 AND ps.is_active = true
 		`
 
-		const result = await sql.query(query, [customId, language])
+		const result = await query(queryText, [customId, language])
 
 		if (result.rows.length === 0) {
 			console.log(`❌ Property not found: ${customId}`)
@@ -173,7 +173,7 @@ export async function GET_SINGLE(
 		const property = result.rows[0]
 
 		// Get images separately
-		const imagesResult = await sql.query(
+		const imagesResult = await query(
 			`
 			SELECT id, url, thumbnail_url, type, is_primary, display_order
 			FROM property_media
@@ -184,7 +184,7 @@ export async function GET_SINGLE(
 		)
 
 		// Get features separately
-		const featuresResult = await sql.query(
+		const featuresResult = await query(
 			`
 			SELECT pf.id, pf.name, pf.icon
 			FROM property_features pf
@@ -197,11 +197,11 @@ export async function GET_SINGLE(
 		// Increment views (using the numeric ID for internal operations)
 		const ip =
 			request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip')
-		await sql.query(
+		await query(
 			`INSERT INTO property_views (property_id, ip_address, viewed_at) VALUES ($1, $2, NOW())`,
 			[property.id, ip || 'unknown']
 		)
-		await sql.query(`UPDATE properties SET views = views + 1 WHERE id = $1`, [
+		await query(`UPDATE properties SET views = views + 1 WHERE id = $1`, [
 			property.id,
 		])
 

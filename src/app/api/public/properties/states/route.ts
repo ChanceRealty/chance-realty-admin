@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { sql } from '@vercel/postgres'
+import { query } from '@/lib/db'
 
 function corsResponse(response: NextResponse) {
 	response.headers.set('Access-Control-Allow-Origin', '*')
@@ -16,7 +16,7 @@ export async function GET() {
 	try {
 		console.log('🌍 Public API: Fetching states with district information...')
 
-		const result = await sql`
+		const result = await query(`
 			SELECT 
 				s.id,
 				s.name,
@@ -28,7 +28,7 @@ export async function GET() {
 			LEFT JOIN cities c ON s.id = c.state_id
 			GROUP BY s.id, s.name, s.uses_districts
 			ORDER BY s.name ASC
-		`
+		`)
 
 		console.log(`✅ Public API: Found ${result.rows.length} states`)
 

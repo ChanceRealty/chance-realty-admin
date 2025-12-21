@@ -1,7 +1,8 @@
+//src/app/api/media/[id]/media-order/route.ts
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { verifyToken } from '@/lib/auth'
-import { sql } from '@vercel/postgres'
+import { transaction } from '@/lib/db'
 
 export async function PUT(
 	request: Request,
@@ -26,24 +27,16 @@ export async function PUT(
 
 		const { mediaOrder } = await request.json()
 
-		await sql.query('BEGIN')
-
-		try {
-			// Update each media item's display_order
+		await transaction(async client => {
 			for (const item of mediaOrder) {
-				await sql`
-          UPDATE property_media 
-          SET display_order = ${item.display_order}
-          WHERE id = ${item.id} AND property_id = ${parseInt(id)}
-        `
+				await client.query(
+					'UPDATE property_media SET display_order = $1 WHERE id = $2 AND property_id = $3',
+					[item.display_order, item.id, parseInt(id)]
+				)
 			}
+		})
 
-			await sql.query('COMMIT')
-			return NextResponse.json({ success: true })
-		} catch (error) {
-			await sql.query('ROLLBACK')
-			throw error
-		}
+		return NextResponse.json({ success: true })
 	} catch (error) {
 		console.error('Error updating media order:', error)
 		return NextResponse.json(

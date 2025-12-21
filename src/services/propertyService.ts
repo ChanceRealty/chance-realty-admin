@@ -1,5 +1,5 @@
 // src/services/propertyService.ts - COMPLETE FIXED VERSION
-import { sql } from '@vercel/postgres'
+import { query } from '@/lib/db'
 
 // Define a type for the filter parameter
 type PropertyFilter = {
@@ -28,7 +28,7 @@ export async function getProperties(filter: PropertyFilter = {}) {
 		const language = filter.language || 'hy' // Default to Armenian
 
 		// ✅ FIXED: Proper SQL query syntax with correct comma placement
-		let query = `
+		let queryText = `
 			SELECT 
 				p.id,
 				p.custom_id,
@@ -169,43 +169,43 @@ export async function getProperties(filter: PropertyFilter = {}) {
 
 		// Apply filters (adjust parameter indices)
 		if (filter.property_type) {
-			query += ` AND p.property_type = $${paramIndex}`
+			queryText += ` AND p.property_type = $${paramIndex}`
 			params.push(filter.property_type)
 			paramIndex++
 		}
 
 		if (filter.listing_type) {
-			query += ` AND p.listing_type = $${paramIndex}`
+			queryText += ` AND p.listing_type = $${paramIndex}`
 			params.push(filter.listing_type)
 			paramIndex++
 		}
 
 		if (filter.state_id) {
-			query += ` AND p.state_id = $${paramIndex}`
+			queryText += ` AND p.state_id = $${paramIndex}`
 			params.push(String(filter.state_id))
 			paramIndex++
 		}
 
 		if (filter.city_id) {
-			query += ` AND p.city_id = $${paramIndex}`
+			queryText += ` AND p.city_id = $${paramIndex}`
 			params.push(String(filter.city_id))
 			paramIndex++
 		}
 
 		if (filter.district_id) {
-			query += ` AND p.district_id = $${paramIndex}`
+			queryText += ` AND p.district_id = $${paramIndex}`
 			params.push(String(filter.district_id))
 			paramIndex++
 		}
 
 		if (filter.min_price) {
-			query += ` AND p.price >= $${paramIndex}`
+			queryText += ` AND p.price >= $${paramIndex}`
 			params.push(String(filter.min_price))
 			paramIndex++
 		}
 
 		if (filter.max_price) {
-			query += ` AND p.price <= $${paramIndex}`
+			queryText += ` AND p.price <= $${paramIndex}`
 			params.push(String(filter.max_price))
 			paramIndex++
 		}
@@ -216,7 +216,7 @@ export async function getProperties(filter: PropertyFilter = {}) {
 				filter.property_type === 'apartment' ||
 				!filter.property_type)
 		) {
-			query += ` AND (
+			queryText += ` AND (
 				(p.property_type = 'house' AND ha.bedrooms >= $${paramIndex}) OR
 				(p.property_type = 'apartment' AND aa.bedrooms >= $${paramIndex})
 			)`
@@ -230,7 +230,7 @@ export async function getProperties(filter: PropertyFilter = {}) {
 				filter.property_type === 'apartment' ||
 				!filter.property_type)
 		) {
-			query += ` AND (
+			queryText += ` AND (
 				(p.property_type = 'house' AND ha.bathrooms >= $${paramIndex}) OR
 				(p.property_type = 'apartment' AND aa.bathrooms >= $${paramIndex})
 			)`
@@ -239,19 +239,19 @@ export async function getProperties(filter: PropertyFilter = {}) {
 		}
 
 		if (filter.show_hidden !== true) {
-			query += ` AND p.is_hidden = false`
+			queryText += ` AND p.is_hidden = false`
 		}
 
 		// Filter by hidden status if specified
 		if (filter.is_hidden !== undefined) {
-			query += ` AND p.is_hidden = ${paramIndex}`
+			queryText += ` AND p.is_hidden = $${paramIndex}`
 			params.push(String(filter.is_hidden))
 			paramIndex++
 		}
 
 		// Filter by exclusive status if specified
 		if (filter.is_exclusive !== undefined) {
-			query += ` AND p.is_exclusive = ${paramIndex}`
+			queryText += ` AND p.is_exclusive = $${paramIndex}`
 			params.push(String(filter.is_exclusive))
 			paramIndex++
 		}
@@ -268,17 +268,17 @@ export async function getProperties(filter: PropertyFilter = {}) {
 			: 'created_at'
 		const safeSortOrder = sortOrder === 'asc' ? 'asc' : 'desc'
 
-		query += ` ORDER BY p.is_exclusive DESC, p.${safeSortBy} ${safeSortOrder}`
+		queryText += ` ORDER BY p.is_exclusive DESC, p.${safeSortBy} ${safeSortOrder}`
 
 
 		// Pagination
 		const limit = Math.min(filter.limit || 20, 100) // Max 100 items
 		const offset = ((filter.page || 1) - 1) * limit
-		query += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`
+		queryText += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`
 		params.push(String(limit), String(offset))
 
 		console.log(`✅ Executing property query for language: ${language}`)
-		const result = await sql.query(query, params)
+		const result = await query(queryText, params)
 
 		// Transform the result to match expected format
 		return result.rows.map(row => ({
@@ -299,13 +299,13 @@ export async function checkStateUsesDistricts(
 	stateId: number
 ): Promise<boolean> {
 	try {
-		const query = `
+		const queryText = `
 			SELECT uses_districts
 			FROM states
 			WHERE id = $1
 		`
 
-		const result = await sql.query(query, [stateId])
+		const result = await query(queryText, [stateId])
 		return result.rows[0]?.uses_districts || false
 	} catch (error) {
 		console.error('Error checking state district usage:', error)
@@ -315,7 +315,7 @@ export async function checkStateUsesDistricts(
 
 export async function getDistrictsByState(stateId: number) {
 	try {
-		const query = `
+		const queryText = `
 			SELECT 
 				d.id,
 				d.name,
@@ -328,7 +328,7 @@ export async function getDistrictsByState(stateId: number) {
 			ORDER BY d.name_hy ASC
 		`
 
-		const result = await sql.query(query, [stateId])
+		const result = await query(queryText, [stateId])
 		return result.rows
 	} catch (error) {
 		console.error('Error fetching districts:', error)
@@ -342,7 +342,7 @@ export async function getPropertyByCustomId(
 	includeHidden = false
 ) {
 	try {
-		const query = `
+		const queryText = `
 			SELECT 
 				p.*,
 				-- Language-specific title and description
@@ -433,7 +433,7 @@ export async function getPropertyByCustomId(
 			${!includeHidden ? 'AND p.is_hidden = false' : ''}
 		`
 
-		const result = await sql.query(query, [customId, language])
+		const result = await query(queryText, [customId, language])
 
 		if (result.rows.length === 0) {
 			return null
@@ -446,7 +446,7 @@ export async function getPropertyByCustomId(
 		}
 
 		// Get images separately
-		const imagesResult = await sql.query(
+		const imagesResult = await query(
 			`
 			SELECT id, url, thumbnail_url, type, is_primary, display_order
 			FROM property_media
@@ -457,7 +457,7 @@ export async function getPropertyByCustomId(
 		)
 
 		// Get features separately
-		const featuresResult = await sql.query(
+		const featuresResult = await query(
 			`
 			SELECT pf.id, pf.name, pf.icon
 			FROM property_features pf
@@ -489,7 +489,7 @@ export async function getPropertyByCustomId(
 
 export async function getStates() {
 	try {
-		const query = `
+		const queryText = `
 			SELECT 
 				s.id,
 				s.name,
@@ -503,7 +503,7 @@ export async function getStates() {
 			ORDER BY s.name ASC
 		`
 
-		const result = await sql.query(query)
+		const result = await query(queryText)
 		return result.rows
 	} catch (error) {
 		console.error('Error fetching states:', error)
@@ -513,14 +513,14 @@ export async function getStates() {
 
 export async function getCitiesByState(stateId: number) {
 	try {
-		const query = `
+		const queryText = `
 			SELECT id, name, state_id
 			FROM cities
 			WHERE state_id = $1
 			ORDER BY name ASC
 		`
 
-		const result = await sql.query(query, [stateId])
+		const result = await query(queryText, [stateId])
 		return result.rows
 	} catch (error) {
 		console.error('Error fetching cities:', error)
@@ -530,13 +530,13 @@ export async function getCitiesByState(stateId: number) {
 
 export async function getPropertyFeatures() {
 	try {
-		const query = `
+		const queryText = `
 			SELECT id, name, icon
 			FROM property_features
 			ORDER BY name ASC
 		`
 
-		const result = await sql.query(query)
+		const result = await query(queryText)
 		return result.rows
 	} catch (error) {
 		console.error('Error fetching property features:', error)
@@ -569,7 +569,7 @@ export async function incrementPropertyViews(
 ) {
 	try {
 		// Check if this IP already viewed this property in the last hour
-		const recentViewCheck = await sql.query(
+		const recentViewCheck = await query(
 			`
 			SELECT id FROM property_views 
 			WHERE property_id = $1 
@@ -589,7 +589,7 @@ export async function incrementPropertyViews(
 		}
 
 		// Insert view record
-		await sql.query(
+		await query(
 			`
 			INSERT INTO property_views (property_id, user_id, ip_address, viewed_at)
 			VALUES ($1, $2, $3, NOW())
@@ -598,7 +598,7 @@ export async function incrementPropertyViews(
 		)
 
 		// Increment views counter
-		await sql.query(
+		await query(
 			`
 			UPDATE properties 
 			SET views = views + 1 
@@ -617,14 +617,14 @@ export async function incrementPropertyViews(
 // New function to get supported languages
 export async function getSupportedLanguages() {
 	try {
-		const query = `
+		const queryText = `
 			SELECT code, name, native_name, is_default, is_active, sort_order
 			FROM supported_languages
 			WHERE is_active = true
 			ORDER BY sort_order, name ASC
 		`
 
-		const result = await sql.query(query)
+		const result = await query(queryText)
 		return result.rows
 	} catch (error) {
 		console.error('Error fetching supported languages:', error)
@@ -635,7 +635,7 @@ export async function getSupportedLanguages() {
 // New function to get translation statistics
 export async function getTranslationStats() {
 	try {
-		const query = `
+		const queryText = `
 			SELECT 
 				COUNT(*) as total_properties,
 				COUNT(CASE WHEN title_ru IS NOT NULL AND title_en IS NOT NULL THEN 1 END) as fully_translated,
@@ -647,7 +647,7 @@ export async function getTranslationStats() {
 			FROM properties
 		`
 
-		const result = await sql.query(query)
+		const result = await query(queryText)
 		return result.rows[0]
 	} catch (error) {
 		console.error('Error fetching translation stats:', error)
@@ -661,7 +661,7 @@ export async function togglePropertyVisibility(
 	isHidden: boolean
 ) {
 	try {
-		const result = await sql.query(
+		const result = await query(
 			`UPDATE properties SET is_hidden = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING id, is_hidden`,
 			[isHidden, propertyId]
 		)
@@ -682,7 +682,7 @@ export async function togglePropertyExclusive(
 	isExclusive: boolean
 ) {
 	try {
-		const result = await sql.query(
+		const result = await query(
 			`UPDATE properties SET is_exclusive = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING id, is_exclusive`,
 			[isExclusive, propertyId]
 		)
@@ -701,7 +701,7 @@ export async function togglePropertyExclusive(
 // ✅ Get visibility statistics for admin dashboard
 export async function getVisibilityStats() {
 	try {
-		const result = await sql.query(`
+		const result = await query(`
 			SELECT 
 				COUNT(*) as total_properties,
 				COUNT(CASE WHEN is_hidden = true THEN 1 END) as hidden_properties,

@@ -3,8 +3,7 @@ import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { verifyToken } from '@/lib/auth'
 import { imagekit } from '@/lib/imagekit'
-import { sql } from '@vercel/postgres'
-
+import { transaction } from '@/lib/db'
 // Handle OPTIONS request for CORS
 export async function OPTIONS() {
 	return new NextResponse(null, {
@@ -68,53 +67,43 @@ export async function POST(request: Request) {
 			useUniqueFileName: true,
 		})
 
-		// Start a transaction
-		await sql.query('BEGIN')
-
-		try {
-			// If this is the primary media and it's an image, update any existing primary images to non-primary
+		const mediaId = await transaction(async client => {
+			// If this is the primary media and it's an image, update existing primary images
 			if (isPrimary && fileType === 'image') {
-				await sql`
-          UPDATE property_media 
-          SET is_primary = false 
-          WHERE property_id = ${parseInt(
-						propertyId
-					)} AND is_primary = true AND type = 'image'
-        `
+				await client.query(
+					'UPDATE property_media SET is_primary = false WHERE property_id = $1 AND is_primary = true AND type = $2',
+					[parseInt(propertyId), 'image']
+				)
 			}
 
 			// Save media info to database
-			const result = await sql`
-        INSERT INTO property_media (
-          property_id, file_id, url, thumbnail_url, type, is_primary, display_order
-        ) VALUES (
-          ${parseInt(propertyId)},
-          ${uploadResponse.fileId},
-          ${uploadResponse.url},
-          ${uploadResponse.thumbnailUrl},
-          ${fileType},
-          ${isPrimary},
-          ${displayOrder}
-        )
-        RETURNING id
-      `
+			const result = await client.query(
+				`INSERT INTO property_media (
+					property_id, file_id, url, thumbnail_url, type, is_primary, display_order
+				) VALUES ($1, $2, $3, $4, $5, $6, $7)
+				RETURNING id`,
+				[
+					parseInt(propertyId),
+					uploadResponse.fileId,
+					uploadResponse.url,
+					uploadResponse.thumbnailUrl,
+					fileType,
+					isPrimary,
+					displayOrder,
+				]
+			)
 
-			// Commit transaction
-			await sql.query('COMMIT')
+			return result.rows[0].id
+		})
 
-			return NextResponse.json({
-				success: true,
-				id: result.rows[0].id,
-				...uploadResponse,
-				type: fileType,
-				isPrimary,
-				displayOrder,
-			})
-		} catch (error) {
-			// Rollback transaction on error
-			await sql.query('ROLLBACK')
-			throw error
-		}
+		return NextResponse.json({
+			success: true,
+			id: mediaId,
+			...uploadResponse,
+			type: fileType,
+			isPrimary,
+			displayOrder,
+		})
 	} catch (error) {
 		console.error('Media upload error:', error)
 		return NextResponse.json(

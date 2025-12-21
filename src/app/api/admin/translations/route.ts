@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { verifyToken } from '@/lib/auth'
-import { sql } from '@vercel/postgres'
+import { query, transaction } from '@/lib/db'
 import { translatePropertyData } from '@/lib/translateService'
 
 // GET - Get translation status for properties
@@ -28,7 +28,8 @@ export async function GET(request: Request) {
 
 		if (propertyId) {
 			// Get translations for specific property
-			const result = await sql`
+			const result = await query(
+				`
 				SELECT 
 					p.id,
 					p.title,
@@ -41,8 +42,10 @@ export async function GET(request: Request) {
 					p.last_translated_at,
 					p.translation_error
 				FROM properties p
-				WHERE p.id = ${parseInt(propertyId)}
-			`
+				WHERE p.id = $1
+			`,
+				[propertyId]
+			)
 
 			if (result.rows.length === 0) {
 				return NextResponse.json(
@@ -52,7 +55,7 @@ export async function GET(request: Request) {
 			}
 
 			// Get detailed translation history
-			const translationHistory = await sql`
+			const translationHistory = await query(`
 				SELECT 
 					language_code,
 					field_name,
@@ -61,9 +64,9 @@ export async function GET(request: Request) {
 					created_at,
 					updated_at
 				FROM property_translations
-				WHERE property_id = ${parseInt(propertyId)}
+				WHERE property_id = $1
 				ORDER BY language_code, field_name, created_at DESC
-			`
+			`, [propertyId])
 
 			return NextResponse.json({
 				property: result.rows[0],
@@ -71,7 +74,7 @@ export async function GET(request: Request) {
 			})
 		} else {
 			// Get translation overview for all properties
-			const result = await sql`
+			const result = await query(`
 				SELECT 
 					p.id,
 					p.custom_id,
@@ -94,7 +97,7 @@ export async function GET(request: Request) {
 				FROM properties p
 				ORDER BY p.created_at DESC
 				LIMIT 100
-			`
+			`)
 
 			return NextResponse.json(result.rows)
 		}
@@ -151,9 +154,9 @@ export async function POST(request: Request) {
 async function retranslateProperty(propertyId: number) {
 	try {
 		// Get property data
-		const propertyResult = await sql`
+		const propertyResult = await query(`
 			SELECT title, description FROM properties WHERE id = ${propertyId}
-		`
+		`)
 
 		if (propertyResult.rows.length === 0) {
 			return NextResponse.json({ error: 'Property not found' }, { status: 404 })
@@ -162,17 +165,17 @@ async function retranslateProperty(propertyId: number) {
 		const { title, description } = propertyResult.rows[0]
 
 		// Update status to translating
-		await sql`
+		await query(`
 			UPDATE properties 
 			SET translation_status = 'translating', translation_error = NULL
 			WHERE id = ${propertyId}
-		`
+		`)
 
 		// Perform translation
 		const translations = await translatePropertyData(title, description || '')
 
 		// Update property with new translations
-		await sql`
+		await query(`
 			UPDATE properties 
 			SET 
 				title_ru = ${translations.title_ru || null},
@@ -185,11 +188,11 @@ async function retranslateProperty(propertyId: number) {
 					translations.title_ru ? null : 'Translation service failed'
 				}
 			WHERE id = ${propertyId}
-		`
+		`)
 
 		// Update translation records
 		if (translations.title_ru) {
-			await sql`
+			await query(`
 				INSERT INTO property_translations (property_id, language_code, field_name, translated_text, translation_source)
 				VALUES (${propertyId}, 'ru', 'title', ${translations.title_ru}, 'google'),
 				       (${propertyId}, 'ru', 'description', ${translations.description_ru}, 'google')
@@ -198,11 +201,11 @@ async function retranslateProperty(propertyId: number) {
 					translated_text = EXCLUDED.translated_text,
 					translation_source = EXCLUDED.translation_source,
 					updated_at = CURRENT_TIMESTAMP
-			`
+			`)
 		}
 
 		if (translations.title_en) {
-			await sql`
+			await query(`
 				INSERT INTO property_translations (property_id, language_code, field_name, translated_text, translation_source)
 				VALUES (${propertyId}, 'en', 'title', ${translations.title_en}, 'google'),
 				       (${propertyId}, 'en', 'description', ${translations.description_en}, 'google')
@@ -211,7 +214,7 @@ async function retranslateProperty(propertyId: number) {
 					translated_text = EXCLUDED.translated_text,
 					translation_source = EXCLUDED.translation_source,
 					updated_at = CURRENT_TIMESTAMP
-			`
+			`)
 		}
 
 		return NextResponse.json({
@@ -224,13 +227,13 @@ async function retranslateProperty(propertyId: number) {
 		})
 	} catch (error) {
 		// Update status to failed
-		await sql`
+		await query(`
 			UPDATE properties 
 			SET 
 				translation_status = 'failed',
 				translation_error = ${error instanceof Error ? error.message : 'Unknown error'}
 			WHERE id = ${propertyId}
-		`
+		`)
 
 		throw error
 	}
@@ -274,14 +277,14 @@ async function batchTranslateProperties(propertyIds: number[]) {
 async function translateMissingProperties() {
 	try {
 		// Get properties that need translation
-		const propertiesResult = await sql`
+		const propertiesResult = await query(`
 			SELECT id, title, description
 			FROM properties 
 			WHERE (title_ru IS NULL OR title_en IS NULL) 
 			AND translation_status != 'translating'
 			ORDER BY created_at DESC
 			LIMIT 50
-		`
+		`)
 
 		const propertyIds = propertiesResult.rows.map(p => p.id)
 
@@ -299,85 +302,4 @@ async function translateMissingProperties() {
 	}
 }
 
-// src/app/api/admin/translations/[propertyId]/route.ts
-export async function PUT(
-	request: Request,
-	{ params }: { params: Promise<{ propertyId: string }> }
-) {
-	try {
-		const { propertyId } = await params
-		const cookieStore = cookies()
-		const token = (await cookieStore).get('token')?.value
 
-		if (!token) {
-			return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-		}
-
-		const user = verifyToken(token)
-		if (!user || user.role !== 'admin') {
-			return NextResponse.json(
-				{ error: 'Admin access required' },
-				{ status: 403 }
-			)
-		}
-
-		const { title_ru, title_en, description_ru, description_en } =
-			await request.json()
-
-		// Manual translation update
-		await sql`
-			UPDATE properties 
-			SET 
-				title_ru = ${title_ru || null},
-				title_en = ${title_en || null},
-				description_ru = ${description_ru || null},
-				description_en = ${description_en || null},
-				translation_status = 'completed',
-				last_translated_at = CURRENT_TIMESTAMP,
-				translation_error = NULL
-			WHERE id = ${parseInt(propertyId)}
-		`
-
-		// Update translation records with manual source
-		if (title_ru) {
-			await sql`
-				INSERT INTO property_translations (property_id, language_code, field_name, translated_text, translation_source)
-				VALUES (${parseInt(propertyId)}, 'ru', 'title', ${title_ru}, 'manual'),
-				       (${parseInt(propertyId)}, 'ru', 'description', ${
-				description_ru || ''
-			}, 'manual')
-				ON CONFLICT (property_id, language_code, field_name)
-				DO UPDATE SET 
-					translated_text = EXCLUDED.translated_text,
-					translation_source = 'manual',
-					updated_at = CURRENT_TIMESTAMP
-			`
-		}
-
-		if (title_en) {
-			await sql`
-				INSERT INTO property_translations (property_id, language_code, field_name, translated_text, translation_source)
-				VALUES (${parseInt(propertyId)}, 'en', 'title', ${title_en}, 'manual'),
-				       (${parseInt(propertyId)}, 'en', 'description', ${
-				description_en || ''
-			}, 'manual')
-				ON CONFLICT (property_id, language_code, field_name)
-				DO UPDATE SET 
-					translated_text = EXCLUDED.translated_text,
-					translation_source = 'manual',
-					updated_at = CURRENT_TIMESTAMP
-			`
-		}
-
-		return NextResponse.json({
-			success: true,
-			message: 'Translations updated manually',
-		})
-	} catch (error) {
-		console.error('Error updating translations:', error)
-		return NextResponse.json(
-			{ error: 'Failed to update translations' },
-			{ status: 500 }
-		)
-	}
-}
