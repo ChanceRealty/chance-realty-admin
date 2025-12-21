@@ -17,6 +17,15 @@ export async function OPTIONS() {
 	return corsResponse(new NextResponse(null, { status: 204 }))
 }
 
+function getArrayParam(
+	searchParams: URLSearchParams,
+	key: string
+): number[] | undefined {
+	const values = searchParams.getAll(key)
+	if (values.length === 0) return undefined
+	return values.map(v => parseInt(v)).filter(v => !isNaN(v))
+}
+
 export async function GET(request: Request) {
 	try {
 		const { searchParams } = new URL(request.url)
@@ -43,19 +52,17 @@ export async function GET(request: Request) {
 		}
 
 		console.log(`🌐 Public API request in language: ${language}`)
-
+		const stateIds = getArrayParam(searchParams, 'state_id')
+		const cityIds = getArrayParam(searchParams, 'city_id')
+		const districtIds = getArrayParam(searchParams, 'district_id')
+		
 		const filter: PropertyFilter = {
 			property_type: searchParams.get('property_type') as any,
 			listing_type: searchParams.get('listing_type') as any,
-			state_id: searchParams.get('state_id')
-				? parseInt(searchParams.get('state_id')!)
-				: undefined,
-			city_id: searchParams.get('city_id')
-				? parseInt(searchParams.get('city_id')!)
-				: undefined,
-			district_id: searchParams.get('district_id')
-				? parseInt(searchParams.get('district_id')!)
-				: undefined,
+			state_id: stateIds && stateIds.length > 0 ? stateIds : undefined,
+			city_id: cityIds && cityIds.length > 0 ? cityIds : undefined,
+			district_id:
+				districtIds && districtIds.length > 0 ? districtIds : undefined,
 			min_price: searchParams.get('min_price')
 				? parseFloat(searchParams.get('min_price')!)
 				: undefined,
@@ -216,7 +223,7 @@ export async function GET(request: Request) {
 			AND p.is_hidden = false
 		`
 
-		const params = [language] // First parameter is always the language
+		const params: (string | number | number[])[] = [language]		
 		let paramIndex = 2 // Start from 2 since language is $1
 
 		// Apply filters (same logic as before, but adjust parameter indices)
@@ -232,21 +239,21 @@ export async function GET(request: Request) {
 			paramIndex++
 		}
 
-		if (filter.state_id) {
-			query += ` AND p.state_id = $${paramIndex}`
-			params.push(String(filter.state_id))
+		if (stateIds && stateIds.length > 0) {
+			query += ` AND p.state_id = ANY($${paramIndex}::int[])`
+			params.push(stateIds)
 			paramIndex++
 		}
 
-		if (filter.city_id) {
-			query += ` AND p.city_id = $${paramIndex}`
-			params.push(String(filter.city_id))
+		if (cityIds && cityIds.length > 0) {
+			query += ` AND p.city_id = ANY($${paramIndex}::int[])`
+			params.push(cityIds)
 			paramIndex++
 		}
 
-		if (filter.district_id) {
-			query += ` AND p.district_id = $${paramIndex}`
-			params.push(String(filter.district_id))
+		if (districtIds && districtIds.length > 0) {
+			query += ` AND p.district_id = ANY($${paramIndex}::int[])`
+			params.push(districtIds)
 			paramIndex++
 		}
 
@@ -309,7 +316,7 @@ export async function GET(request: Request) {
 		query += ` ORDER BY p.${safeSortBy} ${safeSortOrder}`
 
 		// Pagination
-		const limit = Math.min(filter.limit || 20, 100)
+		const limit = Math.min(filter.limit || 20, 1000)
 		const offset = ((filter.page || 1) - 1) * limit
 		query += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`
 		params.push(String(limit), String(offset))

@@ -148,9 +148,9 @@ export interface PropertyImage {
 export interface PropertyFilter {
 	property_type?: PropertyType
 	listing_type?: ListingType
-	state_id?: number
-	city_id?: number
-	district_id?: number
+	state_id?: number | number[]
+	city_id?: number  | number[]
+	district_id?: number | number[]
 	min_price?: number
 	max_price?: number
 	bedrooms?: number
