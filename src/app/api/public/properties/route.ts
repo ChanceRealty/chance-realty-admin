@@ -30,17 +30,14 @@ export async function GET(request: Request) {
 	try {
 		const { searchParams } = new URL(request.url)
 
-		// Get language from query parameter or Accept-Language header
 		const langParam = searchParams.get('lang') || searchParams.get('language')
 		const acceptLanguage = request.headers.get('accept-language')
 
-		// Determine language priority: query param > accept-language header > default (hy)
 		let language = 'hy' // Default to Armenian
 
 		if (langParam) {
 			language = langParam.toLowerCase()
 		} else if (acceptLanguage) {
-			// Parse Accept-Language header (e.g., "en-US,en;q=0.9,ru;q=0.8")
 			const languages = acceptLanguage.split(',').map(lang => {
 				const [code] = lang.trim().split(';')
 				return code.split('-')[0].toLowerCase() // Get base language code
@@ -83,7 +80,6 @@ export async function GET(request: Request) {
 				: 20,
 		}
 
-		// ✅ FIXED: Proper query syntax with correct comma placement
 		let query = `
 			SELECT 
 				p.id,
@@ -226,7 +222,6 @@ export async function GET(request: Request) {
 		const params: (string | number | number[])[] = [language]		
 		let paramIndex = 2 // Start from 2 since language is $1
 
-		// Apply filters (same logic as before, but adjust parameter indices)
 		if (filter.property_type) {
 			query += ` AND p.property_type = $${paramIndex}`
 			params.push(filter.property_type)
@@ -239,19 +234,27 @@ export async function GET(request: Request) {
 			paramIndex++
 		}
 
-		if (stateIds && stateIds.length > 0) {
+		const hasStates = stateIds && stateIds.length > 0
+		const hasCities = cityIds && cityIds.length > 0
+		const hasDistricts = districtIds && districtIds.length > 0
+
+		if (hasStates) {
 			query += ` AND p.state_id = ANY($${paramIndex}::int[])`
 			params.push(stateIds)
 			paramIndex++
 		}
 
-		if (cityIds && cityIds.length > 0) {
+		if (hasCities && hasDistricts) {
+			query += ` AND (p.city_id = ANY($${paramIndex}::int[]) OR p.district_id = ANY($${
+				paramIndex + 1
+			}::int[]))`
+			params.push(cityIds, districtIds)
+			paramIndex += 2
+		} else if (hasCities) {
 			query += ` AND p.city_id = ANY($${paramIndex}::int[])`
 			params.push(cityIds)
 			paramIndex++
-		}
-
-		if (districtIds && districtIds.length > 0) {
+		} else if (hasDistricts) {
 			query += ` AND p.district_id = ANY($${paramIndex}::int[])`
 			params.push(districtIds)
 			paramIndex++
@@ -328,7 +331,6 @@ export async function GET(request: Request) {
 
 		console.log(`📊 Query returned ${result.rows.length} properties`)
 
-		// Transform the result and remove owner details for public access
 		const publicProperties = result.rows.map(row => {
 			const { owner_name, owner_phone, ...publicProperty } = row
 			return {
@@ -341,11 +343,6 @@ export async function GET(request: Request) {
 			}
 		})
 
-		console.log(
-			`✅ Returning ${publicProperties.length} public properties in ${language}`
-		)
-
-		// Return simple array format to match your frontend expectations
 		const response = NextResponse.json(publicProperties)
 		return corsResponse(response)
 	} catch (error) {
