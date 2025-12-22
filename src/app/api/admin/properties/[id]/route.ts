@@ -726,7 +726,6 @@ export async function PUT(
 	}
 }
 
-// DELETE function remains the same as it doesn't need changes for owner fields
 export async function DELETE(
 	request: Request,
 	{ params }: { params: Promise<{ id: string }> }
@@ -758,27 +757,61 @@ export async function DELETE(
 			)
 		}
 
-		await transaction(async (client) => {
-  		const mediaResult = await client.query(
-    		'SELECT file_id FROM property_media WHERE property_id = $1',
-    		[id]
-  			)
-  
-  await client.query('DELETE FROM property_media WHERE property_id = $1', [id])
-  await client.query('DELETE FROM property_to_features WHERE property_id = $1', [id])
-  await client.query('DELETE FROM property_views WHERE property_id = $1', [id])
-  await client.query('DELETE FROM favorites WHERE property_id = $1', [id])
-  await client.query('DELETE FROM house_attributes WHERE property_id = $1', [id])
-  await client.query('DELETE FROM apartment_attributes WHERE property_id = $1', [id])
-  await client.query('DELETE FROM commercial_attributes WHERE property_id = $1', [id])
-  await client.query('DELETE FROM land_attributes WHERE property_id = $1', [id])
-  
-  const deleteResult = await client.query('DELETE FROM properties WHERE id = $1', [id])
-  
-  if (deleteResult.rowCount === 0) {
-    throw new Error('Property not found')
-  }
-})
+		await transaction(async client => {
+			const mediaResult = await client.query(
+				'SELECT file_id FROM property_media WHERE property_id = $1',
+				[id]
+			)
+
+			await client.query('DELETE FROM property_media WHERE property_id = $1', [
+				id,
+			])
+			await client.query(
+				'DELETE FROM property_to_features WHERE property_id = $1',
+				[id]
+			)
+			await client.query('DELETE FROM property_views WHERE property_id = $1', [
+				id,
+			])
+			await client.query('DELETE FROM favorites WHERE property_id = $1', [id])
+			await client.query(
+				'DELETE FROM house_attributes WHERE property_id = $1',
+				[id]
+			)
+			await client.query(
+				'DELETE FROM apartment_attributes WHERE property_id = $1',
+				[id]
+			)
+			await client.query(
+				'DELETE FROM commercial_attributes WHERE property_id = $1',
+				[id]
+			)
+			await client.query('DELETE FROM land_attributes WHERE property_id = $1', [
+				id,
+			])
+			await client.query(
+				'DELETE FROM property_translations WHERE property_id = $1',
+				[id]
+			)
+
+			const deleteResult = await client.query(
+				'DELETE FROM properties WHERE id = $1',
+				[id]
+			)
+
+			if (deleteResult.rowCount === 0) {
+				throw new Error('Property not found')
+			}
+
+			console.log(`✅ Successfully deleted property ID: ${id}`)
+			// ❌ DON'T return NextResponse here - it's inside the transaction
+		})
+
+		// ✅ Return the response AFTER the transaction completes
+		return NextResponse.json({
+			success: true,
+			message: 'Property deleted successfully',
+		})
 	} catch (error) {
 		console.error('Error deleting property:', error)
 		return NextResponse.json(

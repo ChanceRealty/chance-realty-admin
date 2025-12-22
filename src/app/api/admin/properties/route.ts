@@ -49,8 +49,11 @@ export async function POST(request: Request) {
 			mediaCount: mediaFiles.length,
 		})
 
+		let createdPropertyId: number | undefined
+		let createdCustomId: string | undefined
+
 		// Start a transaction
-		await transaction(async (client) => {
+		const result = await transaction(async client => {
 			// Check if custom_id already exists
 			const existingProperty = await client.query(
 				'SELECT id FROM properties WHERE custom_id = $1',
@@ -62,7 +65,6 @@ export async function POST(request: Request) {
 					'Property ID already exists. Please use a different ID.'
 				)
 			}
-
 
 			// Validate bathrooms value
 			if (
@@ -111,7 +113,6 @@ export async function POST(request: Request) {
 					'⚠️ Translation failed, proceeding without translations:',
 					translationError
 				)
-				// Continue without translations rather than failing the entire process
 			}
 
 			// Insert the main property with translations
@@ -160,9 +161,14 @@ export async function POST(request: Request) {
 			)
 
 			const propertyId = propertyResult.rows[0].id
+
+			// ✅ FIX: Store these in the outer scope variables
+			createdPropertyId = propertyId
+			createdCustomId = propertyResult.rows[0].custom_id
+
 			console.log(`✅ Created property with ID: ${propertyId}`)
 
-			// Insert translation records for tracking (optional, for detailed logging)
+			// Insert translation records for tracking
 			if (translations.title_ru) {
 				await client.query(
 					`INSERT INTO property_translations (property_id, language_code, field_name, translated_text, translation_source)
@@ -199,7 +205,7 @@ export async function POST(request: Request) {
 				)
 			}
 
-			// Insert property type specific attributes (same as before)
+			// Insert property type specific attributes
 			switch (propertyData.property_type as PropertyType) {
 				case 'house':
 					await client.query(
@@ -263,7 +269,7 @@ export async function POST(request: Request) {
 					break
 			}
 
-			// Insert property features (same as before)
+			// Insert property features
 			if (
 				propertyData.selectedFeatures &&
 				propertyData.selectedFeatures.length > 0
@@ -277,7 +283,7 @@ export async function POST(request: Request) {
 				}
 			}
 
-			// Handle media files upload (same as before)
+			// Handle media files upload
 			if (mediaFiles && mediaFiles.length > 0) {
 				console.log(
 					`Starting upload of ${mediaFiles.length} media files to ImageKit...`
@@ -301,29 +307,24 @@ export async function POST(request: Request) {
 						const arrayBuffer = await file.arrayBuffer()
 						const buffer = Buffer.from(arrayBuffer)
 
-						// Upload to ImageKit using enhanced function
+						// Upload to ImageKit
 						const uploadResponse = await uploadToImageKit(
 							buffer,
 							file.name,
 							`/properties/${propertyId}`
 						)
 
-							let thumbnailUrl =
-								uploadResponse.thumbnailUrl || uploadResponse.url
+						let thumbnailUrl = uploadResponse.thumbnailUrl || uploadResponse.url
 
-							if (mediaType === 'video') {
-								if (uploadResponse.url.includes('ik.imagekit.io')) {
-									const baseVideoUrl = uploadResponse.url.split('?')[0]
-									thumbnailUrl = `${baseVideoUrl}/ik-thumbnail.jpg?tr=so-1.0:w-400:h-300:q-80`
-									console.log(
-										`✅ Generated video thumbnail URL: ${thumbnailUrl}`
-									)
-								} else {
-									thumbnailUrl = uploadResponse.url
-								}
+						if (mediaType === 'video') {
+							if (uploadResponse.url.includes('ik.imagekit.io')) {
+								const baseVideoUrl = uploadResponse.url.split('?')[0]
+								thumbnailUrl = `${baseVideoUrl}/ik-thumbnail.jpg?tr=so-1.0:w-400:h-300:q-80`
+								console.log(`✅ Generated video thumbnail URL: ${thumbnailUrl}`)
+							} else {
+								thumbnailUrl = uploadResponse.url
 							}
-
-
+						}
 
 						// Save media info to database
 						const mediaResult = await client.query(
@@ -339,7 +340,7 @@ export async function POST(request: Request) {
 								thumbnailUrl,
 								mediaType,
 								isPrimary,
-								i, // display_order
+								i,
 							]
 						)
 
@@ -390,25 +391,30 @@ export async function POST(request: Request) {
 				)
 			}
 
-			// Commit transaction
-			await client.query('COMMIT')
-			console.log(
-				'🎉 Property creation with translations completed successfully!'
-			)
+			// Return data from transaction
+			return {
+				hasRussian: !!translations.title_ru,
+				hasEnglish: !!translations.title_en,
+			}
+		})
 
-			return NextResponse.json({
-				success: true,
-				propertyId,
-				customId: propertyResult.rows[0].custom_id,
-				message: 'Property created successfully with translations',
-				mediaUploaded: mediaFiles.length,
-				translations: {
-					russian: !!translations.title_ru,
-					english: !!translations.title_en,
-				},
-			})
-		} 
-		 )} catch (error) {
+		// ✅ FIX: Now these variables are accessible here!
+		console.log('🎉 Property creation completed successfully!')
+
+		// Validate that the transaction succeeded
+		if (!createdPropertyId || !createdCustomId) {
+			throw new Error('Property was not created properly')
+		}
+
+		return NextResponse.json({
+			success: true,
+			propertyId: createdPropertyId,
+			customId: createdCustomId,
+			message: 'Property created successfully with translations',
+			mediaUploaded: mediaFiles.length,
+			translations: result,
+		})
+	} catch (error) {
 		console.error('❌ Error creating property:', error)
 		return NextResponse.json(
 			{
