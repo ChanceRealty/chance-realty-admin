@@ -28,6 +28,9 @@ import {
 	Crown,
 	Boxes,
 	DoorClosed,
+	AlertCircle,
+	FileText,
+	Flame,
 } from 'lucide-react'
 
 import { FaWhatsapp } from 'react-icons/fa'
@@ -54,7 +57,7 @@ export default function PropertyViewPopup({
 	}, [property?.id])
 
 	const allMedia = React.useMemo(() => {
-		if (!property) return [] 
+		if (!property) return []
 
 		const media: any[] = []
 
@@ -157,7 +160,6 @@ export default function PropertyViewPopup({
 		return []
 	}, [property?.features])
 
-
 	const getAttributeValue = (key: string) => {
 		console.log(`🔍 getAttributeValue("${key}")`)
 
@@ -190,6 +192,20 @@ export default function PropertyViewPopup({
 	}, [property?.has_viber, property?.has_whatsapp, property?.has_telegram])
 
 	if (!isOpen || !property) return null
+
+	const getBuildingTypeName = () => {
+		if (!property?.attributes?.building_type) return null
+
+		const buildingType = property.attributes.building_type
+		return buildingType.name_hy || buildingType.name_en || buildingType.name_ru
+	}
+
+	const getBusinessTypeName = () => {
+		if (!property?.attributes?.business_type_info) return null
+
+		const businessType = property.attributes.business_type_info
+		return businessType.name_hy || businessType.name_en || businessType.name_ru
+	}
 
 	const propertyTypeIcons = {
 		house: Home,
@@ -304,6 +320,30 @@ export default function PropertyViewPopup({
 		setCopySuccess(true)
 		setTimeout(() => setCopySuccess(false), 2000)
 	}
+
+	const status = property.is_urgently
+		? {
+				label: 'Շտապ',
+				description: 'Այս հայտարարությունը նշված է որպես շտապ',
+				icon: <AlertCircle className='w-5 h-5 mr-2 text-red-500' />,
+		  }
+		: property.is_exclusive
+		? {
+				label: 'Էքսկլյուզիվ',
+				description: 'Այս հայտարարությունը նշված է որպես էքսկլյուզիվ',
+				icon: <Crown className='w-5 h-5 mr-2 text-purple-500' />,
+		  }
+		: property.is_top
+		? {
+				label: 'Տոպ',
+				description: 'Այս հայտարարությունը նշված է որպես տոպ',
+				icon: <Flame className='w-5 h-5 mr-2 text-yellow-500' />,
+		  }
+		: {
+				label: 'Սովորական',
+				description: 'Սա սովորական հայտարարություն է',
+				icon: <FileText className='w-5 h-5 mr-2 text-gray-400' />,
+		  }
 
 
 	return (
@@ -598,28 +638,16 @@ export default function PropertyViewPopup({
 											</p>
 										</div>
 
-										{/* Exclusive Status */}
+										{/* Priority Status */}
 										<div className='bg-white p-3 sm:p-4 rounded-lg border'>
-											<div className='flex items-center justify-between mb-2'>
-												<div className='flex items-center'>
-													<Crown
-														className={`w-4 h-4 sm:w-5 sm:h-5 mr-2 ${
-															property.is_exclusive
-																? 'text-purple-500'
-																: 'text-gray-400'
-														}`}
-													/>
-													<span className='text-sm sm:text-base font-medium text-gray-900'>
-														{property.is_exclusive
-															? 'Էքսկլյուզիվ'
-															: 'Սովորական'}
-													</span>
-												</div>
+											<div className='flex items-center mb-2'>
+												{status.icon}
+												<span className='text-sm sm:text-base font-medium text-gray-900'>
+													{status.label}
+												</span>
 											</div>
 											<p className='text-xs sm:text-sm text-gray-600'>
-												{property.is_exclusive
-													? 'Այս հայտարարությունը նշված է որպես էքսկլյուզիվ'
-													: 'Սա սովորական հայտարարություն է'}
+												{status.description}
 											</p>
 										</div>
 									</div>

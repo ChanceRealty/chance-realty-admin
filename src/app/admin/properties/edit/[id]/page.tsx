@@ -197,7 +197,7 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 				return res.json()
 			}),
 		])
-			.then(([statesData, featuresData, statusesData, propertyData, buildingTypes, businessTypes]) => {
+			.then(([statesData, featuresData, statusesData, buildingTypes, businessTypes, propertyData]) => {
 				console.log('✅ Edit Property: All data fetched successfully:')
 				console.log('📍 States:', statesData?.length || 0, 'items')
 				console.log('🏷️ Features:', featuresData?.length || 0, 'items')

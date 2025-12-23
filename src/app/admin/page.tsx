@@ -26,6 +26,8 @@ import {
 	ChevronDown,
 	Crown,
 	EyeOff,
+	Flame,
+	AlertCircle,
 } from 'lucide-react'
 import { useToast } from '@/hooks/useToast'
 import { useRouter } from 'next/navigation'
@@ -90,6 +92,8 @@ interface PropertyListItem {
 	has_telegram: boolean
 	is_hidden: boolean 
 	is_exclusive: boolean
+	is_urgently: boolean
+	is_top: boolean
 	state_id: number
 	city_id: number
 	district_id: number
@@ -1344,12 +1348,25 @@ export default function AdminDashboard() {
 																Էքսկլյուզիվ
 															</span>
 														)}
-														{!property.is_hidden && !property.is_exclusive && (
-															<span className='inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800'>
-																<Eye className='w-3 h-3 mr-1' />
-																Հանրային
+														{property.is_urgently && (
+															<span className='inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800'>
+																<AlertCircle className='w-3 h-3 mr-1' />
+																Շտապ
 															</span>
 														)}
+														{property.is_top && (
+															<span className='inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800'>
+																<Flame className='w-3 h-3 mr-1' />
+																Տոպ
+															</span>
+														)}
+														{!property.is_hidden &&
+													  (
+																<span className='inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800'>
+																	<Eye className='w-3 h-3 mr-1' />
+																	Հանրային
+																</span>
+															)}
 													</div>
 												</td>
 												<td className='px-6 py-4 whitespace-nowrap'>
