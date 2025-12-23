@@ -35,6 +35,8 @@ import {
 	EyeOff,
 	Eye,
 	Boxes,
+	AlertCircle,
+	Flame,
 } from 'lucide-react'
 import Image from 'next/image'
 import LocationSelector from '@/components/LocationSelector'
@@ -59,6 +61,8 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 	const [mediaTypes, setMediaTypes] = useState<string[]>([])
 	const [primaryMediaIndex, setPrimaryMediaIndex] = useState(0)
 	const { toasts, removeToast, showSuccess, showError, showWarning } = useToast()
+	const [apartmentBuildingTypes, setApartmentBuildingTypes] = useState<any[]>([])
+	const [commercialBusinessTypes, setCommercialBusinessTypes] = useState<any[]>([])
 
 	// Basic property data
 	const [formData, setFormData] = useState({
@@ -84,6 +88,8 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 		has_telegram: false,
 		is_hidden: false,
 		is_exclusive: false,
+		is_top: false,
+		is_urgently: false,
 		url_3d: ''
 	})
 
@@ -103,6 +109,8 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 		ceiling_height: string
 		area_acres: string
 		rooms: string
+		building_type_id: string 
+		business_type_id: string
 	}>({
 		bedrooms: '',
 		bathrooms: '',
@@ -118,6 +126,8 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 		ceiling_height: '',
 		area_acres: '',
 		rooms: '',
+		building_type_id: '',
+		business_type_id: '',
 	})
 
 	// ✅ FIXED: Armenian translations for status names
@@ -168,6 +178,12 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 				}
 				return res.json()
 			}),
+			fetch('/api/admin/properties/apartment-building-types').then(res =>
+			res.json()
+			),
+			fetch('/api/admin/properties/commercial-business-types').then(res =>
+				res.json()
+			),
 			fetch(`/api/admin/properties/${resolvedParams.id}`).then(res => {
 				console.log('🏠 Property API response status:', res.status)
 				if (!res.ok) {
@@ -181,7 +197,7 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 				return res.json()
 			}),
 		])
-			.then(([statesData, featuresData, statusesData, propertyData]) => {
+			.then(([statesData, featuresData, statusesData, propertyData, buildingTypes, businessTypes]) => {
 				console.log('✅ Edit Property: All data fetched successfully:')
 				console.log('📍 States:', statesData?.length || 0, 'items')
 				console.log('🏷️ Features:', featuresData?.length || 0, 'items')
@@ -190,7 +206,8 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 
 				setStates(statesData || [])
 				setFeatures(featuresData || [])
-
+				setApartmentBuildingTypes(buildingTypes || [])
+				setCommercialBusinessTypes(businessTypes || [])
 				// ✅ Add safety check for statuses with better error handling
 				if (Array.isArray(statusesData) && statusesData.length > 0) {
 					console.log('✅ Setting statuses:', statusesData)
@@ -260,6 +277,8 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 					has_telegram: propertyData.has_telegram || false,
 					is_hidden: propertyData.is_hidden || false,
 					is_exclusive: propertyData.is_exclusive || false,
+					is_top: propertyData.is_top || false,
+					is_urgently: propertyData.is_urgently || false,
 					url_3d: propertyData.url_3d || ''
 				})
 
@@ -309,6 +328,8 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 						ceiling_height: attrs.ceiling_height?.toString() || '',
 						area_acres: attrs.area_acres?.toString() || '',
 						rooms: attrs.rooms?.toString() || '',
+						building_type_id: attrs.building_type_id?.toString() || '',
+						business_type_id: attrs.business_type_id?.toString() || '',
 					})
 				}
 
@@ -635,11 +656,13 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 						ceiling_height: attributes.ceiling_height
 							? parseFloat(attributes.ceiling_height)
 							: null,
+						building_type_id: attributes.building_type_id
+							? parseInt(attributes.building_type_id)
+							: null,
 					})
 					break
 				case 'commercial':
 					Object.assign(cleanedAttributes, {
-						business_type: attributes.business_type || null,
 						area_sqft: attributes.area_sqft
 							? parseInt(attributes.area_sqft)
 							: null,
@@ -648,6 +671,10 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 							? parseFloat(attributes.ceiling_height)
 							: null,
 						rooms: attributes.rooms ? parseInt(attributes.rooms) : null,
+						business_type_id: attributes.business_type_id
+							? parseInt(attributes.business_type_id)
+							: null,
+						business_type: null,
 					})
 					break
 				case 'land':
@@ -1021,6 +1048,47 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 									</span>
 								</label>
 							</div>
+							<div className='space-y-4'>
+								<div className='flex items-center'>
+									<input
+										type='checkbox'
+										id='is_top'
+										name='is_top'
+										checked={formData.is_top}
+										onChange={handleInputChange}
+										className='w-4 h-4 text-yellow-600 border-gray-300 rounded focus:ring-yellow-500'
+									/>
+									<label
+										htmlFor='is_top'
+										className='ml-3 text-sm font-medium text-gray-700'
+									>
+										<span className='flex items-center'>
+											<Flame className='w-4 h-4 mr-2 text-yellow-500' />
+											Նշել որպես տոպ հայտարարություն
+										</span>
+									</label>
+								</div>
+
+								<div className='flex items-center'>
+									<input
+										type='checkbox'
+										id='is_urgently'
+										name='is_urgently'
+										checked={formData.is_urgently}
+										onChange={handleInputChange}
+										className='w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500'
+									/>
+									<label
+										htmlFor='is_urgently'
+										className='ml-3 text-sm font-medium text-gray-700'
+									>
+										<span className='flex items-center'>
+											<AlertCircle className='w-4 h-4 mr-2 text-red-500' />
+											Նշել որպես շտապ հայտարարություն
+										</span>
+									</label>
+								</div>
+							</div>
 						</div>
 					</div>
 					{/* Owner Information */}
@@ -1369,6 +1437,24 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 										pattern='[0-9]+([.,][0-9]+)?'
 									/>
 								</div>
+								<div>
+									<label className='block text-sm font-medium text-gray-700 mb-2'>
+										Շենքի տեսակ
+									</label>
+									<select
+										name='building_type_id'
+										value={attributes.building_type_id}
+										onChange={handleAttributeChange}
+										className='w-full border border-gray-300 text-gray-700 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+									>
+										<option value=''>Ընտրել շենքի տեսակը</option>
+										{apartmentBuildingTypes.map(type => (
+											<option key={type.id} value={type.id}>
+												{type.name_hy}
+											</option>
+										))}
+									</select>
+								</div>
 							</div>
 						)}
 
@@ -1379,14 +1465,20 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 									<label className='block text-sm font-medium text-gray-700 mb-2'>
 										Բիզնեսի տեսակը
 									</label>
-									<input
-										type='text'
-										name='business_type'
-										value={attributes.business_type}
+									<select
+										name='business_type_id'
+										value={attributes.business_type_id}
 										onChange={handleAttributeChange}
-										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
-										placeholder='e.g., Office, Retail, Warehouse'
-									/>
+										required
+										className='w-full border border-gray-300 text-gray-700 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+									>
+										<option value=''>Ընտրել բիզնեսի տեսակը</option>
+										{commercialBusinessTypes.map(type => (
+											<option key={type.id} value={type.id}>
+												{type.name_hy}
+											</option>
+										))}
+									</select>
 								</div>
 								<div>
 									<label className='block text-sm font-medium text-gray-700 mb-2'>
