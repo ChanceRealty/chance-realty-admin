@@ -120,11 +120,11 @@ export async function POST(request: Request) {
 				`INSERT INTO properties (
 				  user_id, custom_id, title, description, property_type, listing_type,
 				  price, currency, state_id, city_id, district_id, address, latitude, longitude, status, owner_name, owner_phone,
-				  has_viber, has_whatsapp, has_telegram,
+				  has_viber, has_whatsapp, has_telegram, is_top, is_urgently,
 				  is_hidden, is_exclusive, address_admin, url_3d,
 				  title_ru, title_en, description_ru, description_en, 
 				  translation_status, last_translated_at
-				) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30)
+				) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32)
 				RETURNING id, custom_id`,
 				[
 					user.id,
@@ -157,6 +157,8 @@ export async function POST(request: Request) {
 					translations.description_en || null,
 					translations.title_ru ? 'completed' : 'failed',
 					translations.title_ru ? new Date() : null,
+					propertyData.is_top || false,
+					propertyData.is_urgently || false,
 				]
 			)
 
@@ -228,9 +230,9 @@ export async function POST(request: Request) {
 				case 'apartment':
 					await client.query(
 						`INSERT INTO apartment_attributes (
-              property_id, bedrooms, bathrooms, area_sqft, floor,
-              total_floors, ceiling_height
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+			property_id, bedrooms, bathrooms, area_sqft, floor,
+			total_floors, ceiling_height, building_type_id
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
 						[
 							propertyId,
 							attributesData.bedrooms,
@@ -239,6 +241,7 @@ export async function POST(request: Request) {
 							attributesData.floor,
 							attributesData.total_floors,
 							attributesData.ceiling_height,
+							attributesData.building_type_id || null,
 						]
 					)
 					break
@@ -246,11 +249,12 @@ export async function POST(request: Request) {
 				case 'commercial':
 					await client.query(
 						`INSERT INTO commercial_attributes (
-              property_id, business_type, area_sqft, floors, ceiling_height, rooms
-            ) VALUES ($1, $2, $3, $4, $5, $6)`,
+			property_id, business_type_id, area_sqft, floors, 
+			ceiling_height, rooms
+		) VALUES ($1, $2, $3, $4, $5, $6)`,
 						[
 							propertyId,
-							attributesData.business_type,
+							attributesData.business_type_id || null,
 							attributesData.area_sqft,
 							attributesData.floors,
 							attributesData.ceiling_height,
@@ -467,6 +471,8 @@ export async function GET() {
     p.owner_phone,
     p.is_hidden,
     p.is_exclusive,
+	p.is_top,
+	p.is_urgently,
 	p.address_admin,
     p.has_viber,
     p.has_whatsapp,
@@ -503,7 +509,6 @@ export async function GET() {
       WHERE property_id = p.id AND is_primary = true AND type = 'image'
       LIMIT 1
     ) as primary_image,
-    -- ✅ GET ATTRIBUTES BASED ON PROPERTY TYPE
     CASE 
       WHEN p.property_type = 'house' THEN (
         SELECT json_build_object(
@@ -524,20 +529,38 @@ export async function GET() {
           'area_sqft', aa.area_sqft,
           'floor', aa.floor,
           'total_floors', aa.total_floors,
-          'ceiling_height', aa.ceiling_height
+          'ceiling_height', aa.ceiling_height,
+		  'building_type_id', aa.building_type_id,
+		  'building_type', CASE 
+			WHEN abt.id IS NOT NULL THEN json_build_object(
+				'id', abt.id,
+				'name_hy', abt.name_hy
+			)
+			ELSE NULL
+		END
         )
         FROM apartment_attributes aa
+		LEFT JOIN apartment_building_types abt ON aa.building_type_id = abt.id
         WHERE aa.property_id = p.id
       )
       WHEN p.property_type = 'commercial' THEN (
         SELECT json_build_object(
           'business_type', ca.business_type,
+		  'business_type_id', ca.business_type_id,
+		  'business_type_info', CASE 
+			WHEN cbt.id IS NOT NULL THEN json_build_object(
+				'id', cbt.id,
+				'name_hy', cbt.name_hy
+			)
+			ELSE NULL
+		END,
           'area_sqft', ca.area_sqft,
           'floors', ca.floors,
           'ceiling_height', ca.ceiling_height,
 		  'rooms', ca.rooms
         )
         FROM commercial_attributes ca
+		LEFT JOIN commercial_business_types cbt ON ca.business_type_id = cbt.id
         WHERE ca.property_id = p.id
       )
       WHEN p.property_type = 'land' THEN (
@@ -579,7 +602,7 @@ export async function GET() {
   LEFT JOIN districts d ON p.district_id = d.id
   LEFT JOIN property_statuses ps ON p.status = ps.id
   WHERE (ps.is_active = true OR ps.id IS NULL)
-  ORDER BY p.created_at DESC
+  ORDER BY p.is_top DESC, p.is_urgently DESC, p.is_exclusive DESC, p.created_at DESC
 `)
 
 		console.log(`✅ Admin API: Found ${result.rows.length} properties`)

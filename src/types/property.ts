@@ -5,6 +5,24 @@ import { User } from './auth'
 export type ListingType = 'sale' | 'rent' | 'daily_rent'
 export type PropertyType = 'house' | 'apartment' | 'commercial' | 'land'
 
+export interface ApartmentBuildingType {
+	id: number
+	name_hy: string 
+	name_en: string 
+	name_ru: string
+	is_active: boolean
+	sort_order: number
+}
+
+export interface CommercialBusinessType {
+	id: number
+	name_hy: string 
+	name_en: string 
+	name_ru: string 
+	is_active: boolean
+	sort_order: number
+}
+
 // Dynamic status interface from database
 export interface PropertyStatus {
 	id: number
@@ -70,7 +88,8 @@ export interface BaseProperty {
 
 	is_hidden: boolean
 	is_exclusive: boolean
-
+	is_top: boolean 
+	is_urgently: boolean
 	// Owner details (admin only - not exposed to public)
 	owner_name?: string
 	owner_phone?: string
@@ -119,11 +138,15 @@ export interface ApartmentAttributes {
 	floor: number
 	total_floors: number
 	ceiling_height?: number
+	building_type_id?: number 
+	building_type?: ApartmentBuildingType
 }
 
 export interface CommercialAttributes {
 	property_id: number
-	business_type?: string
+	business_type?: string 
+	business_type_id?: number 
+	business_type_info?: CommercialBusinessType
 	area_sqft: number
 	floors?: number
 	ceiling_height?: number
@@ -149,7 +172,7 @@ export interface PropertyFilter {
 	property_type?: PropertyType
 	listing_type?: ListingType
 	state_id?: number | number[]
-	city_id?: number  | number[]
+	city_id?: number | number[]
 	district_id?: number | number[]
 	min_price?: number
 	max_price?: number
@@ -162,10 +185,14 @@ export interface PropertyFilter {
 	sort_order?: 'asc' | 'desc'
 	page?: number
 	limit?: number
-	is_hidden?: boolean // Filter by hidden status
-	is_exclusive?: boolean // Filter by exclusive status
+	is_hidden?: boolean
+	is_exclusive?: boolean
+	is_top?: boolean
+	is_urgently?: boolean
 	show_hidden?: boolean
-	status?: string // Filter by property status name
+	status?: string
+	building_type_id?: number 
+	business_type_id?: number 
 }
 
 // Extended property types with attributes (both admin and public versions)
@@ -317,7 +344,38 @@ export function getLocationDisplayName(property: BaseProperty): string {
 	return parts.join(', ')
 }
 
-// Helper function to check if state uses districts
 export function stateUsesDistricts(state: State | undefined): boolean {
 	return state?.uses_districts === true
+}
+
+export function getBuildingTypeName(
+	buildingType: ApartmentBuildingType | undefined,
+	language: 'hy' | 'en' | 'ru' = 'hy'
+): string {
+	if (!buildingType) return ''
+
+	switch (language) {
+		case 'ru':
+			return buildingType.name_ru
+		case 'en':
+			return buildingType.name_en
+		default:
+			return buildingType.name_hy
+	}
+}
+
+export function getBusinessTypeName(
+	businessType: CommercialBusinessType | undefined,
+	language: 'hy' | 'en' | 'ru' = 'hy'
+): string {
+	if (!businessType) return ''
+
+	switch (language) {
+		case 'ru':
+			return businessType.name_ru
+		case 'en':
+			return businessType.name_en
+		default:
+			return businessType.name_hy
+	}
 }

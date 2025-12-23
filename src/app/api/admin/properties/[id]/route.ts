@@ -40,11 +40,12 @@ export async function GET(
 
 		console.log('🏠 Fetching property for edit, ID:', id)
 
-		// ✅ CRITICAL: Make sure to select ALL required fields including social media
 		const propertyResult = await query(
 			`
 			SELECT 
 				p.*,
+				p.is_top,
+				p.is_urgently,		
 				s.name as state_name,
 				s.uses_districts,
 				c.name as city_name,
@@ -99,10 +100,17 @@ export async function GET(
 					break
 
 				case 'apartment':
-					const apartmentResult = await query(`
-						SELECT bedrooms, bathrooms, area_sqft, floor, total_floors, ceiling_height
-						FROM apartment_attributes WHERE property_id = $1
-					`, [id])
+					const apartmentResult = await query(
+						`
+						SELECT bedrooms, bathrooms, area_sqft, floor, total_floors, ceiling_height, building_type_id, abt.name_hy as building_type_name_hy,
+						abt.name_en as building_type_name_en,
+						abt.name_ru as building_type_name_ru
+						FROM apartment_attributes aa
+						LEFT JOIN apartment_building_types abt ON aa.building_type_id = abt.id
+						WHERE property_id = $1
+					`,
+						[id]
+					)
 					if (apartmentResult.rows.length > 0) {
 						attributes = apartmentResult.rows[0]
 						console.log('✅ Apartment attributes found:', attributes)
@@ -112,10 +120,20 @@ export async function GET(
 					break
 
 				case 'commercial':
-					const commercialResult = await query(`
-						SELECT business_type, area_sqft, floors, ceiling_height, rooms
-						FROM commercial_attributes WHERE property_id = $1
-					`, [id])
+					const commercialResult = await query(
+						`
+						SELECT business_type, ca.business_type_id,
+ 						area_sqft, floors, ceiling_height, rooms, 
+						cbt.name_hy as business_type_name_hy,
+						cbt.name_en as business_type_name_en,
+						cbt.name_ru as business_type_name_ru
+						FROM commercial_attributes ca
+						LEFT JOIN commercial_business_types cbt 
+						ON ca.business_type_id = cbt.id
+						WHERE property_id = $1
+					`,
+						[id]
+					)
 					if (commercialResult.rows.length > 0) {
 						attributes = commercialResult.rows[0]
 						console.log('✅ Commercial attributes found:', attributes)
@@ -453,8 +471,10 @@ export async function PUT(
 					is_exclusive = $21,
 					address_admin = $22,
 					url_3d = $23,
+					is_top = $24,
+					is_urgently = $25,			
 					updated_at = CURRENT_TIMESTAMP
-				WHERE id = $24`,
+				WHERE id = $26`,
 				[
 					propertyData.custom_id.trim(),
 					propertyData.title.trim(),
@@ -479,6 +499,8 @@ export async function PUT(
 					propertyData.is_exclusive || false,
 					propertyData.address_admin?.trim() || null,
 					propertyData.url_3d?.trim() || null,
+					propertyData.is_top || false,
+					propertyData.is_urgently || false,
 					id,
 				]
 			)
@@ -513,41 +535,44 @@ export async function PUT(
 						'DELETE FROM apartment_attributes WHERE property_id = $1',
 						[id]
 					)
-					await client.query(
-						`INSERT INTO apartment_attributes (
-							property_id, bedrooms, bathrooms, area_sqft, floor, total_floors, ceiling_height
-						) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-						[
-							id,
-							attributesData.bedrooms,
-							attributesData.bathrooms,
-							attributesData.area_sqft,
-							attributesData.floor,
-							attributesData.total_floors,
-							attributesData.ceiling_height,
-						]
-					)
-					break
+						await client.query(
+		`INSERT INTO apartment_attributes (
+			property_id, bedrooms, bathrooms, area_sqft, floor,
+			total_floors, ceiling_height, building_type_id
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+		[
+			id,
+			attributesData.bedrooms,
+			attributesData.bathrooms,
+			attributesData.area_sqft,
+			attributesData.floor,
+			attributesData.total_floors,
+			attributesData.ceiling_height,
+			attributesData.building_type_id || null,
+		]
+	)
+	break
 
 				case 'commercial':
 					await client.query(
 						'DELETE FROM commercial_attributes WHERE property_id = $1',
 						[id]
 					)
-					await client.query(
-						`INSERT INTO commercial_attributes (
-							property_id, business_type, area_sqft, floors, ceiling_height, rooms
-						) VALUES ($1, $2, $3, $4, $5, $6)`,
-						[
-							id,
-							attributesData.business_type,
-							attributesData.area_sqft,
-							attributesData.floors,
-							attributesData.ceiling_height,
-							attributesData.rooms,
-						]
-					)
-					break
+						await client.query(
+		`INSERT INTO commercial_attributes (
+			property_id, business_type_id, area_sqft, floors, 
+			ceiling_height, rooms
+		) VALUES ($1, $2, $3, $4, $5, $6)`,
+		[
+			id,
+			attributesData.business_type_id || null,
+			attributesData.area_sqft,
+			attributesData.floors,
+			attributesData.ceiling_height,
+			attributesData.rooms,
+		]
+	)
+	break
 
 				case 'land':
 					await client.query(

@@ -21,6 +21,10 @@ type PropertyFilter = {
 	is_hidden?: boolean // Filter by hidden status
 	is_exclusive?: boolean // Filter by exclusive status
 	address_admin?: string // Admin address filter
+	is_top?: boolean // Filter by top properties
+	is_urgently?: boolean // Filter by urgent properties
+	building_type_id?: number // For apartments
+	business_type_id?: number // For commercial properties
 }
 
 export async function getProperties(filter: PropertyFilter = {}) {
@@ -53,6 +57,8 @@ export async function getProperties(filter: PropertyFilter = {}) {
 				p.listing_type,
 				p.is_hidden,
 				p.is_exclusive,
+				p.is_top,
+				p.is_urgently,
 				p.price,
 				p.currency,
 				ps.name as status,
@@ -107,10 +113,31 @@ export async function getProperties(filter: PropertyFilter = {}) {
 						'area_sqft', aa.area_sqft,
 						'floor', aa.floor,
 						'total_floors', aa.total_floors,
-						'ceiling_height', aa.ceiling_height
-					)
+						'ceiling_height', aa.ceiling_height,
+						'building_type_id', aa.building_type_id,
+						'building_type', CASE 
+						WHEN abt.id IS NOT NULL THEN json_build_object(
+							'id', abt.id,
+						'name_hy', abt.name_hy,
+							'name_en', abt.name_en,
+						'name_ru', abt.name_ru
+							)
+						ELSE NULL
+						END
+						)
+					
 					WHEN p.property_type = 'commercial' THEN json_build_object(
 						'business_type', ca.business_type,
+						'business_type_id', ca.business_type_id,
+						'business_type_info', CASE 
+						WHEN cbt.id IS NOT NULL THEN json_build_object(
+						'id', cbt.id,
+						'name_hy', cbt.name_hy,
+						'name_en', cbt.name_en,
+						'name_ru', cbt.name_ru
+						)
+						ELSE NULL
+						END,
 						'area_sqft', ca.area_sqft,
 						'floors', ca.floors,
 						'ceiling_height', ca.ceiling_height,
@@ -157,6 +184,8 @@ export async function getProperties(filter: PropertyFilter = {}) {
 			LEFT JOIN cities c ON p.city_id = c.id
 			LEFT JOIN districts d ON p.district_id = d.id
 			LEFT JOIN property_statuses ps ON p.status = ps.id
+			LEFT JOIN apartment_building_types abt ON aa.building_type_id = abt.id
+			LEFT JOIN commercial_business_types cbt ON ca.business_type_id = cbt.id
 			LEFT JOIN house_attributes ha ON p.id = ha.property_id AND p.property_type = 'house'
 			LEFT JOIN apartment_attributes aa ON p.id = aa.property_id AND p.property_type = 'apartment'
 			LEFT JOIN commercial_attributes ca ON p.id = ca.property_id AND p.property_type = 'commercial'
@@ -242,11 +271,33 @@ export async function getProperties(filter: PropertyFilter = {}) {
 			queryText += ` AND p.is_hidden = false`
 		}
 
+		if (filter.building_type_id && filter.property_type === 'apartment') {
+			queryText += ` AND aa.building_type_id = $${paramIndex}`
+			params.push(String(filter.building_type_id))
+			paramIndex++
+		}
+
+		// Filter by business type (commercial only)
+		if (filter.business_type_id && filter.property_type === 'commercial') {
+			queryText += ` AND ca.business_type_id = $${paramIndex}`
+			params.push(String(filter.business_type_id))
+			paramIndex++
+		}
+
 		// Filter by hidden status if specified
 		if (filter.is_hidden !== undefined) {
 			queryText += ` AND p.is_hidden = $${paramIndex}`
 			params.push(String(filter.is_hidden))
 			paramIndex++
+		}
+
+		if (filter.is_top) {
+			queryText += ` AND p.is_top = true`
+		}
+
+		// Filter by urgent properties
+		if (filter.is_urgently) {
+			queryText += ` AND p.is_urgently = true`
 		}
 
 		// Filter by exclusive status if specified
@@ -268,7 +319,8 @@ export async function getProperties(filter: PropertyFilter = {}) {
 			: 'created_at'
 		const safeSortOrder = sortOrder === 'asc' ? 'asc' : 'desc'
 
-		queryText += ` ORDER BY p.is_exclusive DESC, p.${safeSortBy} ${safeSortOrder}`
+		queryText += ` ORDER BY p.is_top DESC, 
+	p.is_urgently DESC, p.is_exclusive DESC, p.${safeSortBy} ${safeSortOrder}`
 
 
 		// Pagination
@@ -400,10 +452,30 @@ export async function getPropertyByCustomId(
 						'area_sqft', aa.area_sqft,
 						'floor', aa.floor,
 						'total_floors', aa.total_floors,
-						'ceiling_height', aa.ceiling_height
+						'ceiling_height', aa.ceiling_height,
+						'building_type_id', aa.building_type_id,
+						'building_type', CASE 
+						WHEN abt.id IS NOT NULL THEN json_build_object(
+						'id', abt.id,
+						'name_hy', abt.name_hy,
+						'name_en', abt.name_en,
+						'name_ru', abt.name_ru
+							)
+						ELSE NULL
+						END
 					)
 					WHEN p.property_type = 'commercial' THEN json_build_object(
 						'business_type', ca.business_type,
+						'business_type_id', ca.business_type_id,
+						'business_type_info', CASE 
+						WHEN cbt.id IS NOT NULL THEN json_build_object(
+						'id', cbt.id,
+						'name_hy', cbt.name_hy,
+						'name_en', cbt.name_en,
+						'name_ru', cbt.name_ru
+						)
+						ELSE NULL
+						END,
 						'area_sqft', ca.area_sqft,
 						'floors', ca.floors,
 						'ceiling_height', ca.ceiling_height,
@@ -425,9 +497,15 @@ export async function getPropertyByCustomId(
 			LEFT JOIN cities c ON p.city_id = c.id
 			LEFT JOIN districts d ON p.district_id = d.id
 			LEFT JOIN property_statuses ps ON p.status = ps.id
+			LEFT JOIN apartment_attributes aa 
+  			ON p.id = aa.property_id AND p.property_type = 'apartment'
+			LEFT JOIN apartment_building_types abt 
+  			ON aa.building_type_id = abt.id
+			LEFT JOIN commercial_attributes ca 
+  			ON p.id = ca.property_id AND p.property_type = 'commercial'
+			LEFT JOIN commercial_business_types cbt 
+  			ON ca.business_type_id = cbt.id
 			LEFT JOIN house_attributes ha ON p.id = ha.property_id AND p.property_type = 'house'
-			LEFT JOIN apartment_attributes aa ON p.id = aa.property_id AND p.property_type = 'apartment'
-			LEFT JOIN commercial_attributes ca ON p.id = ca.property_id AND p.property_type = 'commercial'
 			LEFT JOIN land_attributes la ON p.id = la.property_id AND p.property_type = 'land'
 			WHERE p.custom_id = $1 AND (ps.is_active = true OR ps.id IS NULL)
 			${!includeHidden ? 'AND p.is_hidden = false' : ''}
@@ -716,5 +794,74 @@ export async function getVisibilityStats() {
 	} catch (error) {
 		console.error('Error fetching visibility stats:', error)
 		throw new Error('Failed to fetch visibility statistics')
+	}
+}
+
+export async function getApartmentBuildingTypes() {
+	try {
+		const result = await query(`
+			SELECT id, name_hy, name_en, name_ru, is_active, sort_order
+			FROM apartment_building_types
+			WHERE is_active = true
+			ORDER BY sort_order, name_hy ASC
+		`)
+		return result.rows
+	} catch (error) {
+		console.error('Error fetching apartment building types:', error)
+		throw new Error('Failed to fetch apartment building types')
+	}
+}
+
+export async function getCommercialBusinessTypes() {
+	try {
+		const result = await query(`
+			SELECT id, name_hy, name_en, name_ru, is_active, sort_order
+			FROM commercial_business_types
+			WHERE is_active = true
+			ORDER BY sort_order, name_hy ASC
+		`)
+		return result.rows
+	} catch (error) {
+		console.error('Error fetching commercial business types:', error)
+		throw new Error('Failed to fetch commercial business types')
+	}
+}
+
+export async function togglePropertyTop(propertyId: number, isTop: boolean) {
+	try {
+		const result = await query(
+			`UPDATE properties SET is_top = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING id, is_top`,
+			[isTop, propertyId]
+		)
+
+		if (result.rows.length === 0) {
+			throw new Error('Property not found')
+		}
+
+		return result.rows[0]
+	} catch (error) {
+		console.error('Error toggling property top status:', error)
+		throw new Error('Failed to update property top status')
+	}
+}
+
+export async function togglePropertyUrgently(
+	propertyId: number,
+	isUrgently: boolean
+) {
+	try {
+		const result = await query(
+			`UPDATE properties SET is_urgently = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING id, is_urgently`,
+			[isUrgently, propertyId]
+		)
+
+		if (result.rows.length === 0) {
+			throw new Error('Property not found')
+		}
+
+		return result.rows[0]
+	} catch (error) {
+		console.error('Error toggling property urgently status:', error)
+		throw new Error('Failed to update property urgently status')
 	}
 }

@@ -30,6 +30,9 @@ import {
 	EyeOff,
 	Crown,
 	Boxes,
+	Star,
+	AlertCircle,
+	Flame,
 } from 'lucide-react'
 import LocationSelector from '@/components/LocationSelector'
 import FallbackAddressInput from '@/components/FallbackAddressInput'
@@ -46,7 +49,8 @@ export default function AddPropertyPage() {
 	const [mediaTypes, setMediaTypes] = useState<string[]>([])
 	const [primaryMediaIndex, setPrimaryMediaIndex] = useState(0)
 	const { toasts, removeToast, showSuccess, showError, showWarning } = useToast()
-
+	const [apartmentBuildingTypes, setApartmentBuildingTypes] = useState<any[]>([])
+	const [commercialBusinessTypes, setCommercialBusinessTypes] = useState<any[]>([])
 	// Basic property data
 	const [formData, setFormData] = useState({
 		custom_id: '',
@@ -73,6 +77,8 @@ export default function AddPropertyPage() {
 		has_telegram: false,
 		is_hidden: false,
 		is_exclusive: false,
+		is_top: false,
+		is_urgently: false,
 		url_3d: '',
 	})
 
@@ -92,6 +98,8 @@ export default function AddPropertyPage() {
 		ceiling_height: string
 		area_acres: string
 		rooms: string
+		building_type_id: string 
+		business_type_id: string
 	}>({
 		bedrooms: '',
 		bathrooms: '',
@@ -107,6 +115,8 @@ export default function AddPropertyPage() {
 		ceiling_height: '',
 		area_acres: '',
 		rooms: '',
+		building_type_id: '',
+		business_type_id: '',
 	})
 
 	// ✅ FIXED: Armenian translations for status names
@@ -146,61 +156,78 @@ export default function AddPropertyPage() {
 				}
 				return res.json()
 			}),
+			fetch('/api/admin/properties/apartment-building-types').then(res =>
+				res.json()
+			),
+			fetch('/api/admin/properties/commercial-business-types').then(res =>
+				res.json()
+			),
 		])
-			.then(([statesData, featuresData, statusesData]) => {
-				console.log('✅ Add Property: All data fetched successfully:')
-				console.log('📍 States:', statesData?.length || 0, 'items')
-				console.log('🏷️ Features:', featuresData?.length || 0, 'items')
-				console.log('📊 Statuses:', statusesData?.length || 0, 'items')
-				console.log('📊 First status:', statusesData?.[0])
+			.then(
+				([
+					statesData,
+					featuresData,
+					statusesData,
+					buildingTypes,
+					businessTypes,
+				]) => {
+					console.log('✅ Add Property: All data fetched successfully:')
+					console.log('📍 States:', statesData?.length || 0, 'items')
+					console.log('🏷️ Features:', featuresData?.length || 0, 'items')
+					console.log('📊 Statuses:', statusesData?.length || 0, 'items')
+					console.log('📊 First status:', statusesData?.[0])
 
-				setStates(statesData || [])
-				setFeatures(featuresData || [])
+					setStates(statesData || [])
+					setFeatures(featuresData || [])
+					setApartmentBuildingTypes(buildingTypes || [])
+					setCommercialBusinessTypes(businessTypes || [])
+					if (Array.isArray(statusesData) && statusesData.length > 0) {
+						console.log('✅ Setting statuses:', statusesData)
+						setStatuses(statusesData)
 
-				// ✅ Add safety check for statuses with better error handling
-				if (Array.isArray(statusesData) && statusesData.length > 0) {
-					console.log('✅ Setting statuses:', statusesData)
-					setStatuses(statusesData)
-
-					// Set default status to first available status
-					const defaultStatus =
-						statusesData.find(s => s.name === 'available') || statusesData[0]
-					console.log('🎯 Setting default status:', defaultStatus?.name)
-					setFormData(prev => ({ ...prev, status: defaultStatus.name }))
-				} else {
-					console.error('❌ Statuses data is not a valid array:', statusesData)
-					// Set default statuses if API fails
-					const fallbackStatuses = [
-						{
-							id: 1,
-							name: 'available',
-							display_name: 'Available',
-							color: '#green',
-							is_active: true,
-							sort_order: 1,
-						},
-						{
-							id: 2,
-							name: 'sold',
-							display_name: 'Sold',
-							color: '#red',
-							is_active: true,
-							sort_order: 2,
-						},
-						{
-							id: 3,
-							name: 'rented',
-							display_name: 'Rented',
-							color: '#blue',
-							is_active: true,
-							sort_order: 3,
-						},
-					]
-					console.log('🔄 Using fallback statuses')
-					setStatuses(fallbackStatuses)
-					setFormData(prev => ({ ...prev, status: 'available' }))
+						// Set default status to first available status
+						const defaultStatus =
+							statusesData.find(s => s.name === 'available') || statusesData[0]
+						console.log('🎯 Setting default status:', defaultStatus?.name)
+						setFormData(prev => ({ ...prev, status: defaultStatus.name }))
+					} else {
+						console.error(
+							'❌ Statuses data is not a valid array:',
+							statusesData
+						)
+						// Set default statuses if API fails
+						const fallbackStatuses = [
+							{
+								id: 1,
+								name: 'available',
+								display_name: 'Available',
+								color: '#green',
+								is_active: true,
+								sort_order: 1,
+							},
+							{
+								id: 2,
+								name: 'sold',
+								display_name: 'Sold',
+								color: '#red',
+								is_active: true,
+								sort_order: 2,
+							},
+							{
+								id: 3,
+								name: 'rented',
+								display_name: 'Rented',
+								color: '#blue',
+								is_active: true,
+								sort_order: 3,
+							},
+						]
+						console.log('🔄 Using fallback statuses')
+						setStatuses(fallbackStatuses)
+						setFormData(prev => ({ ...prev, status: 'available' }))
+					}
 				}
-			})
+			)
 			.catch(error => {
 				console.error('❌ Add Property: Error fetching data:', error)
 				// Set safe defaults to prevent crashes
@@ -347,6 +374,8 @@ export default function AddPropertyPage() {
 				owner_name: formData.owner_name.trim(),
 				owner_phone: formData.owner_phone.trim(),
 				address_admin: formData.address_admin.trim(),
+				is_top: formData.is_top,
+				is_urgently: formData.is_urgently,
 			}
 
 			// Clean attributes based on property type
@@ -376,17 +405,23 @@ export default function AddPropertyPage() {
 						ceiling_height: attributes.ceiling_height // ✅ Added for houses
 							? parseFloat(attributes.ceiling_height)
 							: null,
+						building_type_id: attributes.building_type_id
+							? parseInt(attributes.building_type_id)
+							: null,
 					})
 					break
 				case 'commercial':
 					Object.assign(cleanedAttributes, {
-						business_type: attributes.business_type,
 						area_sqft: parseInt(attributes.area_sqft),
 						floors: attributes.floors ? parseInt(attributes.floors) : null,
 						ceiling_height: attributes.ceiling_height
 							? parseFloat(attributes.ceiling_height)
 							: null,
 						rooms: attributes.rooms ? parseInt(attributes.rooms) : null,
+						business_type_id: attributes.business_type_id 
+						? parseInt(attributes.business_type_id) 
+						: null,
+						business_type: null, // Clear old text field
 					})
 					break
 				case 'land':
@@ -754,6 +789,47 @@ export default function AddPropertyPage() {
 									</span>
 								</label>
 							</div>
+							<div className='space-y-4'>
+								<div className='flex items-center'>
+									<input
+										type='checkbox'
+										id='is_top'
+										name='is_top'
+										checked={formData.is_top}
+										onChange={handleInputChange}
+										className='w-4 h-4 text-yellow-600 border-gray-300 rounded focus:ring-yellow-500'
+									/>
+									<label
+										htmlFor='is_top'
+										className='ml-3 text-sm font-medium text-gray-700'
+									>
+										<span className='flex items-center'>
+											<Flame className='w-4 h-4 mr-2 text-yellow-500' />
+											Նշել որպես տոպ հայտարարություն
+										</span>
+									</label>
+								</div>
+
+								<div className='flex items-center'>
+									<input
+										type='checkbox'
+										id='is_urgently'
+										name='is_urgently'
+										checked={formData.is_urgently}
+										onChange={handleInputChange}
+										className='w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500'
+									/>
+									<label
+										htmlFor='is_urgently'
+										className='ml-3 text-sm font-medium text-gray-700'
+									>
+										<span className='flex items-center'>
+											<AlertCircle className='w-4 h-4 mr-2 text-red-500' />
+											Նշել որպես շտապ հայտարարություն
+										</span>
+									</label>
+								</div>
+							</div>
 						</div>
 					</div>
 					{/* Owner Information (Admin Only) */}
@@ -1107,6 +1183,24 @@ export default function AddPropertyPage() {
 										pattern='[0-9]+([.,][0-9]+)?'
 									/>
 								</div>
+								<div>
+									<label className='block text-sm font-medium text-gray-700 mb-2'>
+										Շենքի տեսակ
+									</label>
+									<select
+										name='building_type_id'
+										value={attributes.building_type_id}
+										onChange={handleAttributeChange}
+										className='w-full border border-gray-300 text-gray-700 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+									>
+										<option value=''>Ընտրել շենքի տեսակը</option>
+										{apartmentBuildingTypes.map(type => (
+											<option key={type.id} value={type.id}>
+												{type.name_hy}
+											</option>
+										))}
+									</select>
+								</div>
 							</div>
 						)}
 
@@ -1117,14 +1211,20 @@ export default function AddPropertyPage() {
 									<label className='block text-sm font-medium text-gray-700 mb-2'>
 										Բիզնեսի տեսակը
 									</label>
-									<input
-										type='text'
-										name='business_type'
-										value={attributes.business_type}
+									<select
+										name='business_type_id'
+										value={attributes.business_type_id}
 										onChange={handleAttributeChange}
-										className='w-full border border-gray-300 text-black rounded-lg px-4 py-2'
-										placeholder='e.g., Office, Retail, Warehouse'
-									/>
+										required
+										className='w-full border border-gray-300 text-gray-700 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+									>
+										<option value=''>Ընտրել բիզնեսի տեսակը</option>
+										{commercialBusinessTypes.map(type => (
+											<option key={type.id} value={type.id}>
+												{type.name_hy}
+											</option>
+										))}
+									</select>
 								</div>
 								<div>
 									<label className='block text-sm font-medium text-gray-700 mb-2'>

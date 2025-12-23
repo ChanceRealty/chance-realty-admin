@@ -108,6 +108,8 @@ export async function GET_SINGLE(
 				s.name as state_name,
 				c.name as city_name,
 				d.name as district_name,
+				p.is_top,
+				p.is_urgently,
 				json_build_object('id', s.id, 'name', s.name) as state,
 				json_build_object('id', c.id, 'name', c.name) as city,
 				json_build_object('id', d.id, 'name', d.name) as district,
@@ -127,10 +129,30 @@ export async function GET_SINGLE(
 						'area_sqft', aa.area_sqft,
 						'floor', aa.floor,
 						'total_floors', aa.total_floors,
-						'ceiling_height', aa.ceiling_height
+						'ceiling_height', aa.ceiling_height,
+						'building_type_id', aa.building_type_id,
+						'building_type', CASE 
+							WHEN abt.id IS NOT NULL THEN json_build_object(
+								'id', abt.id,
+								'name_hy', abt.name_hy,
+								'name_en', abt.name_en,
+								'name_ru', abt.name_ru
+							)
+							ELSE NULL
+						END
 					)
 					WHEN p.property_type = 'commercial' THEN json_build_object(
 						'business_type', ca.business_type,
+						'business_type_id', ca.business_type_id,
+						'business_type_info', CASE 
+							WHEN cbt.id IS NOT NULL THEN json_build_object(
+								'id', cbt.id,
+								'name_hy', cbt.name_hy,
+								'name_en', cbt.name_en,
+								'name_ru', cbt.name_ru
+							)
+							ELSE NULL
+						END,
 						'area_sqft', ca.area_sqft,
 						'floors', ca.floors,
 						'ceiling_height', ca.ceiling_height,
@@ -156,6 +178,8 @@ export async function GET_SINGLE(
 			LEFT JOIN apartment_attributes aa ON p.id = aa.property_id AND p.property_type = 'apartment'
 			LEFT JOIN commercial_attributes ca ON p.id = ca.property_id AND p.property_type = 'commercial'
 			LEFT JOIN land_attributes la ON p.id = la.property_id AND p.property_type = 'land'
+			LEFT JOIN apartment_building_types abt ON aa.building_type_id = abt.id AND p.property_type = 'apartment'
+			LEFT JOIN commercial_business_types cbt ON ca.business_type_id = cbt.id AND p.property_type = 'commercial'
 			WHERE p.custom_id = $1 AND ps.is_active = true
 		`
 
