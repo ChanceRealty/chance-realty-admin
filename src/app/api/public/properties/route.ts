@@ -246,11 +246,30 @@ export async function GET(request: Request) {
 		const params: (string | number | number[])[] = [language]
 		let paramIndex = 2 // Start from 2 since language is $1
 
-		if (filter.property_type) {
-			queryText += ` AND p.property_type = $${paramIndex}`
-			params.push(filter.property_type)
-			paramIndex++
-		}
+			const buildingTypeId = searchParams.get('building_type_id')
+			const businessTypeId = searchParams.get('business_type_id')
+
+			// Auto-detect property type from specific filters
+			let effectivePropertyType = filter.property_type
+			if (buildingTypeId && !effectivePropertyType) {
+				effectivePropertyType = 'apartment'
+				console.log(
+					'🏢 Auto-detected property_type=apartment from building_type_id filter'
+				)
+			}
+			if (businessTypeId && !effectivePropertyType) {
+				effectivePropertyType = 'commercial'
+				console.log(
+					'🏪 Auto-detected property_type=commercial from business_type_id filter'
+				)
+			}
+
+			// Apply property type filter
+			if (effectivePropertyType) {
+				queryText += ` AND p.property_type = $${paramIndex}`
+				params.push(effectivePropertyType)
+				paramIndex++
+			}
 
 		if (filter.listing_type) {
 			queryText += ` AND p.listing_type = $${paramIndex}`
@@ -311,20 +330,19 @@ export async function GET(request: Request) {
 			queryText += ` AND p.is_urgently = true`
 		}
 
-		const buildingTypeId = searchParams.get('building_type_id')
-		if (buildingTypeId && filter.property_type === 'apartment') {
+		if (buildingTypeId) {
 			queryText += ` AND aa.building_type_id = $${paramIndex}`
 			params.push(buildingTypeId)
 			paramIndex++
+			console.log(`🏢 Filtering by building_type_id: ${buildingTypeId}`)
 		}
 
-		const businessTypeId = searchParams.get('business_type_id')
-		if (businessTypeId && filter.property_type === 'commercial') {
+		if (businessTypeId) {
 			queryText += ` AND ca.business_type_id = $${paramIndex}`
 			params.push(businessTypeId)
 			paramIndex++
+			console.log(`🏪 Filtering by business_type_id: ${businessTypeId}`)
 		}
-
 		if (
 			filter.bedrooms &&
 			(filter.property_type === 'house' ||
