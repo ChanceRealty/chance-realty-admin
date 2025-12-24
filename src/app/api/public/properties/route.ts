@@ -345,9 +345,9 @@ export async function GET(request: Request) {
 		}
 		if (
 			filter.bedrooms &&
-			(filter.property_type === 'house' ||
-				filter.property_type === 'apartment' ||
-				!filter.property_type)
+			(effectivePropertyType === 'house' ||
+				effectivePropertyType === 'apartment' ||
+				!effectivePropertyType)
 		) {
 			queryText += ` AND (
 				(p.property_type = 'house' AND ha.bedrooms >= $${paramIndex}) OR
@@ -359,9 +359,9 @@ export async function GET(request: Request) {
 
 		if (
 			filter.bathrooms &&
-			(filter.property_type === 'house' ||
-				filter.property_type === 'apartment' ||
-				!filter.property_type)
+			(effectivePropertyType === 'house' ||
+				effectivePropertyType === 'apartment' ||
+				!effectivePropertyType)
 		) {
 			queryText += ` AND (
 				(p.property_type = 'house' AND ha.bathrooms >= $${paramIndex}) OR
