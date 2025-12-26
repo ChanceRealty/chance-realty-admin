@@ -149,6 +149,8 @@ export async function POST(request: Request) {
 					propertyData.has_telegram || false,
 					propertyData.is_hidden || false,
 					propertyData.is_exclusive || false,
+					propertyData.is_top || false,
+					propertyData.is_urgently || false,
 					propertyData.address_admin?.trim() || null,
 					propertyData.url_3d?.trim() || null,
 					translations.title_ru || null,
@@ -157,8 +159,6 @@ export async function POST(request: Request) {
 					translations.description_en || null,
 					translations.title_ru ? 'completed' : 'failed',
 					translations.title_ru ? new Date() : null,
-					propertyData.is_top || false,
-					propertyData.is_urgently || false,
 				]
 			)
 

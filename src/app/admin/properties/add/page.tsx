@@ -527,18 +527,36 @@ export default function AddPropertyPage() {
 	}) => {
 		console.log('🏠 Address selected in add page:', data)
 
+		// ✅ Validate coordinates exist and are valid numbers
+		const hasValidCoordinates =
+			data.coordinates &&
+			typeof data.coordinates.lat === 'number' &&
+			typeof data.coordinates.lon === 'number' &&
+			!isNaN(data.coordinates.lat) &&
+			!isNaN(data.coordinates.lon)
+
+		if (!hasValidCoordinates) {
+			console.warn(
+				'⚠️ No valid coordinates provided for address:',
+				data.address
+			)
+			showWarning(
+				'Հասցեն պահպանվեց առանց կոորդինատների։ Խնդրում ենք ստուգել գտնվելու վայրը։'
+			)
+		}
+
 		setFormData(prev => ({
 			...prev,
-			address: data.address, // ✅ Use the selected/formatted address
-			latitude: data.coordinates?.lat || null, // ✅ Save latitude
-			longitude: data.coordinates?.lon || null, // ✅ Save longitude
+			address: data.address,
+			latitude: hasValidCoordinates ? data.coordinates!.lat : null,
+			longitude: hasValidCoordinates ? data.coordinates!.lon : null,
 		}))
 
-		// Log the update for debugging
 		console.log('📍 Updated form data with coordinates:', {
 			address: data.address,
-			latitude: data.coordinates?.lat,
-			longitude: data.coordinates?.lon,
+			latitude: hasValidCoordinates ? data.coordinates!.lat : null,
+			longitude: hasValidCoordinates ? data.coordinates!.lon : null,
+			hasValidCoordinates,
 		})
 	}
 

@@ -512,21 +512,44 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 		}
 	}
 
-	// Add this function to handle address selection from FallbackAddressInput
-	// Add this handler to edit page
 	const handleAddressSelect = (data: {
 		address: string
 		coordinates: { lat: number; lon: number } | null
 		details?: any
 	}) => {
-		console.log('🏠 Address selected in edit page:', data)
+		console.log('🏠 Address selected in add page:', data)
+
+		// ✅ Validate coordinates exist and are valid numbers
+		const hasValidCoordinates =
+			data.coordinates &&
+			typeof data.coordinates.lat === 'number' &&
+			typeof data.coordinates.lon === 'number' &&
+			!isNaN(data.coordinates.lat) &&
+			!isNaN(data.coordinates.lon)
+
+		if (!hasValidCoordinates) {
+			console.warn(
+				'⚠️ No valid coordinates provided for address:',
+				data.address
+			)
+			showWarning(
+				'Հասցեն պահպանվեց առանց կոորդինատների։ Խնդրում ենք ստուգել գտնվելու վայրը։'
+			)
+		}
 
 		setFormData(prev => ({
 			...prev,
 			address: data.address,
-			latitude: data.coordinates?.lat || null,
-			longitude: data.coordinates?.lon || null,
+			latitude: hasValidCoordinates ? data.coordinates!.lat : null,
+			longitude: hasValidCoordinates ? data.coordinates!.lon : null,
 		}))
+
+		console.log('📍 Updated form data with coordinates:', {
+			address: data.address,
+			latitude: hasValidCoordinates ? data.coordinates!.lat : null,
+			longitude: hasValidCoordinates ? data.coordinates!.lon : null,
+			hasValidCoordinates,
+		})
 	}
 
 	

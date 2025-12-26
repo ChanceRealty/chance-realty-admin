@@ -70,7 +70,6 @@ export async function POST(request: Request) {
 				return getFallbackSuggestions(query)
 			}
 
-			// Transform Yandex response to expected format
 			const suggestions = geoObjects
 				.map((item: any) => {
 					const geoObject = item.GeoObject
@@ -82,10 +81,18 @@ export async function POST(request: Request) {
 					if (formattedAddress && coordinates) {
 						const [lon, lat] = coordinates.split(' ').map(parseFloat)
 
+						if (isNaN(lat) || isNaN(lon)) {
+							console.warn(
+								'⚠️ Invalid coordinates in Yandex response:',
+								coordinates
+							)
+							return null
+						}
+
 						return {
 							name: formattedAddress,
-							lat: lat,
-							lon: lon,
+							lat: lat, 
+							lon: lon, 
 							isYandex: true,
 							originalData: {
 								geo_lat: lat.toString(),
@@ -98,7 +105,7 @@ export async function POST(request: Request) {
 					}
 					return null
 				})
-				.filter(Boolean)
+				.filter(Boolean) // Remove null entries
 
 			return NextResponse.json({
 				suggestions: suggestions,
