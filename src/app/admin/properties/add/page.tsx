@@ -320,8 +320,12 @@ export default function AddPropertyPage() {
 	}
 
 	const handleSubmit = async (e: React.FormEvent) => {
+		e.preventDefault()
+		setLoading(true)
+		setError('')
+
 		const normalizedPrice = Number(
-			String(formData.price).replace(/\s/g, '').replace(/,/g, '')
+			String(formData.price).replace(/\s/g, '').replace(/,/g, ''),
 		)
 
 		if (!Number.isFinite(normalizedPrice) || normalizedPrice <= 0) {
@@ -329,11 +333,6 @@ export default function AddPropertyPage() {
 			setLoading(false)
 			return
 		}
-
-		e.preventDefault()
-		setLoading(true)
-		setError('')
-
 		try {
 
 			let finalCityId = null

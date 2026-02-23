@@ -80,7 +80,6 @@ export async function GET(
 			owner_phone: property.owner_phone
 		})
 
-		// ✅ Fetch attributes with better error handling
 		let attributes = {}
 		console.log(`📊 Fetching ${property.property_type} attributes for property ${id}`)
 		
@@ -152,7 +151,6 @@ export async function GET(
 						console.log('✅ Land attributes found:', attributes)
 					} else {
 						console.log('❌ No land attributes found')
-						// Let's check if the record exists at all
 						const checkLand = await query(`
 							SELECT COUNT(*) as count FROM land_attributes WHERE property_id = $1
 						`, [id])
@@ -167,7 +165,6 @@ export async function GET(
 			console.error('❌ Error fetching attributes:', attributeError)
 		}
 
-		// ✅ Fetch features with better error handling
 		let features: { id: number; name: string; icon: string }[] = []
 		console.log(`🏷️ Fetching features for property ${id}`)
 		
@@ -189,7 +186,6 @@ export async function GET(
 			console.error('❌ Error fetching features:', featureError)
 		}
 
-		// ✅ Fetch media
 		let media: {
 			id: number;
 			file_id: string;
@@ -222,7 +218,6 @@ export async function GET(
 			console.error('❌ Error fetching media:', mediaError)
 		}
 
-		// ✅ CRITICAL: Build response with explicit field mapping
 		const responseData = {
 			// Basic property info
 			id: property.id,
@@ -262,7 +257,6 @@ export async function GET(
 			owner_phone: property.owner_phone,
 			address_admin: property.address_admin || '',
 			
-			// ✅ CRITICAL: Explicitly set social media fields
 			has_viber: Boolean(property.has_viber),
 			has_whatsapp: Boolean(property.has_whatsapp),
 			has_telegram: Boolean(property.has_telegram),
@@ -273,7 +267,6 @@ export async function GET(
 			updated_at: property.updated_at,
 			user_email: property.user_email,
 			
-			// ✅ CRITICAL: Structured data
 			attributes: attributes,
 			features: features,
 			images: media.filter(m => m.type === 'image'),
@@ -281,13 +274,11 @@ export async function GET(
 			media: media,
 		}
 
-		// Final debug log
 		console.log('📤 Final API Response Structure:', {
 			id: responseData.id,
 			custom_id: responseData.custom_id,
 			property_type: responseData.property_type,
 			
-			// Data completeness check
 			hasAttributes: Object.keys(responseData.attributes).length > 0,
 			attributesKeys: Object.keys(responseData.attributes),
 			
@@ -360,7 +351,6 @@ export async function PUT(
 		const propertyData = JSON.parse(formData.get('property') as string)
 		const attributesData = JSON.parse(formData.get('attributes') as string)
 
-		// Get new media files if any
 		const mediaFiles = formData.getAll('media') as File[]
 		const mediaTypes = JSON.parse(
 			(formData.get('mediaTypes') as string) || '[]'
@@ -369,7 +359,6 @@ export async function PUT(
 			(formData.get('primaryMediaIndex') as string) || '0'
 		)
 
-		// ✅ Get existing media order
 		const existingMediaOrderStr = formData.get('existingMediaOrder') as string
 		const existingMediaOrder = existingMediaOrderStr
 			? JSON.parse(existingMediaOrderStr)
@@ -396,7 +385,6 @@ export async function PUT(
 			existingMediaCount: existingMediaOrder.length,
 		})
 
-		// Validate required fields
 		if (!propertyData.title?.trim()) {
 			return NextResponse.json({ error: 'Title is required' }, { status: 400 })
 		}
@@ -409,7 +397,6 @@ export async function PUT(
 		}
 
 			await transaction(async (client) => {
-			// Check if custom_id exists for other properties
 			const existingProperty = await client.query(
 				'SELECT id FROM properties WHERE custom_id = $1 AND id != $2',
 				[propertyData.custom_id, id]
@@ -445,7 +432,6 @@ export async function PUT(
 
 			console.log('💾 Updating property with status ID:', statusId)
 
-			// Update main property including owner details
 			await client.query(
 				`UPDATE properties SET
 					custom_id = $1,
@@ -507,7 +493,6 @@ export async function PUT(
 
 			console.log('✅ Property basic info updated successfully')
 
-			// Update property-specific attributes
 			switch (propertyData.property_type as PropertyType) {
 				case 'house':
 					await client.query(
@@ -588,7 +573,6 @@ export async function PUT(
 					break
 			}
 
-			// Update property features
 			await client.query(
 				'DELETE FROM property_to_features WHERE property_id = $1',
 				[id]
@@ -606,7 +590,6 @@ export async function PUT(
 				}
 			}
 
-			// ✅ STEP 1: Calculate the starting display_order for new media
 			const maxExistingOrder =
 				existingMediaOrder.length > 0
 					? Math.max(...existingMediaOrder.map((m: any) => m.display_order))
@@ -614,7 +597,6 @@ export async function PUT(
 
 			console.log(`📊 Max existing display_order: ${maxExistingOrder}`)
 
-			// ✅ STEP 2: Upload new media files FIRST (if any)
 			const newMediaIds: number[] = []
 
 			if (mediaFiles && mediaFiles.length > 0) {
@@ -625,7 +607,6 @@ export async function PUT(
 					const file = mediaFiles[i]
 					const mediaType = mediaTypes[i] || 'image'
 
-					// Calculate absolute display_order
 					const absoluteDisplayOrder = startingDisplayOrder + i
 
 					console.log(
@@ -635,11 +616,9 @@ export async function PUT(
 					)
 
 					try {
-						// Convert file to buffer
 						const arrayBuffer = await file.arrayBuffer()
 						const buffer = Buffer.from(arrayBuffer)
 
-						// Upload to ImageKit
 						const uploadResponse = await uploadToImageKit(
 							buffer,
 							file.name,
@@ -658,7 +637,6 @@ export async function PUT(
 							}
 						}
 
-						// Save media info to database with absolute display_order
 						const mediaResult = await client.query(
 							`INSERT INTO property_media (
 								property_id, file_id, url, thumbnail_url, type, is_primary, display_order
@@ -682,21 +660,17 @@ export async function PUT(
 						)
 					} catch (uploadError) {
 						console.error(`❌ Failed to upload ${file.name}:`, uploadError)
-						// Continue with other files rather than failing the entire update
 					}
 				}
 			}
 
-			// ✅ STEP 3: Update existing media display_order and is_primary
 			console.log('📝 Updating existing media display orders...')
 
-			// First, unset all is_primary flags
 			await client.query(
 				'UPDATE property_media SET is_primary = false WHERE property_id = $1 AND type = $2',
 				[id, 'image']
 			)
 
-			// Then update each existing media item's display_order and is_primary
 			for (const mediaItem of existingMediaOrder) {
 
 				await client.query(
@@ -731,8 +705,6 @@ export async function PUT(
 				)
 			}
 
-			// Commit transaction
-			await client.query('COMMIT')
 		})
 
 		return NextResponse.json({
@@ -829,10 +801,8 @@ export async function DELETE(
 			}
 
 			console.log(`✅ Successfully deleted property ID: ${id}`)
-			// ❌ DON'T return NextResponse here - it's inside the transaction
 		})
 
-		// ✅ Return the response AFTER the transaction completes
 		return NextResponse.json({
 			success: true,
 			message: 'Property deleted successfully',

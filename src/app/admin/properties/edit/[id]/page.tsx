@@ -555,8 +555,12 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 	
 
 	const handleSubmit = async (e: React.FormEvent) => {
+		e.preventDefault()
+		setSaving(true)
+		setError('')
+
 		const normalizedPrice = Number(
-			String(formData.price).replace(/\s/g, '').replace(/,/g, '')
+			String(formData.price).replace(/\s/g, '').replace(/,/g, ''),
 		)
 
 		if (!Number.isFinite(normalizedPrice)) {
@@ -564,10 +568,6 @@ export default function EditPropertyPage({ params }: PropertyEditPageProps) {
 			return
 		}
 		
-		e.preventDefault()
-		setSaving(true)
-		setError('')
-
 		try {
 			console.log('📝 Form data before submit:', {
 				state_id: formData.state_id,

@@ -23,11 +23,30 @@ export default function MediaUploadIntegrated({
 	const [fileTypes, setFileTypes] = useState<string[]>([])
 	const [previews, setPreviews] = useState<string[]>([])
 	const [primaryIndex, setPrimaryIndex] = useState(0)
+	const [fileIds, setFileIds] = useState<string[]>([])
 	const [error, setError] = useState('')
 	const [dragActive, setDragActive] = useState(false)
 	const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
 	const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
 	const fileInputRef = useRef<HTMLInputElement>(null)
+	  const filesRef = useRef<File[]>([])
+		const fileTypesRef = useRef<string[]>([])
+		const previewsRef = useRef<string[]>([])
+		const fileIdsRef = useRef<string[]>([])
+
+		// Keep refs in sync
+		useEffect(() => {
+			filesRef.current = files
+		}, [files])
+		useEffect(() => {
+			fileTypesRef.current = fileTypes
+		}, [fileTypes])
+		useEffect(() => {
+			previewsRef.current = previews
+		}, [previews])
+		useEffect(() => {
+			fileIdsRef.current = fileIds
+		}, [fileIds])
 
 	// Cleanup function to revoke all blob URLs
 	const cleanupPreviews = (urlsToCleanup: string[]) => {
@@ -76,6 +95,7 @@ export default function MediaUploadIntegrated({
 		const validFiles: File[] = []
 		const validTypes: string[] = []
 		const newPreviews: string[] = []
+		const newFileIds: string[] = [] 
 		let errorMessage = ''
 
 		// Process each file
@@ -90,6 +110,7 @@ export default function MediaUploadIntegrated({
 				validFiles.push(file)
 				validTypes.push('image')
 				newPreviews.push(URL.createObjectURL(file))
+				newFileIds.push(crypto.randomUUID())
 			} else if (file.type.startsWith('video/')) {
 				// Check video size (100MB limit for videos)
 				if (file.size > 100 * 1024 * 1024) {
@@ -99,6 +120,7 @@ export default function MediaUploadIntegrated({
 				validFiles.push(file)
 				validTypes.push('video')
 				newPreviews.push(URL.createObjectURL(file))
+				newFileIds.push(crypto.randomUUID()) 
 			} else {
 				errorMessage = `File "${file.name}" is not a supported image or video format`
 			}
@@ -106,58 +128,55 @@ export default function MediaUploadIntegrated({
 
 		if (errorMessage) {
 			setError(errorMessage)
-			// Clean up newly created URLs on error
 			cleanupPreviews(newPreviews)
 			return
 		}
 
 		if (validFiles.length > 0) {
-			// Append to existing files
 			const updatedFiles = [...files, ...validFiles]
 			const updatedTypes = [...fileTypes, ...validTypes]
 			const updatedPreviews = [...previews, ...newPreviews]
+			const updatedIds = [...fileIdsRef.current, ...newFileIds]
 
 			setFiles(updatedFiles)
 			setFileTypes(updatedTypes)
 			setPreviews(updatedPreviews)
-
-			let newPrimaryIndex = 0 // всегда первый загруженный становится primary
+			setFileIds(updatedIds)
+			let newPrimaryIndex = 0 
 
 			setPrimaryIndex(newPrimaryIndex)
 			onMediaChange(updatedFiles, updatedTypes, newPrimaryIndex)
 		}
 	}
 
-	const handleRemove = (index: number) => {
-		// Revoke the specific object URL to prevent memory leaks
-		const urlToRevoke = previews[index]
-		if (urlToRevoke && urlToRevoke.startsWith('blob:')) {
+	const handleRemove = (id: string) => {
+		// ← takes ID now, not index
+		const currentIds = fileIdsRef.current
+		const currentFiles = filesRef.current
+		const currentTypes = fileTypesRef.current
+		const currentPreviews = previewsRef.current
+
+		const index = currentIds.indexOf(id)
+		if (index === -1) return // already removed or not found
+
+		// Revoke the blob URL to free memory
+		const urlToRevoke = currentPreviews[index]
+		if (urlToRevoke?.startsWith('blob:')) {
 			URL.revokeObjectURL(urlToRevoke)
 		}
 
-		// Create new arrays without the removed item
-		const updatedFiles = files.filter((_, i) => i !== index)
-		const updatedTypes = fileTypes.filter((_, i) => i !== index)
-		const updatedPreviews = previews.filter((_, i) => i !== index)
+		const updatedFiles = currentFiles.filter((_, i) => i !== index)
+		const updatedTypes = currentTypes.filter((_, i) => i !== index)
+		const updatedPreviews = currentPreviews.filter((_, i) => i !== index)
+		const updatedIds = currentIds.filter((_, i) => i !== index)
 
-		// Update state
 		setFiles(updatedFiles)
 		setFileTypes(updatedTypes)
 		setPreviews(updatedPreviews)
+		setFileIds(updatedIds)
 
-		// Adjust primary index if needed
-		let newPrimaryIndex = primaryIndex
-		if (primaryIndex === index) {
-			// Find the first image in the remaining files
-			const firstImageIndex = updatedTypes.findIndex(type => type === 'image')
-			newPrimaryIndex = firstImageIndex >= 0 ? firstImageIndex : 0
-		} else if (primaryIndex > index) {
-			newPrimaryIndex = primaryIndex - 1
-		}
-
+		const newPrimaryIndex = 0
 		setPrimaryIndex(newPrimaryIndex)
-
-		// Notify parent component about change
 		onMediaChange(updatedFiles, updatedTypes, newPrimaryIndex)
 	}
 
@@ -174,6 +193,7 @@ export default function MediaUploadIntegrated({
 		setFiles([])
 		setFileTypes([])
 		setPreviews([])
+		setFileIds([]) // ← ADD THIS
 		setPrimaryIndex(0)
 		setError('')
 		onMediaChange([], [], 0)
@@ -314,7 +334,7 @@ export default function MediaUploadIntegrated({
 					<div className='grid grid-cols-2 md:grid-cols-4 gap-4'>
 						{previews.map((preview, index) => (
 							<div
-								key={`${index}-${files[index]?.name}`}
+								key={fileIds[index]}
 								className={`relative group rounded-lg overflow-hidden cursor-move transition-all ${
 									draggedIndex === index ? 'opacity-50 scale-95' : ''
 								} ${
@@ -377,7 +397,7 @@ export default function MediaUploadIntegrated({
 								<div className='absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-80 transition-opacity flex items-center justify-center gap-2'>
 									<button
 										type='button'
-										onClick={() => handleRemove(index)}
+										onClick={() => handleRemove(fileIds[index])}
 										className='p-2 bg-red-600 text-white rounded-full hover:bg-red-700'
 										title='Remove media'
 									>

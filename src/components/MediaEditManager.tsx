@@ -54,7 +54,6 @@ export default function MediaEditManager({
 	const [isUpdatingFromDrop, setIsUpdatingFromDrop] = useState(false)
 	const fileInputRef = useRef<HTMLInputElement>(null)
 
-	// 🔹 Generate video thumbnail
 	const generateVideoThumbnail = async (videoFile: File): Promise<string> => {
 		return new Promise(resolve => {
 			const video = document.createElement('video')
@@ -111,7 +110,6 @@ export default function MediaEditManager({
 		})
 	}
 
-	// ✅ FIX: Properly normalize combined state with correct display_order
 	const normalizeCombinedState = (
 		items: CombinedMediaItem[]
 	): CombinedMediaItem[] => {
@@ -123,11 +121,9 @@ export default function MediaEditManager({
 	}
 
 	useEffect(() => {
-		// Не обновляем, если идёт перетаскивание
 		if (isUpdatingFromDrop) return
 
 		setCombinedMediaState(prev => {
-			// Если предыдущего состояния нет, создаём его
 			if (prev.length === 0) {
 				const combined: CombinedMediaItem[] = [
 					...existingMedia.map(m => ({ ...m, isNew: false })),
@@ -179,7 +175,6 @@ export default function MediaEditManager({
 
 	useEffect(() => () => cleanupPreviews(newPreviews), [])
 
-	// 🔹 Handle new files
 	const handleFiles = async (files: File[]) => {
 		const validFiles: File[] = []
 		const validTypes: string[] = []
@@ -233,7 +228,6 @@ export default function MediaEditManager({
 		setNewPreviews(updatedPreviews)
 		setNewIds(updatedIds)
 
-		// ✅ Find first image for primary
 		let primaryIndex = 0
 		const allMedia = [
 			...existingMedia,
@@ -249,14 +243,12 @@ export default function MediaEditManager({
 		onNewMediaChange(updatedFiles, updatedTypes, primaryIndex)
 	}
 
-	// 🔹 Delete media
 	const handleDeleteMedia = (index: number) => {
 		console.log('🗑️ Deleting media at index:', index)
 
 		const mediaItem = combinedMediaState[index]
 
 		if (mediaItem.isNew) {
-			// Определяем индекс файла в массиве новых файлов
 			const newFileIndex = combinedMediaState
 				.slice(0, index)
 				.filter(i => i.isNew).length
@@ -273,18 +265,15 @@ export default function MediaEditManager({
 			setNewPreviews(updatedPreviews)
 			setNewIds(updatedIds)
 
-			// Обновляем combinedMediaState сразу
 			setCombinedMediaState(prev =>
 				prev.filter(item => item.id !== mediaItem.id)
 			)
 
-			// Обновляем внешний обработчик
 			onNewMediaChange(updatedFiles, updatedTypes, 0)
 		} else {
 			console.log('🗑️ Deleting existing media with ID:', mediaItem.id)
 			onDeleteExisting(mediaItem.id as number)
 
-			// Также удаляем из combinedMediaState, чтобы исчезло из UI
 			setCombinedMediaState(prev =>
 				prev.filter(item => item.id !== mediaItem.id)
 			)
@@ -292,7 +281,6 @@ export default function MediaEditManager({
 	}
 
 
-	// 🔹 Drag'n'drop
 	const handleDragStart = (e: React.DragEvent, index: number) => {
 		setDraggedIndex(index)
 		e.dataTransfer.effectAllowed = 'move'
@@ -313,16 +301,14 @@ export default function MediaEditManager({
 		const [draggedItem] = reordered.splice(draggedIndex, 1)
 		reordered.splice(index, 0, draggedItem)
 
-		// ✅ Пересчитываем порядок и главный элемент
 		const normalized = reordered.map((item, idx) => ({
 			...item,
 			display_order: idx,
-			is_primary: idx === 0 && item.type === 'image', // первый image — главный
+			is_primary: idx === 0 && item.type === 'image', 
 		}))
 
 		setCombinedMediaState(normalized)
 
-		// ✅ Разделяем на существующие и новые
 		const updatedExisting: ExistingMedia[] = []
 		const updatedNewFiles: File[] = []
 		const updatedNewTypes: string[] = []
@@ -347,7 +333,6 @@ export default function MediaEditManager({
 			}
 		})
 
-		// ✅ Новый главный индекс (первый image среди новых)
 		let newPrimaryIndex = -1
 		let newImageCounter = 0
 		for (let i = 0; i < normalized.length; i++) {
