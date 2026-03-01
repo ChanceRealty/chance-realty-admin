@@ -28,6 +28,7 @@ import {
 	EyeOff,
 	Flame,
 	AlertCircle,
+	Clapperboard,
 } from 'lucide-react'
 import { useToast } from '@/hooks/useToast'
 import { useRouter } from 'next/navigation'
@@ -599,13 +600,25 @@ export default function AdminDashboard() {
 							Գլխավոր
 						</h1>
 					</div>
-					<Link
-						href='/admin/properties/add'
-						className='inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors w-full sm:w-auto justify-center'
-					>
-						<Plus className='w-5 h-5 mr-2' />
-						Ավելացնել
-					</Link>
+
+					{/* Группа кнопок */}
+					<div className='flex gap-2 w-full sm:w-auto'>
+						<Link
+							href='/admin/ads'
+							className='inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors justify-center'
+						>
+							<Clapperboard className='w-5 h-5 mr-2' />
+							Տեսահոլովակներ
+						</Link>
+
+						<Link
+							href='/admin/properties/add'
+							className='inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors justify-center'
+						>
+							<Plus className='w-5 h-5 mr-2' />
+							Ավելացնել
+						</Link>
+					</div>
 				</div>
 
 				{/* Stats Grid */}
@@ -1034,7 +1047,7 @@ export default function AdminDashboard() {
 														setShowMobileActions(
 															showMobileActions === property.id
 																? null
-																: property.id
+																: property.id,
 														)
 													}
 													className='p-2 hover:bg-gray-100 rounded-lg'
@@ -1053,7 +1066,7 @@ export default function AdminDashboard() {
 														<button
 															onClick={() => {
 																router.push(
-																	`/admin/properties/edit/${property.id}`
+																	`/admin/properties/edit/${property.id}`,
 																)
 																setShowMobileActions(null)
 															}}
@@ -1098,7 +1111,7 @@ export default function AdminDashboard() {
 												<div className='mt-1'>
 													<span
 														className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(
-															property.status_name || ''
+															property.status_name || '',
 														)}`}
 													>
 														{statusNameDisplay[property.status_name] ||
@@ -1360,13 +1373,12 @@ export default function AdminDashboard() {
 																Տոպ
 															</span>
 														)}
-														{!property.is_hidden &&
-													  (
-																<span className='inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800'>
-																	<Eye className='w-3 h-3 mr-1' />
-																	Հանրային
-																</span>
-															)}
+														{!property.is_hidden && (
+															<span className='inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800'>
+																<Eye className='w-3 h-3 mr-1' />
+																Հանրային
+															</span>
+														)}
 													</div>
 												</td>
 												<td className='px-6 py-4 whitespace-nowrap'>
@@ -1398,7 +1410,7 @@ export default function AdminDashboard() {
 												<td className='px-6 py-4 whitespace-nowrap'>
 													<span
 														className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(
-															property.status_name || ''
+															property.status_name || '',
 														)}`}
 													>
 														{statusNameDisplay[property.status_name] ||
@@ -1416,7 +1428,6 @@ export default function AdminDashboard() {
 													<div className='flex space-x-2'>
 														<Link
 															href={`/admin/properties/edit/${property.id}`}
-															target='_blank'
 															rel='noopener noreferrer'
 															onClick={e => e.stopPropagation()}
 															className='text-indigo-600 hover:text-indigo-900 disabled:opacity-50'

@@ -6,6 +6,9 @@ const nextConfig: NextConfig = {
 	},
 	experimental: {
 		workerThreads: false,
+		serverActions: {
+			bodySizeLimit: '200mb',
+		},
 	},
 	images: {
 		minimumCacheTTL: 60,
@@ -13,7 +16,7 @@ const nextConfig: NextConfig = {
 		unoptimized: process.env.NODE_ENV === 'development',
 	},
 	turbopack: {},
-	webpack: (config, { dev }) => {
+	webpack: config => {
 		return config
 	},
 	devIndicators: {},

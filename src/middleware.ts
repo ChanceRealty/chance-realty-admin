@@ -35,17 +35,16 @@ export async function middleware(request: NextRequest) {
 		response.headers.set('Access-Control-Allow-Origin', allowOrigin)
 		response.headers.set(
 			'Access-Control-Allow-Methods',
-			'GET, POST, PUT, DELETE, OPTIONS'
+			'GET, POST, PUT, DELETE, OPTIONS',
 		)
 		response.headers.set(
 			'Access-Control-Allow-Headers',
-			'Content-Type, Authorization'
+			'Content-Type, Authorization',
 		)
 
 		// Continue with the response
 		return response
 	}
-
 
 	const token = request.cookies.get('token')?.value
 	console.log('Middleware: Token exists?', !!token)
@@ -92,6 +91,6 @@ export async function middleware(request: NextRequest) {
 export const config = {
 	matcher: [
 		'/admin/:path*',
-		'/api/:path*', // Add API routes to the matcher
+		'/api/((?!admin/ad-videos).+)', // matches all /api/* EXCEPT /api/admin/ad-videos
 	],
 }
